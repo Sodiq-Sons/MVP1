@@ -80,7 +80,7 @@ const BellIcon = () => (
         stroke="white"
         strokeWidth="2"
         strokeLinecap="round"
-        className="w-5 h-5 md:stroke-[#E8611A]"
+        className="w-5 h-5 md:stroke-[#F97316]"
     >
         <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
         <path d="M13.73 21a2 2 0 01-3.46 0" />
@@ -260,7 +260,7 @@ function IssueCard({ issue }) {
     };
 
     return (
-        <div className="issue-card bg-white rounded-2xl p-4 shadow-card border border-gray-50">
+        <div className="issue-card bg-white rounded-2xl p-4 shadow-card border border-[#FED7AA]">
             {/* Header row */}
             <div className="flex items-center justify-between mb-2.5">
                 <span
@@ -298,7 +298,7 @@ function IssueCard({ issue }) {
                 <div className="shrink-0">
                     <button
                         onClick={handleUpvote}
-                        className={`upvote-btn flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all ${
+                        className={`upvote-btn flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer ${
                             upvoted
                                 ? "border-green-500 bg-green-50"
                                 : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50"
@@ -327,7 +327,7 @@ function IssueCard({ issue }) {
                     {/* Status */}
                     <StatusBadge status={issue.status} />
                 </div>
-                <button className="flex items-center gap-1.5 text-gray-400 hover:text-gray-600 transition-colors">
+                <button className="flex items-center gap-1.5 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
                     <CommentIcon />
                     <span
                         className="text-xs"
@@ -387,10 +387,10 @@ export default function HomePage() {
     return (
         <div
             className="min-h-screen pb-24 md:pb-0"
-            style={{ background: "#F5F0EB" }}
+            style={{ background: "#FDF6EF" }}
         >
             {/* ── TOP HEADER (mobile only) ── */}
-            <header className="md:hidden sticky top-0 z-40 bg-[#E8611A] px-4 pt-6 pb-4">
+            <header className="md:hidden sticky top-0 z-40 bg-[#F97316] px-4 pt-6 pb-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
@@ -408,7 +408,7 @@ export default function HomePage() {
                     <div className="flex items-center gap-2">
                         <button className="relative w-9 h-9 flex items-center justify-center cursor-pointer">
                             <BellIcon />
-                            <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-white text-[#E8611A] text-[9px] font-bold rounded-full flex items-center justify-center">
+                            <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-white text-[#F97316] text-[9px] font-bold rounded-full flex items-center justify-center">
                                 3
                             </span>
                         </button>
@@ -437,7 +437,7 @@ export default function HomePage() {
                 <div className="flex items-center gap-3">
                     <button className="relative w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer">
                         <BellIcon />
-                        <span className="absolute top-1 right-1 w-4 h-4 bg-[#E8611A] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                        <span className="absolute top-1 right-1 w-4 h-4 bg-[#F97316] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                             3
                         </span>
                     </button>
@@ -501,7 +501,7 @@ export default function HomePage() {
                     <div className="ml-auto flex gap-6 text-center">
                         <div>
                             <div
-                                className="text-lg font-bold text-[#E8611A]"
+                                className="text-lg font-bold text-[#F97316]"
                                 style={{
                                     fontFamily: "Plus Jakarta Sans, sans-serif",
                                 }}
@@ -536,11 +536,11 @@ export default function HomePage() {
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search issues, communities..."
-                        className="w-full bg-white rounded-xl pl-9 pr-4 py-3 text-sm text-gray-700 placeholder-gray-400 border border-gray-100 shadow-card focus:outline-none focus:ring-2 focus:ring-[#E8611A]/20 focus:border-[#E8611A]/40 transition-all"
+                        className="w-full bg-white rounded-xl pl-9 pr-4 py-3 text-sm text-black placeholder-gray-400 border border-gray-100 shadow-card focus:outline-none focus:ring-2 focus:ring-[#F97316]/20 focus:border-[#F97316]/40 transition-all"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     />
                 </div>
-                <button className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shadow-card border border-gray-100 hover:bg-gray-50 transition-colors text-gray-500 shrink-0 self-center cursor-pointer">
+                <button className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shadow-card border border-gray-100 hover:bg-gray-50 transition-colors text-black shrink-0 self-center cursor-pointer">
                     <FilterIcon />
                 </button>
             </div>
@@ -554,8 +554,8 @@ export default function HomePage() {
                             onClick={() => setActiveFilter(f.key)}
                             className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${
                                 activeFilter === f.key
-                                    ? "bg-[#E8611A] text-white shadow-sm"
-                                    : "bg-white text-gray-600 border border-gray-200 hover:border-[#E8611A]/40 hover:text-[#E8611A]"
+                                    ? "bg-[#F97316] text-white shadow-sm"
+                                    : "bg-white text-black border border-gray-200 hover:border-[#F97316]/40 hover:text-[#F97316]"
                             }`}
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
@@ -590,7 +590,7 @@ export default function HomePage() {
             {/* ── FLOATING POST BUTTON (mobile only) ── */}
             <Link
                 href="/create-issue"
-                className="md:hidden fixed bottom-20 right-4 flex items-center gap-2 bg-[#E8611A] text-white px-5 py-3.5 rounded-2xl font-bold text-sm shadow-lg hover:bg-[#C2410C] transition-colors"
+                className="md:hidden fixed bottom-20 right-4 flex items-center gap-2 bg-[#EA580C] text-white px-5 py-3.5 rounded-2xl font-bold text-sm shadow-lg hover:bg-[#C2410C] transition-colors"
                 style={{
                     fontFamily: "DM Sans, sans-serif",
                     boxShadow: "0 4px 20px rgba(232,97,26,0.45)",

@@ -9,8 +9,8 @@ import { usePathname } from "next/navigation";
 const HomeIcon = ({ active }) => (
     <svg
         viewBox="0 0 24 24"
-        fill={active ? "#E8611A" : "none"}
-        stroke={active ? "#E8611A" : "currentColor"}
+        fill={active ? "#F97316" : "none"}
+        stroke={active ? "#F97316" : "currentColor"}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -25,7 +25,7 @@ const TrendingIcon = ({ active }) => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
-        stroke={active ? "#E8611A" : "currentColor"}
+        stroke={active ? "#F97316" : "currentColor"}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -55,7 +55,7 @@ const ActivityIcon = ({ active }) => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
-        stroke={active ? "#E8611A" : "currentColor"}
+        stroke={active ? "#F97316" : "currentColor"}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -68,7 +68,7 @@ const ActivityIcon = ({ active }) => (
                 cx="18"
                 cy="5"
                 r="3"
-                fill="#E8611A"
+                fill="#F97316"
                 stroke="white"
                 strokeWidth="1.5"
             />
@@ -79,8 +79,8 @@ const ActivityIcon = ({ active }) => (
 const ProfileIcon = ({ active }) => (
     <svg
         viewBox="0 0 24 24"
-        fill={active ? "#E8611A" : "none"}
-        stroke={active ? "#E8611A" : "currentColor"}
+        fill={active ? "#F97316" : "none"}
+        stroke={active ? "#F97316" : "currentColor"}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -143,7 +143,7 @@ export default function Navbar() {
             >
                 {/* ── Brand ── */}
                 <div
-                    className="relative flex items-center gap-3 bg-[#E8611A] overflow-hidden shrink-0"
+                    className="relative flex items-center gap-3 bg-[#F97316] overflow-hidden shrink-0"
                     style={{
                         padding: collapsed ? "18px 0" : "18px 16px",
                         justifyContent: collapsed ? "center" : "flex-start",
@@ -188,7 +188,7 @@ export default function Navbar() {
                     aria-label={
                         collapsed ? "Expand sidebar" : "Collapse sidebar"
                     }
-                    className="absolute flex items-center justify-center bg-white border border-gray-200 rounded-full text-gray-400 hover:text-[#E8611A] hover:border-[#E8611A]/40 transition-all duration-200 hover:shadow-sm cursor-pointer"
+                    className="absolute flex items-center justify-center bg-white border border-gray-200 rounded-full text-gray-400 hover:text-[#F97316] hover:border-[#F97316]/40 transition-all duration-200 hover:shadow-sm cursor-pointer"
                     style={{
                         width: 24,
                         height: 24,
@@ -217,7 +217,7 @@ export default function Navbar() {
                                     key={href}
                                     href={href}
                                     title={collapsed ? label : undefined}
-                                    className="flex items-center rounded-xl bg-[#E8611A] hover:bg-[#D45516] active:bg-[#C2410C] transition-colors mt-1 mb-0.5 group"
+                                    className="flex items-center rounded-xl bg-[#F97316] hover:bg-[#D45516] active:bg-[#C2410C] transition-colors mt-1 mb-0.5 group"
                                     style={{
                                         gap: collapsed ? 0 : 10,
                                         padding: collapsed
@@ -254,7 +254,7 @@ export default function Navbar() {
                                 title={collapsed ? label : undefined}
                                 className={`flex items-center rounded-xl transition-all duration-150 group ${
                                     active
-                                        ? "bg-[#FFF4EE] text-[#E8611A]"
+                                        ? "bg-[#FFF4EE] text-[#F97316]"
                                         : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
                                 }`}
                                 style={{
@@ -266,7 +266,7 @@ export default function Navbar() {
                                 }}
                             >
                                 <div
-                                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors cursor-pointer ${active ? "bg-[#E8611A]/10" : "group-hover:bg-gray-100/80"}`}
+                                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors cursor-pointer ${active ? "bg-[#F97316]/10" : "group-hover:bg-gray-100/80"}`}
                                 >
                                     {Icon && <Icon active={active} />}
                                 </div>
@@ -283,14 +283,14 @@ export default function Navbar() {
                                             {label}
                                         </span>
                                         {active && (
-                                            <div className="w-1 h-4 bg-[#E8611A] rounded-full shrink-0" />
+                                            <div className="w-1 h-4 bg-[#F97316] rounded-full shrink-0" />
                                         )}
                                     </>
                                 )}
 
                                 {/* Collapsed active dot */}
                                 {collapsed && active && (
-                                    <div className="absolute right-2 w-1 h-4 bg-[#E8611A] rounded-full" />
+                                    <div className="absolute right-2 w-1 h-4 bg-[#F97316] rounded-full" />
                                 )}
                             </Link>
                         );
@@ -369,7 +369,7 @@ export default function Navbar() {
                                     aria-label="Post Issue"
                                 >
                                     <div
-                                        className="bg-[#E8611A] rounded-4.5 flex items-center justify-center active:scale-95 transition-transform rounded-full"
+                                        className="bg-[#F97316] rounded-4.5 flex items-center justify-center active:scale-95 transition-transform rounded-full"
                                         style={{
                                             width: 50,
                                             height: 50,
@@ -392,14 +392,14 @@ export default function Navbar() {
                                 <div
                                     className={
                                         active
-                                            ? "text-[#E8611A]"
+                                            ? "text-[#F97316]"
                                             : "text-gray-400"
                                     }
                                 >
                                     {Icon && <Icon active={active} />}
                                 </div>
                                 <span
-                                    className={`text-[9.5px] font-semibold tracking-wide leading-none ${active ? "text-[#E8611A]" : "text-gray-400"}`}
+                                    className={`text-[9.5px] font-semibold tracking-wide leading-none ${active ? "text-[#F97316]" : "text-gray-400"}`}
                                     style={{
                                         fontFamily: "DM Sans, sans-serif",
                                     }}

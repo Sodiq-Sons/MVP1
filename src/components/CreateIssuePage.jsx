@@ -21,7 +21,7 @@ const PenIcon = () => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
-        stroke="#9CA3AF"
+        stroke="#000000"
         strokeWidth="1.5"
         strokeLinecap="round"
         className="w-4 h-4"
@@ -35,7 +35,7 @@ const DescIcon = () => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
-        stroke="#9CA3AF"
+        stroke="#000000"
         strokeWidth="1.5"
         strokeLinecap="round"
         className="w-4 h-4"
@@ -51,7 +51,7 @@ const LocationIcon = () => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
-        stroke="#9CA3AF"
+        stroke="#000000"
         strokeWidth="1.5"
         strokeLinecap="round"
         className="w-4 h-4"
@@ -65,7 +65,7 @@ const CategoryIcon = () => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
-        stroke="#9CA3AF"
+        stroke="#000000"
         strokeWidth="1.5"
         strokeLinecap="round"
         className="w-4 h-4"
@@ -167,6 +167,7 @@ const states = [
     "Taraba",
     "Yobe",
     "Zamfara",
+    "F.C.T (Abuja)",
 ];
 
 export default function CreateIssuePage() {
@@ -191,7 +192,7 @@ export default function CreateIssuePage() {
 
     if (submitted) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-[#F5F0EB] p-6 text-center pb-24 md:pb-0">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#FDF6EF] p-6 text-center pb-24 md:pb-0">
                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4 animate-bounce">
                     <span className="text-4xl">✅</span>
                 </div>
@@ -202,7 +203,7 @@ export default function CreateIssuePage() {
                     Issue Submitted!
                 </h2>
                 <p
-                    className="text-gray-500 text-sm"
+                    className="text-gray-500 text-md"
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
                     Your voice matters. Redirecting you home...
@@ -212,9 +213,9 @@ export default function CreateIssuePage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#F5F0EB] pb-24 md:pb-8">
+        <div className="min-h-screen bg-[#FDF6EF] pb-24 md:pb-8">
             {/* Header */}
-            <header className="sticky top-0 z-40 bg-[#E8611A] px-4 pt-12 md:pt-4 pb-4 md:rounded-none">
+            <header className="sticky top-0 z-40 bg-[#F97316] px-4 pt-6 md:pt-4 pb-4 md:rounded-none">
                 <div className="flex items-center gap-3 max-w-2xl mx-auto">
                     <button
                         onClick={() => router.back()}
@@ -243,14 +244,14 @@ export default function CreateIssuePage() {
                     >
                         Your Voice Matters!
                     </h2>
-                    <p
-                        className="text-gray-500 text-sm text-center mt-1 max-w-xs"
+                    <span
+                        className="text-gray-500 text-md text-center mt-1 max-w-xs inline-flex items-center justify-center"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     >
                         Report issues in your community.
                         <br />
-                        Let&apos;s make Nigeria better — together 🇳🇬
-                    </p>
+                        Let&apos;s make Nigeria better — together
+                    </span>
                 </div>
 
                 {/* Form card */}
@@ -263,7 +264,7 @@ export default function CreateIssuePage() {
                             </div>
                             <div className="flex-1">
                                 <label
-                                    className="block text-xs font-semibold text-gray-700 mb-1"
+                                    className="block text-md font-medium text-black mb-1"
                                     style={{
                                         fontFamily: "DM Sans, sans-serif",
                                     }}
@@ -275,7 +276,7 @@ export default function CreateIssuePage() {
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
                                     placeholder="e.g. Bad road, No water, School problem"
-                                    className="w-full text-sm text-gray-700 placeholder-gray-300 focus:outline-none bg-transparent"
+                                    className="w-full text-md text-black placeholder-gray-350 focus:outline-none bg-transparent"
                                     style={{
                                         fontFamily: "DM Sans, sans-serif",
                                     }}
@@ -292,7 +293,7 @@ export default function CreateIssuePage() {
                             </div>
                             <div className="flex-1">
                                 <label
-                                    className="block text-xs font-semibold text-gray-700 mb-1"
+                                    className="block text-md font-medium text-black mb-1"
                                     style={{
                                         fontFamily: "DM Sans, sans-serif",
                                     }}
@@ -306,7 +307,7 @@ export default function CreateIssuePage() {
                                     }
                                     placeholder="Tell us what's happening..."
                                     rows={4}
-                                    className="w-full text-sm text-gray-700 placeholder-gray-300 focus:outline-none bg-transparent resize-none"
+                                    className="w-full text-md text-black placeholder-gray-350 focus:outline-none bg-transparent resize-none"
                                     style={{
                                         fontFamily: "DM Sans, sans-serif",
                                     }}
@@ -318,20 +319,20 @@ export default function CreateIssuePage() {
                     {/* Location */}
                     <button
                         onClick={() => setShowLocationModal(true)}
-                        className="w-full px-4 pt-3 pb-3 border-b border-gray-50 flex items-center gap-3 hover:bg-gray-50/50 transition-colors text-left"
+                        className="w-full px-4 pt-3 pb-3 border-b border-gray-50 flex items-center gap-3 hover:bg-gray-50/50 transition-colors text-left cursor-pointer"
                     >
                         <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
                             <LocationIcon />
                         </div>
                         <div className="flex-1">
                             <div
-                                className="text-xs font-semibold text-gray-700 mb-0.5"
+                                className="text-md font-medium text-black mb-0.5"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
                                 Location
                             </div>
                             <div
-                                className={`text-sm ${location ? "text-gray-800" : "text-gray-300"}`}
+                                className={`text-md cursor-pointer ${location ? "text-gray-800" : "text-gray-400"}`}
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
                                 {location || "Select state / LGA / Area"}
@@ -343,20 +344,20 @@ export default function CreateIssuePage() {
                     {/* Category */}
                     <button
                         onClick={() => setShowCategoryModal(true)}
-                        className="w-full px-4 pt-3 pb-4 flex items-center gap-3 hover:bg-gray-50/50 transition-colors text-left"
+                        className="w-full px-4 pt-3 pb-4 flex items-center gap-3 hover:bg-gray-50/50 transition-colors text-left cursor-pointer"
                     >
                         <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
                             <CategoryIcon />
                         </div>
                         <div className="flex-1">
                             <div
-                                className="text-xs font-semibold text-gray-700 mb-0.5"
+                                className="text-md font-medium text-black mb-0.5"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
                                 Category
                             </div>
                             <div
-                                className={`text-sm ${category ? "text-gray-800" : "text-gray-300"}`}
+                                className={`text-md cursor-pointer ${category ? "text-gray-800" : "text-gray-400"}`}
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
                                 {selectedCategory
@@ -384,7 +385,7 @@ export default function CreateIssuePage() {
                     disabled={!title.trim()}
                     className={`w-full mt-5 py-4 rounded-2xl font-bold text-white text-base flex items-center justify-center gap-2 transition-all ${
                         title.trim()
-                            ? "bg-[#E8611A] hover:bg-[#C2410C] shadow-lg hover:shadow-xl active:scale-[0.98]"
+                            ? "bg-[#F97316] hover:bg-[#C2410C] shadow-lg hover:shadow-xl active:scale-[0.98]"
                             : "bg-gray-200 text-gray-400 cursor-not-allowed"
                     }`}
                     style={{
@@ -402,7 +403,7 @@ export default function CreateIssuePage() {
                 <div className="flex items-center justify-center gap-1.5 mt-3 mb-6">
                     <LockIcon />
                     <span
-                        className="text-xs text-gray-400"
+                        className="text-xs text-black"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     >
                         Your post will be public & trackable
@@ -414,7 +415,7 @@ export default function CreateIssuePage() {
             {showCategoryModal && (
                 <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
                     <div
-                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                        className="absolute inset-0 bg-black/40 backdrop-blur-md"
                         onClick={() => setShowCategoryModal(false)}
                     />
                     <div className="relative w-full md:max-w-md bg-white rounded-t-3xl md:rounded-2xl p-5 z-10">
@@ -435,10 +436,10 @@ export default function CreateIssuePage() {
                                         setCategory(cat.value);
                                         setShowCategoryModal(false);
                                     }}
-                                    className={`p-3 rounded-xl text-left text-sm font-medium transition-all border ${
+                                    className={`p-3 rounded-xl text-left text-md font-medium transition-all border cursor-pointer ${
                                         category === cat.value
-                                            ? "border-[#E8611A] bg-[#FFF7F2] text-[#E8611A]"
-                                            : "border-gray-100 bg-gray-50 text-gray-700 hover:border-[#E8611A]/30"
+                                            ? "border-[#F97316] bg-[#FFF7F2] text-[#F97316]"
+                                            : "border-gray-100 bg-gray-50 text-black hover:border-[#F97316]/30"
                                     }`}
                                     style={{
                                         fontFamily: "DM Sans, sans-serif",
@@ -456,7 +457,7 @@ export default function CreateIssuePage() {
             {showLocationModal && (
                 <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
                     <div
-                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                        className="absolute inset-0 bg-black/40 backdrop-blur-md"
                         onClick={() => setShowLocationModal(false)}
                     />
                     <div className="relative w-full md:max-w-md bg-white rounded-t-3xl md:rounded-2xl p-5 z-10 max-h-[70vh] overflow-y-auto">
@@ -477,10 +478,10 @@ export default function CreateIssuePage() {
                                         setLocation(state);
                                         setShowLocationModal(false);
                                     }}
-                                    className={`p-2.5 rounded-xl text-left text-sm font-medium transition-all border ${
+                                    className={`p-2.5 rounded-xl text-left text-md font-medium transition-all border cursor-pointer ${
                                         location === state
-                                            ? "border-[#E8611A] bg-[#FFF7F2] text-[#E8611A]"
-                                            : "border-gray-100 bg-gray-50 text-gray-600 hover:border-[#E8611A]/30"
+                                            ? "border-[#F97316] bg-[#FFF7F2] text-[#F97316]"
+                                            : "border-gray-100 bg-gray-50 text-gray-600 hover:border-[#F97316]/30"
                                     }`}
                                     style={{
                                         fontFamily: "DM Sans, sans-serif",
