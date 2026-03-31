@@ -1,28 +1,108 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import {
+    collection,
+    onSnapshot,
+    orderBy,
+    query,
+    doc,
+    runTransaction,
+} from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
+import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
 
-// ── Icons ──────────────────────────────────────────────────────────────────
+// ── Category meta ─────────────────────────────────────────────────────────────
+const CATEGORY_META = {
+    infrastructure: {
+        emoji: "🏗️",
+        color: "text-orange-700",
+        bg: "bg-orange-50",
+        label: "Infrastructure",
+    },
+    education: {
+        emoji: "📚",
+        color: "text-blue-700",
+        bg: "bg-blue-50",
+        label: "Education",
+    },
+    healthcare: {
+        emoji: "❤️",
+        color: "text-rose-700",
+        bg: "bg-rose-50",
+        label: "Healthcare",
+    },
+    water: {
+        emoji: "💧",
+        color: "text-cyan-700",
+        bg: "bg-cyan-50",
+        label: "Water",
+    },
+    security: {
+        emoji: "🔒",
+        color: "text-purple-700",
+        bg: "bg-purple-50",
+        label: "Security",
+    },
+    electricity: {
+        emoji: "⚡",
+        color: "text-yellow-700",
+        bg: "bg-yellow-50",
+        label: "Electricity",
+    },
+    environment: {
+        emoji: "🌿",
+        color: "text-green-700",
+        bg: "bg-green-50",
+        label: "Environment",
+    },
+    other: {
+        emoji: "📌",
+        color: "text-gray-700",
+        bg: "bg-gray-100",
+        label: "Other",
+    },
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function timeAgo(seconds) {
+    const diff = Math.floor(Date.now() / 1000) - seconds;
+    if (diff < 60) return "Just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    if (diff < 172800) return "Yesterday";
+    return `${Math.floor(diff / 86400)} days ago`;
+}
+
+function formatNum(n) {
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(".0", "") + "K";
+    return n.toString();
+}
+
+function getAvatarCount(upvotes) {
+    if (upvotes <= 0) return 0;
+    return Math.min(upvotes, 4);
+}
+
+const AVATAR_LETTERS = ["A", "B", "C", "D"];
+const avatarColors = [
+    "bg-orange-400",
+    "bg-blue-400",
+    "bg-green-500",
+    "bg-purple-400",
+    "bg-rose-400",
+    "bg-cyan-500",
+    "bg-amber-400",
+    "bg-indigo-400",
+];
+
+// ── Icons ─────────────────────────────────────────────────────────────────────
 const FireIcon = ({ className = "w-4 h-4" }) => (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
         <path d="M12 2c0 0-5.5 5.5-5.5 11a5.5 5.5 0 0011 0C17.5 7.5 12 2 12 2zm0 15a3.5 3.5 0 01-3.5-3.5c0-3 2-5.5 3.5-8 1.5 2.5 3.5 5 3.5 8A3.5 3.5 0 0112 17z" />
     </svg>
 );
-
-const UpArrowIcon = ({ active }) => (
-    <svg
-        viewBox="0 0 24 24"
-        fill={active ? "#16A34A" : "none"}
-        stroke={active ? "#16A34A" : "#16A34A"}
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        className="w-3.5 h-3.5"
-    >
-        <polyline points="18 15 12 9 6 15" />
-    </svg>
-);
-
 const CommentIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -35,7 +115,6 @@ const CommentIcon = () => (
         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
     </svg>
 );
-
 const LocationIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -49,7 +128,6 @@ const LocationIcon = () => (
         <circle cx="12" cy="10" r="3" />
     </svg>
 );
-
 const SearchIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -63,38 +141,16 @@ const SearchIcon = () => (
         <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
 );
-
 const TrophyIcon = () => (
     <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
         <path d="M12 2L9.5 8.5H3l5.5 4L6 19l6-4 6 4-2.5-6.5L21 8.5h-6.5L12 2z" />
     </svg>
 );
-
-const ZapIcon = () => (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-    </svg>
-);
-
-const EyeIcon = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        className="w-3.5 h-3.5"
-    >
-        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-        <circle cx="12" cy="12" r="3" />
-    </svg>
-);
-
 const UpvoteIcon = ({ active }) => (
     <svg
         viewBox="0 0 24 24"
         fill={active ? "#16A34A" : "none"}
-        stroke={active ? "#16A34A" : "#16A34A"}
+        stroke="#16A34A"
         strokeWidth="2.5"
         strokeLinecap="round"
         className="w-4 h-4"
@@ -103,181 +159,9 @@ const UpvoteIcon = ({ active }) => (
     </svg>
 );
 
-// ── Data ──────────────────────────────────────────────────────────────────
-const categories = [
-    { key: "all", label: "All Issues", emoji: "📋", count: 1240 },
-    { key: "infrastructure", label: "Infrastructure", emoji: "🏗️", count: 312 },
-    { key: "education", label: "Education", emoji: "📚", count: 198 },
-    { key: "healthcare", label: "Healthcare", emoji: "❤️", count: 267 },
-    { key: "water", label: "Water", emoji: "💧", count: 143 },
-    { key: "security", label: "Security", emoji: "🔒", count: 89 },
-    { key: "electricity", label: "Electricity", emoji: "⚡", count: 231 },
-];
-
-const trendingIssues = [
-    {
-        id: "1",
-        rank: 1,
-        category: "Infrastructure",
-        categoryEmoji: "🏗️",
-        categoryBg: "bg-orange-50",
-        categoryColor: "text-orange-700",
-        title: "Fix Bad Road at Allen Junction, Lagos",
-        description:
-            "This road has been abandoned for months. It's affecting commuters, businesses & school children daily.",
-        location: "Lagos, Nigeria",
-        upvotes: 4800,
-        comments: 148,
-        views: 23400,
-        timeAgo: "2h ago",
-        status: "viral",
-        avatars: ["A", "B", "C", "D", "E"],
-        upvotedBy: 1234,
-        change: 312,
-    },
-    {
-        id: "2",
-        rank: 2,
-        category: "Healthcare",
-        categoryEmoji: "❤️",
-        categoryBg: "bg-rose-50",
-        categoryColor: "text-rose-700",
-        title: "General Hospital Enugu Lacks Basic Equipment",
-        description:
-            "Patients are being turned away daily. No functioning MRI machine, broken X-ray unit, and shortage of gloves.",
-        location: "Enugu State",
-        upvotes: 3200,
-        comments: 94,
-        views: 18700,
-        timeAgo: "5h ago",
-        status: "trending",
-        avatars: ["C", "D", "E", "F"],
-        upvotedBy: 876,
-        change: 189,
-    },
-    {
-        id: "3",
-        rank: 3,
-        category: "Education",
-        categoryEmoji: "📚",
-        categoryBg: "bg-blue-50",
-        categoryColor: "text-blue-700",
-        title: "Our School Needs More Classrooms!",
-        description:
-            "Government Secondary School, Ibadan needs urgent attention. Students are learning under trees.",
-        location: "Ibadan, Oyo State",
-        upvotes: 2876,
-        comments: 72,
-        views: 14200,
-        timeAgo: "1d ago",
-        status: "trending",
-        avatars: ["G", "H", "I", "J"],
-        upvotedBy: 654,
-        change: 94,
-    },
-    {
-        id: "4",
-        rank: 4,
-        category: "Electricity",
-        categoryEmoji: "⚡",
-        categoryBg: "bg-yellow-50",
-        categoryColor: "text-yellow-700",
-        title: "No Power Supply for 3 Weeks in Ikeja",
-        description:
-            "EKEDC has abandoned our transformer. Businesses are shutting down and food is spoiling.",
-        location: "Ikeja, Lagos",
-        upvotes: 2341,
-        comments: 61,
-        views: 11900,
-        timeAgo: "3h ago",
-        status: "rising",
-        avatars: ["K", "L", "M"],
-        upvotedBy: 512,
-        change: 67,
-    },
-    {
-        id: "5",
-        rank: 5,
-        category: "Water",
-        categoryEmoji: "💧",
-        categoryBg: "bg-cyan-50",
-        categoryColor: "text-cyan-700",
-        title: "No Pipe-borne Water for 6 Months",
-        description:
-            "Our entire street has been without running water. We rely on hawkers and it is too expensive.",
-        location: "Port Harcourt",
-        upvotes: 1980,
-        comments: 47,
-        views: 9800,
-        timeAgo: "2d ago",
-        status: "trending",
-        avatars: ["N", "O", "P"],
-        upvotedBy: 398,
-        change: 45,
-    },
-    {
-        id: "6",
-        rank: 6,
-        category: "Security",
-        categoryEmoji: "🔒",
-        categoryBg: "bg-purple-50",
-        categoryColor: "text-purple-700",
-        title: "Street Lights Out for 3 Months – Crime Rising",
-        description:
-            "Entire road from junction to market has no street lights. Armed robbery has increased significantly.",
-        location: "Enugu State",
-        upvotes: 1654,
-        comments: 39,
-        views: 8200,
-        timeAgo: "4d ago",
-        status: "rising",
-        avatars: ["Q", "R"],
-        upvotedBy: 287,
-        change: 28,
-    },
-    {
-        id: "7",
-        rank: 7,
-        category: "Infrastructure",
-        categoryEmoji: "🏗️",
-        categoryBg: "bg-orange-50",
-        categoryColor: "text-orange-700",
-        title: "Bridge on Owerri-Onitsha Road is Collapsing",
-        description:
-            "Heavy trucks are using this bridge daily despite visible cracks. A disaster waiting to happen.",
-        location: "Imo State",
-        upvotes: 1421,
-        comments: 33,
-        views: 7100,
-        timeAgo: "1d ago",
-        status: "rising",
-        avatars: ["S", "T", "U"],
-        upvotedBy: 234,
-        change: 19,
-    },
-];
-
-const avatarColors = [
-    "bg-orange-400",
-    "bg-blue-400",
-    "bg-green-500",
-    "bg-purple-400",
-    "bg-rose-400",
-    "bg-cyan-500",
-    "bg-amber-400",
-    "bg-indigo-400",
-    "bg-teal-500",
-    "bg-pink-400",
-    "bg-lime-500",
-    "bg-sky-400",
-];
-
-function formatNum(n) {
-    if (n >= 1000) return (n / 1000).toFixed(1).replace(".0", "") + "K";
-    return n.toString();
-}
-
+// ── Status Badge ──────────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
+    if (!status) return null;
     const map = {
         viral: { label: "🔥 Viral", bg: "bg-red-50", text: "text-red-600" },
         trending: {
@@ -290,8 +174,19 @@ function StatusBadge({ status }) {
             bg: "bg-amber-50",
             text: "text-amber-600",
         },
+        "under-review": {
+            label: "✅ Under Review",
+            bg: "bg-green-50",
+            text: "text-green-600",
+        },
+        "needs-attention": {
+            label: "⚠ Needs Attention",
+            bg: "bg-yellow-50",
+            text: "text-yellow-600",
+        },
     };
     const s = map[status];
+    if (!s) return null;
     return (
         <span
             className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.bg} ${s.text}`}
@@ -301,135 +196,416 @@ function StatusBadge({ status }) {
     );
 }
 
-function RankBadge({ rank }) {
-    const colors = [
-        "bg-amber-400 text-white", // 1st - gold
-        "bg-gray-400 text-white", // 2nd - silver
-        "bg-orange-600 text-white", // 3rd - bronze
-    ];
+// ── Login Prompt Modal ────────────────────────────────────────────────────────
+function LoginPromptModal({ isOpen, onClose, onLogin }) {
+    if (!isOpen) return null;
     return (
-        <div
-            className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 ${colors[rank - 1] || "bg-gray-100 text-gray-500"}`}
-        >
-            {rank <= 3 ? ["🥇", "🥈", "🥉"][rank - 1] : rank}
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                onClick={onClose}
+            />
+            <div className="relative bg-white rounded-2xl p-6 mx-4 max-w-sm w-full z-10 shadow-2xl">
+                <div className="text-center">
+                    <div className="w-16 h-16 bg-[#FFF7F2] rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span className="text-3xl">🔒</span>
+                    </div>
+                    <h3
+                        className="text-lg font-bold text-gray-900 mb-2"
+                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
+                    >
+                        Login Required
+                    </h3>
+                    <p
+                        className="text-sm text-gray-500 mb-6"
+                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                    >
+                        Please sign in to upvote issues and join the
+                        conversation.
+                    </p>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 py-3 rounded-xl font-semibold text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={onLogin}
+                            className="flex-1 py-3 rounded-xl font-bold text-sm bg-[#F97316] text-white hover:bg-[#C2410C] transition-colors cursor-pointer"
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                        >
+                            Sign In
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }
 
-function TrendingCard({ issue }) {
-    const [upvoted, setUpvoted] = useState(false);
-    const [count, setCount] = useState(issue.upvotes);
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+function SkeletonCard() {
+    return (
+        <div className="bg-white rounded-2xl p-4 border border-[#FED7AA] animate-pulse">
+            <div className="flex items-center justify-between mb-3">
+                <div className="h-5 w-24 bg-gray-100 rounded-full" />
+                <div className="h-4 w-12 bg-gray-100 rounded" />
+            </div>
+            <div className="flex gap-3">
+                <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-gray-100 rounded w-3/4" />
+                    <div className="h-3 bg-gray-100 rounded w-full" />
+                    <div className="h-3 bg-gray-100 rounded w-2/3" />
+                </div>
+                <div className="w-14 h-16 bg-gray-100 rounded-xl shrink-0" />
+            </div>
+        </div>
+    );
+}
 
-    const handleUpvote = () => {
-        setUpvoted((u) => !u);
-        setCount((c) => (upvoted ? c - 1 : c + 1));
+// ── Trending Card ─────────────────────────────────────────────────────────────
+function TrendingCard({
+    issue,
+    currentUser,
+    authReady,
+    rank,
+    isAnonymous,
+    onLoginClick,
+}) {
+    const [upvoted, setUpvoted] = useState(false);
+    const [count, setCount] = useState(issue.upvotes || 0);
+    const [loading, setLoading] = useState(false);
+    const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+
+    // Real-time comment count
+    const [realtimeCommentCount, setRealtimeCommentCount] = useState(0);
+
+    // Listen to comments in real-time
+    useEffect(() => {
+        if (!issue.id) return;
+
+        const commentsQuery = query(
+            collection(db, "issues", issue.id, "comments"),
+        );
+
+        const unsubscribe = onSnapshot(commentsQuery, (snapshot) => {
+            setRealtimeCommentCount(snapshot.docs.length);
+        });
+
+        return () => unsubscribe();
+    }, [issue.id]);
+
+    useEffect(() => {
+        if (!currentUser || !issue.id || isAnonymous) return;
+        const saved = localStorage.getItem(
+            `upvote_${issue.id}_${currentUser.uid}`,
+        );
+        if (saved === "1") setUpvoted(true);
+    }, [currentUser, issue.id, isAnonymous]);
+
+    useEffect(() => {
+        setCount(issue.upvotes || 0);
+    }, [issue.upvotes]);
+
+    const handleUpvote = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (isAnonymous || !currentUser || currentUser.isAnonymous) {
+            setShowLoginPrompt(true);
+            return;
+        }
+
+        if (!authReady || loading) return;
+
+        const wasUpvoted = upvoted;
+        setUpvoted(!wasUpvoted);
+        setCount((c) => (wasUpvoted ? Math.max(0, c - 1) : c + 1));
+
+        setLoading(true);
+        try {
+            const docRef = doc(db, "issues", issue.id);
+            await runTransaction(db, async (tx) => {
+                const snap = await tx.get(docRef);
+                if (!snap.exists()) throw new Error("not found");
+                const current = snap.data().upvotes || 0;
+                tx.update(docRef, {
+                    upvotes: wasUpvoted
+                        ? Math.max(0, current - 1)
+                        : current + 1,
+                });
+            });
+            if (wasUpvoted) {
+                localStorage.removeItem(
+                    `upvote_${issue.id}_${currentUser.uid}`,
+                );
+            } else {
+                localStorage.setItem(
+                    `upvote_${issue.id}_${currentUser.uid}`,
+                    "1",
+                );
+            }
+        } catch (err) {
+            console.error("Upvote failed:", err);
+            setUpvoted(wasUpvoted);
+            setCount(issue.upvotes || 0);
+        } finally {
+            setLoading(false);
+        }
     };
 
+    const avatarCount = getAvatarCount(count);
+
     return (
-        <div className="issue-card bg-white rounded-2xl p-4 shadow-card border border-[#FED7AA]">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-2.5">
-                <span
-                    className={`text-xs font-semibold px-2.5 py-1 rounded-full ${issue.categoryBg} ${issue.categoryColor} flex items-center gap-1.5`}
-                >
-                    <span>{issue.categoryEmoji}</span>
-                    {issue.category}
-                </span>
-
-                <span className="text-xs text-gray-400">• {issue.timeAgo}</span>
-            </div>
-
-            {/* Content + Upvote */}
-            <div className="flex gap-3">
-                <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-gray-900 text-sm leading-snug mb-1.5">
-                        {issue.title}
-                    </h3>
-
-                    <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
-                        {issue.description}
-                    </p>
-                </div>
-
-                {/* Upvote Box */}
-                <div className="shrink-0">
-                    <button
-                        onClick={handleUpvote}
-                        className={`flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all ${
-                            upvoted
-                                ? "border-green-500 bg-green-50"
-                                : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50"
+        <>
+            <Link href={`/issue/${issue.id}`} className="block">
+                <div className="issue-card bg-white rounded-2xl p-4 shadow-card border border-[#FED7AA] hover:shadow-lg hover:border-orange-300 transition-all cursor-pointer relative">
+                    {/* Rank Badge - Always show on trending page */}
+                    <div
+                        className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white ${
+                            rank === 1
+                                ? "bg-linear-to-br from-yellow-400 to-yellow-600 text-white"
+                                : rank === 2
+                                  ? "bg-linear-to-br from-gray-300 to-gray-500 text-white"
+                                  : rank === 3
+                                    ? "bg-linear-to-br from-orange-400 to-orange-600 text-white"
+                                    : "bg-gray-100 text-gray-600"
                         }`}
                     >
-                        <span className="mt-2">
-                            <UpvoteIcon active={upvoted} />
-                        </span>
+                        {rank}
+                    </div>
 
-                        <span className="text-sm font-bold text-green-600">
-                            {formatNum(count)}
-                        </span>
-                    </button>
-                </div>
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
-                <div className="flex items-center gap-2 flex-wrap">
-                    {/* Location */}
-                    <span className="flex items-center gap-1 text-xs text-gray-400">
-                        <LocationIcon />
-                        {issue.location}
-                    </span>
-
-                    {/* Status */}
-                    <StatusBadge status={issue.status} />
-                </div>
-
-                {/* Comments */}
-                <div className="flex items-center gap-1.5 text-gray-400">
-                    <CommentIcon />
-                    <span className="text-xs">{issue.comments}</span>
-                </div>
-            </div>
-
-            {/* Avatars */}
-            <div className="flex items-center gap-2 mt-2.5">
-                <div className="flex items-center">
-                    {issue.avatars.slice(0, 4).map((a, i) => (
-                        <div
-                            key={i}
-                            className={`w-6 h-6 rounded-full ${
-                                avatarColors[i % avatarColors.length]
-                            } border-2 border-white flex items-center justify-center text-white text-[9px] font-bold`}
-                            style={{ marginLeft: i === 0 ? 0 : -6 }}
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-2.5">
+                        <span
+                            className={`text-xs font-semibold px-2.5 py-1 rounded-full ${issue.categoryBg} ${issue.categoryColor} flex items-center gap-1.5`}
                         >
-                            {a}
-                        </div>
-                    ))}
-                </div>
+                            <span>{issue.categoryEmoji}</span>
+                            {issue.categoryLabel}
+                        </span>
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                            <span className="font-bold text-[#F97316]">
+                                #{rank}
+                            </span>
+                            <span>· {issue.timeAgo}</span>
+                        </span>
+                    </div>
 
-                <span className="text-xs text-gray-400">
-                    {issue.upvotedBy.toLocaleString()} people upvoted
-                </span>
-            </div>
-        </div>
+                    {/* Content + Upvote */}
+                    <div className="flex gap-3">
+                        <div className="flex-1 min-w-0">
+                            <h3
+                                className="font-bold text-gray-900 text-sm leading-snug mb-1.5"
+                                style={{
+                                    fontFamily: "Plus Jakarta Sans, sans-serif",
+                                }}
+                            >
+                                {issue.title}
+                            </h3>
+                            <p
+                                className="text-xs text-gray-500 leading-relaxed line-clamp-2"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                {issue.description}
+                            </p>
+                        </div>
+                        <div
+                            className="shrink-0"
+                            onClick={(e) => e.preventDefault()}
+                        >
+                            <button
+                                onClick={handleUpvote}
+                                disabled={loading}
+                                className={`flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-60 ${
+                                    upvoted
+                                        ? "border-green-500 bg-green-50"
+                                        : isAnonymous
+                                          ? "border-gray-200 bg-gray-50 hover:border-gray-300"
+                                          : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50"
+                                }`}
+                            >
+                                <span className="mt-2">
+                                    <UpvoteIcon active={upvoted} />
+                                </span>
+                                <span
+                                    className={`text-sm font-bold ${upvoted ? "text-green-600" : isAnonymous ? "text-gray-400" : "text-green-600"}`}
+                                >
+                                    {formatNum(count)}
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="flex items-center gap-1 text-xs text-gray-400">
+                                <LocationIcon />
+                                {issue.location}
+                            </span>
+                            <StatusBadge status={issue.status} />
+                        </div>
+                        {/* FIXED: Real-time comment count */}
+                        <div className="flex items-center gap-1.5 text-gray-400">
+                            <CommentIcon />
+                            <span className="text-xs font-semibold">
+                                {realtimeCommentCount > 0
+                                    ? realtimeCommentCount
+                                    : "0"}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Avatars */}
+                    {avatarCount > 0 && (
+                        <div className="flex items-center gap-2 mt-2.5">
+                            <div className="flex items-center">
+                                {AVATAR_LETTERS.slice(0, avatarCount).map(
+                                    (a, i) => (
+                                        <div
+                                            key={i}
+                                            className={`w-6 h-6 rounded-full ${avatarColors[i % avatarColors.length]} border-2 border-white flex items-center justify-center text-white text-[9px] font-bold`}
+                                            style={{
+                                                marginLeft: i === 0 ? 0 : -6,
+                                            }}
+                                        >
+                                            {a}
+                                        </div>
+                                    ),
+                                )}
+                            </div>
+                            <span
+                                className="text-xs text-gray-400"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                {count} {count === 1 ? "upvote" : "upvotes"}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </Link>
+
+            <LoginPromptModal
+                isOpen={showLoginPrompt}
+                onClose={() => setShowLoginPrompt(false)}
+                onLogin={onLoginClick}
+            />
+        </>
     );
 }
 
-// ── Main Component ─────────────────────────────────────────────────────────
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function TrendingPage() {
+    const [issues, setIssues] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
     const [activeCategory, setActiveCategory] = useState("all");
     const [search, setSearch] = useState("");
     const [timeRange, setTimeRange] = useState("24h");
+    const [currentUser, setCurrentUser] = useState(null);
+    const [authReady, setAuthReady] = useState(false);
+    const [isAnonymous, setIsAnonymous] = useState(true);
 
-    const filtered = trendingIssues.filter((i) => {
-        const matchCat =
-            activeCategory === "all" ||
-            i.category.toLowerCase() === activeCategory;
-        const matchSearch =
-            !search || i.title.toLowerCase().includes(search.toLowerCase());
-        return matchCat && matchSearch;
-    });
+    // Auth
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                setCurrentUser(user);
+                setIsAnonymous(user.isAnonymous);
+                setAuthReady(true);
+            } else {
+                signInAnonymously(auth).catch(console.error);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // Real-time Firestore
+    useEffect(() => {
+        const q = query(collection(db, "issues"), orderBy("createdAt", "desc"));
+        const unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+                const fetched = snapshot.docs.map((docSnap) => {
+                    const d = docSnap.data();
+                    const seconds = d.createdAt?.seconds ?? null;
+                    const meta =
+                        CATEGORY_META[d.category] ?? CATEGORY_META.other;
+                    return {
+                        id: docSnap.id,
+                        title: d.title ?? "Untitled Issue",
+                        description: d.description ?? "",
+                        location: d.location ?? "Nigeria",
+                        category: d.category ?? "other",
+                        totalVotes: d.totalVotes ?? 0,
+                        upvotes: d.upvotes ?? 0,
+                        commentCount: d.commentCount ?? 0,
+                        createdAt: d.createdAt ?? null,
+                        status: d.status ?? null,
+                        timeAgo: seconds ? timeAgo(seconds) : "Just now",
+                        categoryEmoji: meta.emoji,
+                        categoryColor: meta.color,
+                        categoryBg: meta.bg,
+                        categoryLabel: meta.label,
+                    };
+                });
+                setIssues(fetched);
+                setLoading(false);
+            },
+            (err) => {
+                console.error("Firestore error:", err);
+                setError("Could not load issues. Please refresh.");
+                setLoading(false);
+            },
+        );
+        return () => unsubscribe();
+    }, []);
+
+    const handleLoginClick = () => {
+        window.location.href = "/login";
+    };
+
+    // Category pill counts
+    const categoryCounts = issues.reduce((acc, i) => {
+        acc[i.category] = (acc[i.category] ?? 0) + 1;
+        return acc;
+    }, {});
+
+    const categoryPills = [
+        { key: "all", label: "All Issues", emoji: "📋", count: issues.length },
+        ...Object.entries(CATEGORY_META)
+            .map(([key, meta]) => ({
+                key,
+                label: meta.label,
+                emoji: meta.emoji,
+                count: categoryCounts[key] ?? 0,
+            }))
+            .filter((c) => c.count > 0),
+    ];
+
+    // Filter + sort by upvotes desc (trending = most upvoted)
+    const filtered = issues
+        .filter((i) => {
+            const matchCat =
+                activeCategory === "all" || i.category === activeCategory;
+            const matchSearch =
+                !search || i.title.toLowerCase().includes(search.toLowerCase());
+            return matchCat && matchSearch;
+        })
+        .sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+
+    const resolvedCount = issues.filter((i) => i.status === "resolved").length;
+    const mostActiveState = issues.length
+        ? (Object.entries(
+              issues.reduce((acc, i) => {
+                  const state = i.location.split(",")[0].trim();
+                  acc[state] = (acc[state] ?? 0) + 1;
+                  return acc;
+              }, {}),
+          ).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—")
+        : "—";
 
     return (
         <div
@@ -455,7 +631,7 @@ export default function TrendingPage() {
                     <div className="flex items-center gap-1.5 bg-white/20 rounded-xl px-3 py-1.5">
                         <TrophyIcon />
                         <span className="text-white text-xs font-semibold">
-                            1,240 issues
+                            {issues.length} issues
                         </span>
                     </div>
                 </div>
@@ -497,19 +673,21 @@ export default function TrendingPage() {
                     {[
                         {
                             label: "Total Issues",
-                            value: "1,240",
+                            value: loading
+                                ? "…"
+                                : issues.length.toLocaleString(),
                             icon: "📋",
                             color: "text-gray-800",
                         },
                         {
-                            label: "Resolved Today",
-                            value: "23",
+                            label: "Resolved",
+                            value: loading ? "…" : resolvedCount.toString(),
                             icon: "✅",
                             color: "text-green-600",
                         },
                         {
                             label: "Most Active",
-                            value: "Lagos",
+                            value: loading ? "…" : mostActiveState,
                             icon: "🔥",
                             color: "text-[#F97316]",
                         },
@@ -546,6 +724,7 @@ export default function TrendingPage() {
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search trending issues..."
                         className="w-full bg-white rounded-xl pl-9 pr-4 py-3 text-sm text-gray-700 placeholder-gray-400 border border-gray-100 shadow-card focus:outline-none focus:ring-2 focus:ring-[#F97316]/20 focus:border-[#F97316]/40 transition-all"
+                        style={{ fontFamily: "DM Sans, sans-serif" }}
                     />
                 </div>
             </div>
@@ -556,11 +735,15 @@ export default function TrendingPage() {
                     className="flex gap-2 overflow-x-auto pb-1"
                     style={{ scrollbarWidth: "none" }}
                 >
-                    {categories.map((c) => (
+                    {categoryPills.map((c) => (
                         <button
                             key={c.key}
                             onClick={() => setActiveCategory(c.key)}
-                            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border cursor-pointer ${activeCategory === c.key ? "bg-[#F97316] text-white border-[#F97316] shadow-sm" : "bg-white text-gray-600 border-gray-100 hover:border-[#F97316]/30 shadow-card"}`}
+                            className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border cursor-pointer ${
+                                activeCategory === c.key
+                                    ? "bg-[#F97316] text-white border-[#F97316] shadow-sm"
+                                    : "bg-white text-gray-600 border-gray-100 hover:border-[#F97316]/30 shadow-card"
+                            }`}
                         >
                             <span>{c.emoji}</span>
                             <span>{c.label}</span>
@@ -581,7 +764,7 @@ export default function TrendingPage() {
                         <button
                             key={t}
                             onClick={() => setTimeRange(t)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${timeRange === t ? "bg-[#F97316] text-white" : "text-gray-500"}`}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${timeRange === t ? "bg-[#F97316] text-white" : "text-gray-500"}`}
                         >
                             {t}
                         </button>
@@ -597,7 +780,7 @@ export default function TrendingPage() {
                         className="text-sm font-bold"
                         style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                     >
-                        Trending Now · {timeRange}
+                        Trending by Upvotes · {timeRange}
                     </span>
                 </div>
                 <div className="flex-1 h-px bg-gray-200" />
@@ -606,25 +789,54 @@ export default function TrendingPage() {
                 </span>
             </div>
 
+            {/* ── Error ── */}
+            {error && (
+                <div
+                    className="mx-4 md:mx-6 mb-4 px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-500"
+                    style={{ fontFamily: "DM Sans, sans-serif" }}
+                >
+                    {error}
+                </div>
+            )}
+
             {/* ── Issues List ── */}
-            <div className="px-4 md:px-6 space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0 xl:grid-cols-2">
-                {filtered.map((issue) => (
-                    <TrendingCard key={issue.id} issue={issue} />
-                ))}
-                {filtered.length === 0 && (
+            <div className="px-4 md:px-6 space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
+                {loading ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                        <SkeletonCard key={i} />
+                    ))
+                ) : filtered.length > 0 ? (
+                    filtered.map((issue, index) => (
+                        <TrendingCard
+                            key={issue.id}
+                            issue={issue}
+                            currentUser={currentUser}
+                            authReady={authReady}
+                            rank={index + 1}
+                            isAnonymous={isAnonymous}
+                            onLoginClick={handleLoginClick}
+                        />
+                    ))
+                ) : (
                     <div className="col-span-2 text-center py-16 bg-white rounded-2xl border border-gray-50">
                         <div className="text-4xl mb-3">🔍</div>
-                        <p className="font-semibold text-gray-700">
-                            No issues found
+                        <p
+                            className="font-semibold text-gray-700"
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                        >
+                            {issues.length === 0
+                                ? "No issues posted yet"
+                                : "No issues found"}
                         </p>
                         <p className="text-gray-400 text-sm mt-1">
-                            Try a different category or search term
+                            {issues.length === 0
+                                ? "Be the first to report one!"
+                                : "Try a different category or search term"}
                         </p>
                     </div>
                 )}
             </div>
 
-            {/* Bottom padding for mobile nav */}
             <div className="h-6" />
         </div>
     );

@@ -1,7 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth, db } from "@/lib/firebase";
+import {
+    collection,
+    query,
+    where,
+    orderBy,
+    onSnapshot,
+    getDocs,
+    collectionGroup, // ✅ Added for subcollection queries
+} from "firebase/firestore";
+import Image from "next/image";
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 const UpvoteIcon = () => (
@@ -109,165 +122,19 @@ const ChevronRightIcon = () => (
         <polyline points="9 18 15 12 9 6" />
     </svg>
 );
-
-const activityData = [
-    {
-        id: "1",
-        type: "upvote",
-        actor: "Chukwu Emeka",
-        actorInitial: "C",
-        actorColor: "bg-blue-400",
-        message: "upvoted your issue",
-        issue: "Fix Bad Road at Allen Junction",
-        issueId: "1",
-        timeAgo: "2m ago",
-        timestamp: "Today",
-        read: false,
-    },
-    {
-        id: "2",
-        type: "comment",
-        actor: "Amina Bello",
-        actorInitial: "A",
-        actorColor: "bg-purple-400",
-        message: "commented on your issue",
-        issue: "No Clinic in My Community – Help!",
-        issueId: "3",
-        timeAgo: "15m ago",
-        timestamp: "Today",
-        read: false,
-    },
-    {
-        id: "3",
-        type: "resolved",
-        actor: "Lagos Govt",
-        actorInitial: "L",
-        actorColor: "bg-green-500",
-        message: "marked your issue as resolved",
-        issue: "Fix Bad Road at Allen Junction",
-        issueId: "1",
-        timeAgo: "1h ago",
-        timestamp: "Today",
-        read: false,
-    },
-    {
-        id: "4",
-        type: "upvote",
-        actor: "Fatima Yusuf",
-        actorInitial: "F",
-        actorColor: "bg-rose-400",
-        message: "and 47 others upvoted your issue",
-        issue: "Our School Needs More Classrooms!",
-        issueId: "2",
-        timeAgo: "2h ago",
-        timestamp: "Today",
-        read: false,
-    },
-    {
-        id: "5",
-        type: "milestone",
-        actor: "System",
-        actorInitial: "✨",
-        actorColor: "bg-amber-400",
-        message: "Your issue hit 1,000 upvotes!",
-        issue: "Fix Bad Road at Allen Junction",
-        issueId: "1",
-        timeAgo: "3h ago",
-        timestamp: "Today",
-        read: true,
-    },
-    {
-        id: "6",
-        type: "mention",
-        actor: "Tunde Adeola",
-        actorInitial: "T",
-        actorColor: "bg-teal-500",
-        message: "mentioned you in a comment on",
-        issue: "No Power Supply in Ikeja",
-        issueId: "4",
-        timeAgo: "5h ago",
-        timestamp: "Today",
-        read: true,
-    },
-    {
-        id: "7",
-        type: "upvote",
-        actor: "Ngozi Okafor",
-        actorInitial: "N",
-        actorColor: "bg-orange-400",
-        message: "upvoted your issue",
-        issue: "No Clinic in My Community – Help!",
-        issueId: "3",
-        timeAgo: "8h ago",
-        timestamp: "Today",
-        read: true,
-    },
-    {
-        id: "8",
-        type: "update",
-        actor: "Oyo State Govt",
-        actorInitial: "O",
-        actorColor: "bg-indigo-400",
-        message: "posted an update on",
-        issue: "Our School Needs More Classrooms!",
-        issueId: "2",
-        timeAgo: "1d ago",
-        timestamp: "Yesterday",
-        read: true,
-    },
-    {
-        id: "9",
-        type: "comment",
-        actor: "Blessing Nweke",
-        actorInitial: "B",
-        actorColor: "bg-pink-400",
-        message: "replied to your comment on",
-        issue: "Fix Bad Road at Allen Junction",
-        issueId: "1",
-        timeAgo: "1d ago",
-        timestamp: "Yesterday",
-        read: true,
-    },
-    {
-        id: "10",
-        type: "upvote",
-        actor: "Musa Ibrahim",
-        actorInitial: "M",
-        actorColor: "bg-cyan-500",
-        message: "and 23 others upvoted your issue",
-        issue: "No Pipe-borne Water for 6 Months",
-        issueId: "5",
-        timeAgo: "2d ago",
-        timestamp: "2 days ago",
-        read: true,
-    },
-    {
-        id: "11",
-        type: "resolved",
-        actor: "PHCN Authority",
-        actorInitial: "P",
-        actorColor: "bg-green-500",
-        message: "updated status to Under Review on",
-        issue: "No Power Supply in Ikeja",
-        issueId: "4",
-        timeAgo: "2d ago",
-        timestamp: "2 days ago",
-        read: true,
-    },
-    {
-        id: "12",
-        type: "milestone",
-        actor: "System",
-        actorInitial: "🎉",
-        actorColor: "bg-amber-400",
-        message: "Congratulations! 500 upvotes on",
-        issue: "Our School Needs More Classrooms!",
-        issueId: "2",
-        timeAgo: "3d ago",
-        timestamp: "3 days ago",
-        read: true,
-    },
-];
+const UserIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        className="w-4 h-4"
+    >
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+    </svg>
+);
 
 const typeConfig = {
     upvote: {
@@ -308,18 +175,37 @@ const typeConfig = {
     },
 };
 
-// ── Stats Data ────────────────────────────────────────────────────────────
-const stats = [
-    { label: "Issues Posted", value: "12", icon: "📋", trend: "+2 this month" },
-    {
-        label: "Total Upvotes",
-        value: "3.4K",
-        icon: "⬆️",
-        trend: "+847 this week",
-    },
-    { label: "Issues Resolved", value: "4", icon: "✅", trend: "33% rate" },
-    { label: "Comments", value: "89", icon: "💬", trend: "+12 this week" },
-];
+// ── Helper functions for timestamp formatting ─────────────────────────────
+const formatTimeAgo = (timestamp) => {
+    if (!timestamp) return "Just now";
+
+    const now = new Date();
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const diffInSeconds = Math.floor((now - date) / 1000);
+
+    if (diffInSeconds < 60) return "Just now";
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400)
+        return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 172800) return "Yesterday";
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+};
+
+const getTimestampGroup = (timestamp) => {
+    if (!timestamp) return "Today";
+
+    const now = new Date();
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const diffInDays = Math.floor((now - date) / (1000 * 86400));
+
+    if (diffInDays === 0) return "Today";
+    if (diffInDays === 1) return "Yesterday";
+    if (diffInDays < 7) return `${diffInDays} days ago`;
+    return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+    });
+};
 
 // ── Sub-components ────────────────────────────────────────────────────────
 function ActivityItem({ item, isLast }) {
@@ -334,9 +220,19 @@ function ActivityItem({ item, isLast }) {
 
             {/* Actor avatar */}
             <div
-                className={`w-8 h-8 rounded-full ${item.actorColor} flex items-center justify-center text-white text-[11px] font-bold shrink-0 relative z-10`}
+                className={`w-8 h-8 rounded-full ${item.actorColor || "bg-gray-400"} flex items-center justify-center text-white text-[11px] font-bold shrink-0 relative z-10 overflow-hidden`}
             >
-                {item.actorInitial}
+                {item.actorPhotoURL ? (
+                    <Image
+                        src={item.actorPhotoURL}
+                        alt={item.actor}
+                        width={32}
+                        height={32}
+                        className="w-full h-full object-cover"
+                    />
+                ) : (
+                    item.actorInitial
+                )}
             </div>
 
             {/* Content */}
@@ -387,10 +283,277 @@ function ActivityItem({ item, isLast }) {
     );
 }
 
+// ── User Profile Card Component ──────────────────────────────────────────────
+function UserProfileCard({ user, userStats }) {
+    const getInitials = (name) => {
+        if (!name) return "U";
+        return name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2);
+    };
+
+    return (
+        <div className="bg-white rounded-2xl p-4 border border-gray-50 shadow-card mb-4">
+            <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-full bg-[#F97316] flex items-center justify-center text-white text-lg font-bold overflow-hidden">
+                    {user.photoURL ? (
+                        <Image
+                            src={user.photoURL}
+                            alt={user.displayName || "User"}
+                            width={56}
+                            height={56}
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        getInitials(user.displayName || user.email)
+                    )}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <h2
+                        className="font-bold text-gray-900 truncate"
+                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
+                    >
+                        {user.displayName || "Anonymous User"}
+                    </h2>
+                    <p className="text-xs text-gray-500 truncate">
+                        {user.email}
+                    </p>
+                    {userStats && (
+                        <p className="text-[11px] text-[#F97316] font-semibold mt-0.5">
+                            {userStats.issuesPosted} issues posted •{" "}
+                            {userStats.totalUpvotes} upvotes
+                        </p>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ── Login Prompt Component ────────────────────────────────────────────────────
+function LoginPrompt({ onLogin }) {
+    return (
+        <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
+            <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-8 max-w-md w-full text-center">
+                <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-4xl">🔒</span>
+                </div>
+                <h2
+                    className="text-2xl font-bold text-gray-900 mb-2"
+                    style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
+                >
+                    Sign In Required
+                </h2>
+                <p
+                    className="text-gray-500 text-sm mb-6"
+                    style={{ fontFamily: "DM Sans, sans-serif" }}
+                >
+                    Please log in to view your activity feed and see updates on
+                    your issues.
+                </p>
+                <button
+                    onClick={onLogin}
+                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98] transition-all duration-200 cursor-pointer"
+                    style={{
+                        fontFamily: "DM Sans, sans-serif",
+                        boxShadow: "0 4px 20px rgba(232,97,26,0.35)",
+                    }}
+                >
+                    Log In to Continue
+                </button>
+                <p
+                    className="text-xs text-gray-400 mt-4"
+                    style={{ fontFamily: "DM Sans, sans-serif" }}
+                >
+                    Don&apos;t have an account?{" "}
+                    <Link
+                        href="/register"
+                        className="text-[#F97316] font-semibold hover:underline"
+                    >
+                        Sign up
+                    </Link>
+                </p>
+            </div>
+        </div>
+    );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────
 export default function ActivityPage() {
+    const router = useRouter();
+    const [currentUser, setCurrentUser] = useState(null);
+    const [authReady, setAuthReady] = useState(false);
+    const [isAnonymous, setIsAnonymous] = useState(true);
     const [activeTab, setActiveTab] = useState("all");
     const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+
+    // Real data states
+    const [activityData, setActivityData] = useState([]);
+    const [userStats, setUserStats] = useState({
+        issuesPosted: "0",
+        totalUpvotes: "0",
+        issuesResolved: "0",
+        comments: "0",
+    });
+    const [loading, setLoading] = useState(false);
+
+    // Auth check - same pattern as home page
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                setCurrentUser(user);
+                setIsAnonymous(user.isAnonymous);
+            }
+            setAuthReady(true);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        if (!currentUser || isAnonymous) return;
+
+        let active = true;
+        setLoading(true);
+
+        const issuesQuery = query(
+            collection(db, "issues"),
+            where("authorId", "==", currentUser.uid),
+        );
+
+        const activityQuery = query(
+            collection(db, "notifications"),
+            where("userId", "==", currentUser.uid),
+        );
+
+        const unsubscribeIssues = onSnapshot(
+            issuesQuery,
+            (snapshot) => {
+                if (!active) return;
+                const issues = snapshot.docs.map((doc) => ({
+                    id: doc.id,
+                    ...doc.data(),
+                }));
+                const totalUpvotes = issues.reduce(
+                    (sum, issue) => sum + (issue.upvotes || 0),
+                    0,
+                );
+                const resolved = issues.filter(
+                    (issue) => issue.status === "resolved",
+                ).length;
+                setUserStats((prev) => ({
+                    ...prev,
+                    issuesPosted: issues.length.toString(),
+                    totalUpvotes:
+                        totalUpvotes >= 1000
+                            ? (totalUpvotes / 1000).toFixed(1) + "K"
+                            : totalUpvotes.toString(),
+                    issuesResolved: resolved.toString(),
+                }));
+            },
+            (error) => console.error("Error fetching issues:", error),
+        );
+
+        const unsubscribeActivity = onSnapshot(
+            activityQuery,
+            (snapshot) => {
+                if (!active) return;
+                const activities = snapshot.docs
+                    .map((doc) => {
+                        const data = doc.data();
+                        return {
+                            id: doc.id,
+                            type: data.type || "update",
+                            actor: data.actorName || "System",
+                            actorInitial: data.actorInitial || "S",
+                            actorColor: data.actorColor || "bg-gray-400",
+                            actorPhotoURL: data.actorPhotoURL || null,
+                            message: data.message || "posted an update",
+                            issue: data.issueTitle || "Unknown Issue",
+                            issueId: data.issueId || "",
+                            timeAgo: formatTimeAgo(data.createdAt),
+                            timestamp: getTimestampGroup(data.createdAt),
+                            read: data.read || false,
+                            meta: data.meta || null,
+                            // ✅ Keep raw createdAt for client-side sorting
+                            _createdAt: data.createdAt,
+                        };
+                    })
+                    // ✅ Sort on the client instead
+                    .sort((a, b) => {
+                        const aTime = a._createdAt?.toDate?.() ?? new Date(0);
+                        const bTime = b._createdAt?.toDate?.() ?? new Date(0);
+                        return bTime - aTime;
+                    });
+
+                setActivityData(activities);
+                if (active) setLoading(false);
+            },
+            (error) => {
+                console.error("Error fetching activity:", error);
+                if (active) setLoading(false);
+            },
+        );
+
+        // ✅ FIXED: Use collectionGroup to query comments subcollection across all issues
+        const fetchCommentsCount = async () => {
+            try {
+                const commentsQuery = query(
+                    collectionGroup(db, "comments"), // ✅ Searches all /issues/{issueId}/comments
+                    where("authorId", "==", currentUser.uid),
+                );
+                const snapshot = await getDocs(commentsQuery);
+                if (active) {
+                    setUserStats((prev) => ({
+                        ...prev,
+                        comments: snapshot.size.toString(),
+                    }));
+                }
+            } catch (error) {
+                console.error("Error fetching comments:", error);
+            }
+        };
+        fetchCommentsCount();
+
+        return () => {
+            active = false;
+            unsubscribeIssues();
+            unsubscribeActivity();
+        };
+    }, [currentUser, isAnonymous]);
+
+    const handleLoginClick = () => {
+        const currentPath = window.location.pathname;
+        router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+    };
+
+    // Show loading while checking auth
+    if (!authReady) {
+        return (
+            <div
+                className="min-h-screen pb-24 md:pb-8 flex items-center justify-center"
+                style={{ background: "#FDF6EF" }}
+            >
+                <div className="flex flex-col items-center gap-3">
+                    <div className="w-8 h-8 border-4 border-orange-200 border-t-[#F97316] rounded-full animate-spin" />
+                    <p
+                        className="text-sm text-gray-500"
+                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                    >
+                        Loading...
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    // Show login prompt if not authenticated or anonymous
+    if (!currentUser || isAnonymous) {
+        return <LoginPrompt onLogin={handleLoginClick} />;
+    }
 
     const unreadCount = activityData.filter((a) => !a.read).length;
 
@@ -413,6 +576,33 @@ export default function ActivityPage() {
         { key: "comment", label: "Comments", emoji: "💬" },
         { key: "resolved", label: "Resolved", emoji: "✅" },
         { key: "milestone", label: "Milestones", emoji: "🏆" },
+    ];
+
+    const stats = [
+        {
+            label: "Issues Posted",
+            value: userStats.issuesPosted,
+            icon: "📋",
+            trend: "+2 this month",
+        },
+        {
+            label: "Total Upvotes",
+            value: userStats.totalUpvotes,
+            icon: "⬆️",
+            trend: "+847 this week",
+        },
+        {
+            label: "Issues Resolved",
+            value: userStats.issuesResolved,
+            icon: "✅",
+            trend: `${Math.round((parseInt(userStats.issuesResolved) / Math.max(parseInt(userStats.issuesPosted), 1)) * 100)}% rate`,
+        },
+        {
+            label: "Comments",
+            value: userStats.comments,
+            icon: "💬",
+            trend: "+12 this week",
+        },
     ];
 
     return (
@@ -477,6 +667,11 @@ export default function ActivityPage() {
                 </div>
             </div>
 
+            {/* ── User Profile Card ── */}
+            <div className="px-4 md:px-6 mb-4">
+                <UserProfileCard user={currentUser} userStats={userStats} />
+            </div>
+
             {/* ── Stats Grid ── */}
             <div className="px-4 md:px-6 mb-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -517,7 +712,7 @@ export default function ActivityPage() {
                         <button
                             key={t.key}
                             onClick={() => setActiveTab(t.key)}
-                            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${activeTab === t.key ? "bg-[#F97316] text-white shadow-sm" : "bg-white text-gray-600 border border-gray-100 hover:border-[#FED7AA] shadow-card"}`}
+                            className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${activeTab === t.key ? "bg-[#F97316] text-white shadow-sm" : "bg-white text-gray-600 border border-gray-100 hover:border-[#FED7AA] shadow-card"}`}
                         >
                             <span>{t.emoji}</span>
                             <span>{t.label}</span>
@@ -542,7 +737,14 @@ export default function ActivityPage() {
 
             {/* ── Activity Feed ── */}
             <div className="px-4 md:px-6 md:max-w-2xl md:mx-auto">
-                {filtered.length === 0 ? (
+                {loading ? (
+                    <div className="text-center py-16 bg-white rounded-2xl border border-gray-50">
+                        <div className="w-8 h-8 border-4 border-orange-200 border-t-[#F97316] rounded-full animate-spin mx-auto mb-3" />
+                        <p className="text-gray-500 text-sm">
+                            Loading activity...
+                        </p>
+                    </div>
+                ) : filtered.length === 0 ? (
                     <div className="text-center py-16 bg-white rounded-2xl border border-gray-50">
                         <div className="text-4xl mb-3">🎉</div>
                         <p className="font-semibold text-gray-700">

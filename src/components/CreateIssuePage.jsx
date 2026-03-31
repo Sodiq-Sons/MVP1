@@ -1,7 +1,14 @@
+// app/create-issue/page.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
+import { db, auth } from "@/lib/firebase";
+import Link from "next/link";
+
+// ─── Icons ───────────────────────────────────────────────────────────────────
 
 const BackIcon = () => (
     <svg
@@ -16,12 +23,11 @@ const BackIcon = () => (
         <polyline points="15 18 9 12 15 6" />
     </svg>
 );
-
 const PenIcon = () => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
-        stroke="#000000"
+        stroke="#000"
         strokeWidth="1.5"
         strokeLinecap="round"
         className="w-4 h-4"
@@ -30,12 +36,11 @@ const PenIcon = () => (
         <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
     </svg>
 );
-
 const DescIcon = () => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
-        stroke="#000000"
+        stroke="#000"
         strokeWidth="1.5"
         strokeLinecap="round"
         className="w-4 h-4"
@@ -46,12 +51,11 @@ const DescIcon = () => (
         <line x1="7" y1="16" x2="11" y2="16" />
     </svg>
 );
-
 const LocationIcon = () => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
-        stroke="#000000"
+        stroke="#000"
         strokeWidth="1.5"
         strokeLinecap="round"
         className="w-4 h-4"
@@ -60,12 +64,11 @@ const LocationIcon = () => (
         <circle cx="12" cy="10" r="3" />
     </svg>
 );
-
 const CategoryIcon = () => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
-        stroke="#000000"
+        stroke="#000"
         strokeWidth="1.5"
         strokeLinecap="round"
         className="w-4 h-4"
@@ -76,7 +79,6 @@ const CategoryIcon = () => (
         <rect x="3" y="14" width="7" height="7" />
     </svg>
 );
-
 const ChevronRightIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -89,7 +91,6 @@ const ChevronRightIcon = () => (
         <polyline points="9 18 15 12 9 6" />
     </svg>
 );
-
 const SendIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -103,7 +104,6 @@ const SendIcon = () => (
         <polygon points="22 2 15 22 11 13 2 9 22 2" />
     </svg>
 );
-
 const LockIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -117,6 +117,94 @@ const LockIcon = () => (
         <path d="M7 11V7a5 5 0 0110 0v4" />
     </svg>
 );
+const PlusIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        className="w-4 h-4"
+    >
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+);
+const TrashIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        className="w-4 h-4"
+    >
+        <polyline points="3 6 5 6 21 6" />
+        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+        <path d="M10 11v6M14 11v6" />
+        <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+    </svg>
+);
+const SpinnerIcon = () => (
+    <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
+        <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="white"
+            strokeWidth="4"
+        />
+        <path
+            className="opacity-75"
+            fill="white"
+            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+        />
+    </svg>
+);
+const ChartIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        className="w-4 h-4"
+    >
+        <path d="M18 20V10" />
+        <path d="M12 20V4" />
+        <path d="M6 20v-6" />
+    </svg>
+);
+const CheckIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        className="w-4 h-4"
+    >
+        <polyline points="20 6 9 17 4 12" />
+    </svg>
+);
+const UsersIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        className="w-4 h-4"
+    >
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 00-3-3.87" />
+        <path d="M16 3.13a4 4 0 010 7.75" />
+    </svg>
+);
+
+// ─── Data ────────────────────────────────────────────────────────────────────
 
 const categories = [
     { value: "infrastructure", label: "🏗️ Infrastructure" },
@@ -167,248 +255,1125 @@ const states = [
     "Taraba",
     "Yobe",
     "Zamfara",
-    "F.C.T (Abuja)",
 ];
 
-export default function CreateIssuePage() {
-    const router = useRouter();
-    const [title, setTitle] = useState("");
-    const [description, setDescription] = useState("");
-    const [location, setLocation] = useState("");
-    const [category, setCategory] = useState("");
-    const [showCategoryModal, setShowCategoryModal] = useState(false);
-    const [showLocationModal, setShowLocationModal] = useState(false);
-    const [submitted, setSubmitted] = useState(false);
+const RESPONSE_TYPES = [
+    {
+        id: "yes_no",
+        emoji: "👍",
+        label: "Yes / No",
+        description: "Simple binary vote — great for clear decisions",
+        preview: ["✅ Yes", "❌ No"],
+    },
+    {
+        id: "likert",
+        emoji: "📊",
+        label: "Agreement Scale",
+        description: "Strongly Agree to Strongly Disagree",
+        preview: [
+            "Strongly Agree",
+            "Agree",
+            "Neutral",
+            "Disagree",
+            "Strongly Disagree",
+        ],
+    },
+    {
+        id: "poll",
+        emoji: "🗳️",
+        label: "Custom Poll",
+        description: "Define your own answer choices (up to 6)",
+        preview: null,
+    },
+];
 
-    const handleSubmit = () => {
-        if (!title.trim()) return;
-        setSubmitted(true);
-        setTimeout(() => {
-            router.push("/");
-        }, 2000);
-    };
+// Demographic options for results filtering - REMOVED state
+const DEMOGRAPHIC_OPTIONS = [
+    {
+        id: "age",
+        emoji: "🎂",
+        label: "Age Groups",
+        description:
+            "See how different age groups voted (Teens, Youth, Adults)",
+    },
+    {
+        id: "gender",
+        emoji: "⚧️",
+        label: "Gender",
+        description: "Breakdown by Male, Female, and Other",
+    },
+    {
+        id: "maritalStatus",
+        emoji: "💍",
+        label: "Marital Status",
+        description: "Single, Married, Divorced, Widowed, Separated",
+    },
+    {
+        id: "education",
+        emoji: "🎓",
+        label: "Education Level",
+        description: "From Primary to PhD/Doctorate",
+    },
+];
 
-    const selectedCategory = categories.find((c) => c.value === category);
+// ─── Step indicator ───────────────────────────────────────────────────────────
 
-    if (submitted) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-[#FDF6EF] p-6 text-center pb-24 md:pb-0">
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4 animate-bounce">
-                    <span className="text-4xl">✅</span>
+function StepIndicator({ step }) {
+    return (
+        <div className="flex items-center justify-center gap-2 py-3">
+            {[1, 2, 3].map((s) => (
+                <div key={s} className="flex items-center gap-2">
+                    <div
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                            step === s
+                                ? "bg-[#F97316] text-white shadow-md shadow-orange-200"
+                                : step > s
+                                  ? "bg-green-500 text-white"
+                                  : "bg-gray-100 text-gray-400"
+                        }`}
+                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                    >
+                        {step > s ? "✓" : s}
+                    </div>
+                    {s < 3 && (
+                        <div
+                            className={`w-12 h-0.5 rounded-full transition-all duration-500 ${step > s ? "bg-green-400" : "bg-gray-100"}`}
+                        />
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// ─── Response type card ───────────────────────────────────────────────────────
+
+function ResponseTypeCard({ type, selected, onSelect }) {
+    return (
+        <button
+            onClick={() => onSelect(type.id)}
+            className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${
+                selected
+                    ? "border-[#F97316] bg-[#FFF7F2]"
+                    : "border-gray-100 bg-white hover:border-orange-200"
+            }`}
+        >
+            <div className="flex items-start gap-3">
+                <span className="text-2xl">{type.emoji}</span>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                        <span
+                            className={`font-bold text-sm ${selected ? "text-[#F97316]" : "text-gray-900"}`}
+                            style={{
+                                fontFamily: "Plus Jakarta Sans, sans-serif",
+                            }}
+                        >
+                            {type.label}
+                        </span>
+                        {selected && (
+                            <span className="ml-auto w-5 h-5 bg-[#F97316] rounded-full flex items-center justify-center shrink-0">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="white"
+                                    strokeWidth="3"
+                                    strokeLinecap="round"
+                                    className="w-3 h-3"
+                                >
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                            </span>
+                        )}
+                    </div>
+                    <p
+                        className="text-xs text-gray-400 mb-2"
+                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                    >
+                        {type.description}
+                    </p>
+                    {type.preview && (
+                        <div className="flex flex-wrap gap-1.5">
+                            {type.preview.map((opt) => (
+                                <span
+                                    key={opt}
+                                    className={`px-2 py-0.5 rounded-full text-xs border ${selected ? "border-orange-200 bg-orange-50 text-orange-600" : "border-gray-100 bg-gray-50 text-gray-500"}`}
+                                    style={{
+                                        fontFamily: "DM Sans, sans-serif",
+                                    }}
+                                >
+                                    {opt}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </button>
+    );
+}
+
+// ─── Demographic Card Component ───────────────────────────────────────────────
+
+function DemographicCard({ option, selected, onToggle }) {
+    return (
+        <button
+            onClick={() => onToggle(option.id)}
+            className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer relative ${
+                selected
+                    ? "border-[#F97316] bg-[#FFF7F2]"
+                    : "border-gray-100 bg-white hover:border-orange-200"
+            }`}
+        >
+            <div className="flex items-start gap-3">
+                <div
+                    className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                        selected ? "bg-[#F97316]" : "bg-gray-100"
+                    }`}
+                >
+                    {selected ? (
+                        <CheckIcon />
+                    ) : (
+                        <span className="text-xs text-gray-400">☐</span>
+                    )}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-xl">{option.emoji}</span>
+                        <span
+                            className={`font-bold text-sm ${selected ? "text-[#F97316]" : "text-gray-900"}`}
+                            style={{
+                                fontFamily: "Plus Jakarta Sans, sans-serif",
+                            }}
+                        >
+                            {option.label}
+                        </span>
+                    </div>
+                    <p
+                        className="text-xs text-gray-400"
+                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                    >
+                        {option.description}
+                    </p>
+                </div>
+            </div>
+            {selected && (
+                <div className="absolute top-3 right-3">
+                    <span className="w-5 h-5 bg-[#F97316] rounded-full flex items-center justify-center">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="white"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            className="w-3 h-3"
+                        >
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                    </span>
+                </div>
+            )}
+        </button>
+    );
+}
+
+// ─── Field error badge ────────────────────────────────────────────────────────
+
+function FieldRow({ touched, valid, children, className = "" }) {
+    const showError = touched && !valid;
+    return (
+        <div
+            className={`relative transition-all duration-200 ${showError ? "rounded-xl ring-2 ring-red-300" : ""} ${className}`}
+        >
+            {children}
+            {showError && (
+                <span
+                    className="absolute -top-2 right-3 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full z-10"
+                    style={{ fontFamily: "DM Sans, sans-serif" }}
+                >
+                    Required
+                </span>
+            )}
+        </div>
+    );
+}
+
+// ─── Login Prompt Component ────────────────────────────────────────────────────
+
+function LoginPrompt({ onLogin }) {
+    return (
+        <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
+            <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-8 max-w-md w-full text-center">
+                <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-4xl">🔒</span>
                 </div>
                 <h2
                     className="text-2xl font-bold text-gray-900 mb-2"
                     style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                 >
-                    Issue Submitted!
+                    Login Required
                 </h2>
                 <p
-                    className="text-gray-500 text-md"
+                    className="text-gray-500 text-sm mb-6"
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
-                    Your voice matters. Redirecting you home...
+                    Please sign in to create issues and join the conversation.
                 </p>
+                <button
+                    onClick={onLogin}
+                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98] transition-all duration-200 cursor-pointer"
+                    style={{
+                        fontFamily: "DM Sans, sans-serif",
+                        boxShadow: "0 4px 20px rgba(232,97,26,0.35)",
+                    }}
+                >
+                    Sign In
+                </button>
+                <p
+                    className="text-xs text-gray-400 mt-4"
+                    style={{ fontFamily: "DM Sans, sans-serif" }}
+                >
+                    Don&apos;t have an account?{" "}
+                    <Link
+                        href="/register"
+                        className="text-[#F97316] font-semibold hover:underline"
+                    >
+                        Sign up
+                    </Link>
+                </p>
+            </div>
+        </div>
+    );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export default function CreateIssuePage() {
+    const router = useRouter();
+    const [currentUser, setCurrentUser] = useState(null);
+    const [authReady, setAuthReady] = useState(false);
+    const [isAnonymous, setIsAnonymous] = useState(true);
+
+    // Auth check - same pattern as home page
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                setCurrentUser(user);
+                setIsAnonymous(user.isAnonymous);
+            }
+            setAuthReady(true);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    const handleLoginClick = () => {
+        const currentPath = window.location.pathname;
+        router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+    };
+
+    // Show loading while checking auth
+    if (!authReady) {
+        return (
+            <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                    <SpinnerIcon />
+                    <p
+                        className="text-sm text-gray-500"
+                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                    >
+                        Loading...
+                    </p>
+                </div>
             </div>
         );
     }
 
+    // Show login prompt if not authenticated or anonymous
+    if (!currentUser || isAnonymous) {
+        return <LoginPrompt onLogin={handleLoginClick} />;
+    }
+
+    return <CreateIssueForm currentUser={currentUser} router={router} />;
+}
+
+function CreateIssueForm({ currentUser, router }) {
+    // Step 1
+    const [title, setTitle] = useState("");
+    const [description, setDescription] = useState("");
+    const [location, setLocation] = useState("");
+    const [category, setCategory] = useState("");
+    const [touched, setTouched] = useState({
+        title: false,
+        description: false,
+        location: false,
+        category: false,
+    });
+    const [showCategoryModal, setShowCategoryModal] = useState(false);
+    const [showLocationModal, setShowLocationModal] = useState(false);
+
+    // Step 2
+    const [responseType, setResponseType] = useState("yes_no");
+    const [pollOptions, setPollOptions] = useState(["", ""]);
+
+    // Step 3 - Demographics
+    const [selectedDemographics, setSelectedDemographics] = useState([]);
+
+    // UI
+    const [step, setStep] = useState(1);
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState("");
+
+    const selectedCategory = categories.find((c) => c.value === category);
+
+    // ── Validation ────────────────────────────────────────────────────────────
+    const step1Valid =
+        title.trim().length > 0 &&
+        description.trim().length > 0 &&
+        location.length > 0 &&
+        category.length > 0;
+
+    const step2Valid =
+        responseType !== "poll" ||
+        pollOptions.filter((o) => o.trim()).length >= 2;
+
+    const step3Valid = selectedDemographics.length > 0;
+
+    const touchAllStep1 = () =>
+        setTouched({
+            title: true,
+            description: true,
+            location: true,
+            category: true,
+        });
+
+    // ── Poll helpers ──────────────────────────────────────────────────────────
+    const updatePollOption = (i, val) => {
+        const next = [...pollOptions];
+        next[i] = val;
+        setPollOptions(next);
+    };
+    const addPollOption = () => {
+        if (pollOptions.length < 6) setPollOptions([...pollOptions, ""]);
+    };
+    const removePollOption = (i) => {
+        if (pollOptions.length > 2)
+            setPollOptions(pollOptions.filter((_, idx) => idx !== i));
+    };
+
+    // ── Demographics helpers ─────────────────────────────────────────────────
+    const toggleDemographic = (id) => {
+        setSelectedDemographics((prev) =>
+            prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id],
+        );
+    };
+
+    // ── Save to Firestore ───────────────────────────────────────────────────
+    const handleSubmit = async () => {
+        if (!step1Valid || !step2Valid || !step3Valid || saving) return;
+        setSaving(true);
+        setSaveError("");
+
+        try {
+            let voteOptions = [];
+            if (responseType === "yes_no") {
+                voteOptions = ["Yes", "No"];
+            } else if (responseType === "likert") {
+                voteOptions = [
+                    "Strongly Agree",
+                    "Agree",
+                    "Neutral",
+                    "Disagree",
+                    "Strongly Disagree",
+                ];
+            } else {
+                voteOptions = pollOptions.filter((o) => o.trim());
+            }
+
+            const votes = Object.fromEntries(
+                voteOptions.map((opt) => [opt, 0]),
+            );
+
+            await addDoc(collection(db, "issues"), {
+                title: title.trim(),
+                description: description.trim(),
+                location,
+                category,
+                responseType,
+                voteOptions,
+                votes,
+                totalVotes: 0,
+                demographics: selectedDemographics, // Store selected demographics for results
+                createdAt: serverTimestamp(),
+                createdBy: currentUser.uid,
+            });
+
+            router.push("/");
+        } catch (err) {
+            console.error("Firestore error:", err);
+            setSaveError("Something went wrong. Please try again.");
+            setSaving(false);
+        }
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+
     return (
         <div className="min-h-screen bg-[#FDF6EF] pb-24 md:pb-8">
             {/* Header */}
-            <header className="sticky top-0 z-40 bg-[#F97316] px-4 pt-6 md:pt-4 pb-4 md:rounded-none">
+            <header className="sticky top-0 z-40 bg-[#F97316] px-4 pt-6 md:pt-4 pb-3">
                 <div className="flex items-center gap-3 max-w-2xl mx-auto">
                     <button
-                        onClick={() => router.back()}
+                        onClick={() =>
+                            step === 1 ? router.back() : setStep(step - 1)
+                        }
                         className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center hover:bg-white/30 transition-colors cursor-pointer"
                     >
                         <BackIcon />
                     </button>
-                    <h1
-                        className="text-white font-bold text-base"
-                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
-                    >
-                        Post a New Issue
-                    </h1>
+                    <div>
+                        <h1
+                            className="text-white font-bold text-base leading-tight"
+                            style={{
+                                fontFamily: "Plus Jakarta Sans, sans-serif",
+                            }}
+                        >
+                            {step === 1
+                                ? "Post a New Issue"
+                                : step === 2
+                                  ? "How Should People Respond?"
+                                  : "Demographic Insights"}
+                        </h1>
+                        <p
+                            className="text-orange-100 text-xs"
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                        >
+                            Step {step} of 3
+                        </p>
+                    </div>
+                </div>
+                <div className="max-w-2xl mx-auto">
+                    <StepIndicator step={step} />
                 </div>
             </header>
 
             <div className="max-w-2xl mx-auto px-4 md:px-6">
-                {/* Hero illustration */}
-                <div className="flex flex-col items-center pt-6 pb-4">
-                    <div className="w-28 h-28 bg-[#FFF7F2] rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
-                        <span className="text-5xl">📢</span>
-                    </div>
-                    <h2
-                        className="text-xl font-bold text-gray-900 text-center"
-                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
-                    >
-                        Your Voice Matters!
-                    </h2>
-                    <span
-                        className="text-gray-500 text-md text-center mt-1 max-w-xs inline-flex items-center justify-center"
-                        style={{ fontFamily: "DM Sans, sans-serif" }}
-                    >
-                        Report issues in your community.
-                        <br />
-                        Let&apos;s make Nigeria better — together
-                    </span>
-                </div>
-
-                {/* Form card */}
-                <div className="bg-white rounded-2xl shadow-card border border-gray-50 overflow-hidden">
-                    {/* Issue Title */}
-                    <div className="px-4 pt-4 pb-3 border-b border-gray-50">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
-                                <PenIcon />
+                {/* ══ STEP 1 ══════════════════════════════════════════════════ */}
+                {step === 1 && (
+                    <>
+                        {/* Hero */}
+                        <div className="flex flex-col items-center pt-6 pb-4">
+                            <div className="w-28 h-28 bg-[#FFF7F2] rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
+                                <span className="text-5xl">📢</span>
                             </div>
-                            <div className="flex-1">
-                                <label
-                                    className="block text-md font-medium text-black mb-1"
-                                    style={{
-                                        fontFamily: "DM Sans, sans-serif",
+                            <h2
+                                className="text-xl font-bold text-gray-900 text-center"
+                                style={{
+                                    fontFamily: "Plus Jakarta Sans, sans-serif",
+                                }}
+                            >
+                                Your Voice Matters!
+                            </h2>
+                            <span
+                                className="text-gray-500 text-sm text-center mt-1 max-w-xs"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                Report issues in your community.
+                                <br />
+                                Let&apos;s make Nigeria better — together
+                            </span>
+                        </div>
+
+                        {/* Form card */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-visible divide-y divide-gray-50">
+                            {/* Title */}
+                            <FieldRow
+                                touched={touched.title}
+                                valid={title.trim().length > 0}
+                                className="rounded-t-2xl"
+                            >
+                                <div className="px-4 pt-4 pb-3 flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
+                                        <PenIcon />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label
+                                            className="block text-sm font-semibold text-black mb-1"
+                                            style={{
+                                                fontFamily:
+                                                    "DM Sans, sans-serif",
+                                            }}
+                                        >
+                                            Issue Title{" "}
+                                            <span className="text-red-400">
+                                                *
+                                            </span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={title}
+                                            onChange={(e) =>
+                                                setTitle(e.target.value)
+                                            }
+                                            onBlur={() =>
+                                                setTouched((t) => ({
+                                                    ...t,
+                                                    title: true,
+                                                }))
+                                            }
+                                            placeholder="e.g. Bad road, No water, School problem"
+                                            className="w-full text-sm text-black placeholder-gray-300 focus:outline-none bg-transparent"
+                                            style={{
+                                                fontFamily:
+                                                    "DM Sans, sans-serif",
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            </FieldRow>
+
+                            {/* Description */}
+                            <FieldRow
+                                touched={touched.description}
+                                valid={description.trim().length > 0}
+                            >
+                                <div className="px-4 pt-3 pb-3 flex items-start gap-3">
+                                    <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                                        <DescIcon />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label
+                                            className="block text-sm font-semibold text-black mb-1"
+                                            style={{
+                                                fontFamily:
+                                                    "DM Sans, sans-serif",
+                                            }}
+                                        >
+                                            Describe the Issue{" "}
+                                            <span className="text-red-400">
+                                                *
+                                            </span>
+                                        </label>
+                                        <textarea
+                                            value={description}
+                                            onChange={(e) =>
+                                                setDescription(e.target.value)
+                                            }
+                                            onBlur={() =>
+                                                setTouched((t) => ({
+                                                    ...t,
+                                                    description: true,
+                                                }))
+                                            }
+                                            placeholder="Tell us what's happening..."
+                                            rows={5}
+                                            maxLength={1500}
+                                            className="w-full text-sm text-black placeholder-gray-300 focus:outline-none bg-transparent resize-none"
+                                            style={{
+                                                fontFamily:
+                                                    "DM Sans, sans-serif",
+                                            }}
+                                        />
+                                        {description.length > 0 && (
+                                            <p
+                                                className="text-xs text-gray-400 text-right"
+                                                style={{
+                                                    fontFamily:
+                                                        "DM Sans, sans-serif",
+                                                }}
+                                            >
+                                                {description.length}/1500
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </FieldRow>
+
+                            {/* Location */}
+                            <FieldRow
+                                touched={touched.location}
+                                valid={location.length > 0}
+                            >
+                                <button
+                                    onClick={() => {
+                                        setTouched((t) => ({
+                                            ...t,
+                                            location: true,
+                                        }));
+                                        setShowLocationModal(true);
                                     }}
+                                    className="w-full px-4 pt-3 pb-3 flex items-center gap-3 hover:bg-gray-50/50 transition-colors text-left cursor-pointer"
                                 >
-                                    Issue Title
-                                </label>
-                                <input
-                                    type="text"
-                                    value={title}
-                                    onChange={(e) => setTitle(e.target.value)}
-                                    placeholder="e.g. Bad road, No water, School problem"
-                                    className="w-full text-md text-black placeholder-gray-350 focus:outline-none bg-transparent"
-                                    style={{
-                                        fontFamily: "DM Sans, sans-serif",
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    </div>
+                                    <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
+                                        <LocationIcon />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div
+                                            className="text-sm font-semibold text-black mb-0.5"
+                                            style={{
+                                                fontFamily:
+                                                    "DM Sans, sans-serif",
+                                            }}
+                                        >
+                                            Location{" "}
+                                            <span className="text-red-400">
+                                                *
+                                            </span>
+                                        </div>
+                                        <div
+                                            className={`text-sm ${location ? "text-gray-800" : "text-gray-400"}`}
+                                            style={{
+                                                fontFamily:
+                                                    "DM Sans, sans-serif",
+                                            }}
+                                        >
+                                            {location || "Select state"}
+                                        </div>
+                                    </div>
+                                    <ChevronRightIcon />
+                                </button>
+                            </FieldRow>
 
-                    {/* Description */}
-                    <div className="px-4 pt-3 pb-3 border-b border-gray-50">
-                        <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                                <DescIcon />
-                            </div>
-                            <div className="flex-1">
-                                <label
-                                    className="block text-md font-medium text-black mb-1"
-                                    style={{
-                                        fontFamily: "DM Sans, sans-serif",
+                            {/* Category */}
+                            <FieldRow
+                                touched={touched.category}
+                                valid={category.length > 0}
+                                className="rounded-b-2xl"
+                            >
+                                <button
+                                    onClick={() => {
+                                        setTouched((t) => ({
+                                            ...t,
+                                            category: true,
+                                        }));
+                                        setShowCategoryModal(true);
                                     }}
+                                    className="w-full px-4 pt-3 pb-4 flex items-center gap-3 hover:bg-gray-50/50 transition-colors text-left cursor-pointer"
                                 >
-                                    Describe the Issue
-                                </label>
-                                <textarea
-                                    value={description}
-                                    onChange={(e) =>
-                                        setDescription(e.target.value)
-                                    }
-                                    placeholder="Tell us what's happening..."
-                                    rows={4}
-                                    className="w-full text-md text-black placeholder-gray-350 focus:outline-none bg-transparent resize-none"
-                                    style={{
-                                        fontFamily: "DM Sans, sans-serif",
-                                    }}
-                                />
-                            </div>
+                                    <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
+                                        <CategoryIcon />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div
+                                            className="text-sm font-semibold text-black mb-0.5"
+                                            style={{
+                                                fontFamily:
+                                                    "DM Sans, sans-serif",
+                                            }}
+                                        >
+                                            Category{" "}
+                                            <span className="text-red-400">
+                                                *
+                                            </span>
+                                        </div>
+                                        <div
+                                            className={`text-sm ${category ? "text-gray-800" : "text-gray-400"}`}
+                                            style={{
+                                                fontFamily:
+                                                    "DM Sans, sans-serif",
+                                            }}
+                                        >
+                                            {selectedCategory
+                                                ? selectedCategory.label
+                                                : "Choose issue type"}
+                                        </div>
+                                    </div>
+                                    <ChevronRightIcon />
+                                </button>
+                            </FieldRow>
                         </div>
-                    </div>
 
-                    {/* Location */}
-                    <button
-                        onClick={() => setShowLocationModal(true)}
-                        className="w-full px-4 pt-3 pb-3 border-b border-gray-50 flex items-center gap-3 hover:bg-gray-50/50 transition-colors text-left cursor-pointer"
-                    >
-                        <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
-                            <LocationIcon />
-                        </div>
-                        <div className="flex-1">
-                            <div
-                                className="text-md font-medium text-black mb-0.5"
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
-                            >
-                                Location
-                            </div>
-                            <div
-                                className={`text-md cursor-pointer ${location ? "text-gray-800" : "text-gray-400"}`}
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
-                            >
-                                {location || "Select state / LGA / Area"}
-                            </div>
-                        </div>
-                        <ChevronRightIcon />
-                    </button>
+                        {/* Helper text */}
+                        <p
+                            className="text-xs text-center mt-2 px-1"
+                            style={{
+                                fontFamily: "DM Sans, sans-serif",
+                                color: step1Valid ? "#22c55e" : "#9ca3af",
+                            }}
+                        >
+                            {step1Valid
+                                ? "✓ All fields complete — you're good to go!"
+                                : "All fields are required to continue"}
+                        </p>
 
-                    {/* Category */}
-                    <button
-                        onClick={() => setShowCategoryModal(true)}
-                        className="w-full px-4 pt-3 pb-4 flex items-center gap-3 hover:bg-gray-50/50 transition-colors text-left cursor-pointer"
-                    >
-                        <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
-                            <CategoryIcon />
-                        </div>
-                        <div className="flex-1">
-                            <div
-                                className="text-md font-medium text-black mb-0.5"
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                        {/* Next */}
+                        <button
+                            onClick={() => {
+                                touchAllStep1();
+                                if (step1Valid) setStep(2);
+                            }}
+                            className={`w-full mt-4 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 ${
+                                step1Valid
+                                    ? "bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98] cursor-pointer"
+                                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            }`}
+                            style={{
+                                fontFamily: "DM Sans, sans-serif",
+                                boxShadow: step1Valid
+                                    ? "0 4px 20px rgba(232,97,26,0.35)"
+                                    : undefined,
+                            }}
+                        >
+                            Next — Choose Response Type
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                className="w-4 h-4"
                             >
-                                Category
-                            </div>
-                            <div
-                                className={`text-md cursor-pointer ${category ? "text-gray-800" : "text-gray-400"}`}
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
-                            >
-                                {selectedCategory
-                                    ? selectedCategory.label
-                                    : "Choose issue type"}
-                            </div>
-                        </div>
-                        <ChevronRightIcon />
-                    </button>
-                </div>
+                                <polyline points="9 18 15 12 9 6" />
+                            </svg>
+                        </button>
 
-                {/* Character count hint */}
-                {description.length > 0 && (
-                    <p
-                        className="text-xs text-gray-400 mt-2 px-1"
-                        style={{ fontFamily: "DM Sans, sans-serif" }}
-                    >
-                        {description.length} / 500 characters
-                    </p>
+                        <div className="flex items-center justify-center gap-1.5 mt-3 mb-6">
+                            <LockIcon />
+                            <span
+                                className="text-xs text-gray-500"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                Your post will be public &amp; trackable
+                            </span>
+                        </div>
+                    </>
                 )}
 
-                {/* Submit button */}
-                <button
-                    onClick={handleSubmit}
-                    disabled={!title.trim()}
-                    className={`w-full mt-5 py-4 rounded-2xl font-bold text-white text-base flex items-center justify-center gap-2 transition-all ${
-                        title.trim()
-                            ? "bg-[#F97316] hover:bg-[#C2410C] shadow-lg hover:shadow-xl active:scale-[0.98]"
-                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    }`}
-                    style={{
-                        fontFamily: "DM Sans, sans-serif",
-                        boxShadow: title.trim()
-                            ? "0 4px 20px rgba(232,97,26,0.35)"
-                            : undefined,
-                    }}
-                >
-                    <SendIcon />
-                    Submit Issue
-                </button>
+                {/* ══ STEP 2 ══════════════════════════════════════════════════ */}
+                {step === 2 && (
+                    <>
+                        <div className="flex flex-col items-center pt-6 pb-5">
+                            <div className="w-24 h-24 bg-[#FFF7F2] rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
+                                <span className="text-4xl">🗳️</span>
+                            </div>
+                            <h2
+                                className="text-xl font-bold text-gray-900 text-center"
+                                style={{
+                                    fontFamily: "Plus Jakarta Sans, sans-serif",
+                                }}
+                            >
+                                Pick a Response Style
+                            </h2>
+                            <p
+                                className="text-gray-500 text-sm text-center mt-1 max-w-xs"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                How should people vote on your issue?
+                            </p>
+                        </div>
 
-                {/* Privacy note */}
-                <div className="flex items-center justify-center gap-1.5 mt-3 mb-6">
-                    <LockIcon />
-                    <span
-                        className="text-xs text-black"
-                        style={{ fontFamily: "DM Sans, sans-serif" }}
-                    >
-                        Your post will be public & trackable
-                    </span>
-                </div>
+                        {/* Issue recap */}
+                        <div className="bg-white rounded-xl px-4 py-3 mb-4 border border-orange-100 flex items-center gap-2">
+                            <span className="text-orange-400 text-lg">📢</span>
+                            <p
+                                className="text-sm text-gray-700 font-medium truncate"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                {title}
+                            </p>
+                        </div>
+
+                        {/* Response type cards */}
+                        <div className="flex flex-col gap-3">
+                            {RESPONSE_TYPES.map((type) => (
+                                <ResponseTypeCard
+                                    key={type.id}
+                                    type={type}
+                                    selected={responseType === type.id}
+                                    onSelect={setResponseType}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Custom poll builder */}
+                        {responseType === "poll" && (
+                            <div className="mt-4 bg-white rounded-2xl border border-gray-100 p-4">
+                                <p
+                                    className="text-sm font-bold text-gray-800 mb-3"
+                                    style={{
+                                        fontFamily:
+                                            "Plus Jakarta Sans, sans-serif",
+                                    }}
+                                >
+                                    Your poll options{" "}
+                                    <span className="text-red-400">*</span>
+                                </p>
+                                <div className="flex flex-col gap-2">
+                                    {pollOptions.map((opt, i) => (
+                                        <div
+                                            key={i}
+                                            className="flex items-center gap-2"
+                                        >
+                                            <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center text-xs font-bold shrink-0">
+                                                {i + 1}
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={opt}
+                                                onChange={(e) =>
+                                                    updatePollOption(
+                                                        i,
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                placeholder={`Option ${i + 1}`}
+                                                maxLength={60}
+                                                className="flex-1 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-orange-300 transition-colors"
+                                                style={{
+                                                    fontFamily:
+                                                        "DM Sans, sans-serif",
+                                                }}
+                                            />
+                                            {pollOptions.length > 2 && (
+                                                <button
+                                                    onClick={() =>
+                                                        removePollOption(i)
+                                                    }
+                                                    className="text-gray-300 hover:text-red-400 transition-colors cursor-pointer"
+                                                >
+                                                    <TrashIcon />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                {pollOptions.length < 6 && (
+                                    <button
+                                        onClick={addPollOption}
+                                        className="mt-3 w-full py-2 rounded-xl border-2 border-dashed border-orange-200 text-orange-400 text-sm flex items-center justify-center gap-1.5 hover:border-orange-400 hover:text-orange-500 transition-colors cursor-pointer"
+                                        style={{
+                                            fontFamily: "DM Sans, sans-serif",
+                                        }}
+                                    >
+                                        <PlusIcon />
+                                        Add option ({pollOptions.length}/6)
+                                    </button>
+                                )}
+                                {pollOptions.filter((o) => o.trim()).length <
+                                    2 && (
+                                    <p
+                                        className="text-xs text-orange-400 mt-2"
+                                        style={{
+                                            fontFamily: "DM Sans, sans-serif",
+                                        }}
+                                    >
+                                        ⚠️ Fill in at least 2 options to submit
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Navigation Buttons */}
+                        <div className="flex gap-3 mt-5">
+                            <button
+                                onClick={() => setStep(1)}
+                                className="flex-1 py-4 rounded-2xl font-bold text-sm text-gray-500 hover:text-gray-700 border-2 border-gray-200 hover:border-gray-300 transition-all duration-200 cursor-pointer"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                ← Back
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (step2Valid) setStep(3);
+                                }}
+                                className={`flex-2 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 ${
+                                    step2Valid
+                                        ? "bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98] cursor-pointer"
+                                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                }`}
+                                style={{
+                                    fontFamily: "DM Sans, sans-serif",
+                                    boxShadow: step2Valid
+                                        ? "0 4px 20px rgba(232,97,26,0.35)"
+                                        : undefined,
+                                }}
+                            >
+                                Next — Demographics
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2.5"
+                                    strokeLinecap="round"
+                                    className="w-4 h-4"
+                                >
+                                    <polyline points="9 18 15 12 9 6" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-center gap-1.5 mt-3 mb-6">
+                            <LockIcon />
+                            <span
+                                className="text-xs text-gray-500"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                Your post will be public &amp; trackable
+                            </span>
+                        </div>
+                    </>
+                )}
+
+                {/* ══ STEP 3 ══════════════════════════════════════════════════ */}
+                {step === 3 && (
+                    <>
+                        <div className="flex flex-col items-center pt-6 pb-5">
+                            <div className="w-24 h-24 bg-[#FFF7F2] rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
+                                <span className="text-4xl">📊</span>
+                            </div>
+                            <h2
+                                className="text-xl font-bold text-gray-900 text-center"
+                                style={{
+                                    fontFamily: "Plus Jakarta Sans, sans-serif",
+                                }}
+                            >
+                                Demographic Insights
+                            </h2>
+                            <p
+                                className="text-gray-500 text-sm text-center mt-1 max-w-xs"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                Select which demographics to show in voting
+                                results
+                            </p>
+                        </div>
+
+                        {/* Issue recap */}
+                        <div className="bg-white rounded-xl px-4 py-3 mb-4 border border-orange-100">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="text-orange-400 text-lg">
+                                    📢
+                                </span>
+                                <p
+                                    className="text-sm text-gray-700 font-medium truncate"
+                                    style={{
+                                        fontFamily: "DM Sans, sans-serif",
+                                    }}
+                                >
+                                    {title}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <span>
+                                    {
+                                        RESPONSE_TYPES.find(
+                                            (t) => t.id === responseType,
+                                        )?.emoji
+                                    }
+                                </span>
+                                <span>
+                                    {
+                                        RESPONSE_TYPES.find(
+                                            (t) => t.id === responseType,
+                                        )?.label
+                                    }
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Demographics selection */}
+                        <div className="flex flex-col gap-3 mb-4">
+                            {DEMOGRAPHIC_OPTIONS.map((option) => (
+                                <DemographicCard
+                                    key={option.id}
+                                    option={option}
+                                    selected={selectedDemographics.includes(
+                                        option.id,
+                                    )}
+                                    onToggle={toggleDemographic}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Selection summary */}
+                        <div className="bg-orange-50 rounded-xl p-4 mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <UsersIcon />
+                                <span
+                                    className="text-sm font-bold text-gray-800"
+                                    style={{
+                                        fontFamily:
+                                            "Plus Jakarta Sans, sans-serif",
+                                    }}
+                                >
+                                    {selectedDemographics.length} selected
+                                </span>
+                            </div>
+                            <p
+                                className="text-xs text-gray-600"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                {selectedDemographics.length === 0
+                                    ? "Select at least one demographic to see how different groups voted on your issue"
+                                    : `You'll see voting breakdowns by: ${selectedDemographics
+                                          .map(
+                                              (id) =>
+                                                  DEMOGRAPHIC_OPTIONS.find(
+                                                      (o) => o.id === id,
+                                                  )?.label,
+                                          )
+                                          .join(", ")}`}
+                            </p>
+                        </div>
+
+                        {/* Save error */}
+                        {saveError && (
+                            <div
+                                className="mb-4 px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-500"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                {saveError}
+                            </div>
+                        )}
+
+                        {/* Navigation Buttons */}
+                        <div className="flex gap-3 mt-5">
+                            <button
+                                onClick={() => setStep(2)}
+                                disabled={saving}
+                                className="flex-1 py-4 rounded-2xl font-bold text-sm text-gray-500 hover:text-gray-700 border-2 border-gray-200 hover:border-gray-300 transition-all duration-200 cursor-pointer disabled:opacity-50"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                ← Back
+                            </button>
+                            <button
+                                onClick={handleSubmit}
+                                disabled={!step3Valid || saving}
+                                className={`flex-2 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 ${
+                                    step3Valid && !saving
+                                        ? "bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98] cursor-pointer"
+                                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                }`}
+                                style={{
+                                    fontFamily: "DM Sans, sans-serif",
+                                    boxShadow:
+                                        step3Valid && !saving
+                                            ? "0 4px 20px rgba(232,97,26,0.35)"
+                                            : undefined,
+                                }}
+                            >
+                                {saving ? (
+                                    <>
+                                        <SpinnerIcon /> Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <SendIcon /> Submit Issue
+                                    </>
+                                )}
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-center gap-1.5 mt-3 mb-8">
+                            <LockIcon />
+                            <span
+                                className="text-xs text-gray-500"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                Your post will be public &amp; trackable
+                            </span>
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* ── CATEGORY MODAL ── */}
@@ -436,7 +1401,7 @@ export default function CreateIssuePage() {
                                         setCategory(cat.value);
                                         setShowCategoryModal(false);
                                     }}
-                                    className={`p-3 rounded-xl text-left text-md font-medium transition-all border cursor-pointer ${
+                                    className={`p-3 rounded-xl text-left text-sm font-medium transition-all border cursor-pointer ${
                                         category === cat.value
                                             ? "border-[#F97316] bg-[#FFF7F2] text-[#F97316]"
                                             : "border-gray-100 bg-gray-50 text-black hover:border-[#F97316]/30"
@@ -478,7 +1443,7 @@ export default function CreateIssuePage() {
                                         setLocation(state);
                                         setShowLocationModal(false);
                                     }}
-                                    className={`p-2.5 rounded-xl text-left text-md font-medium transition-all border cursor-pointer ${
+                                    className={`p-2.5 rounded-xl text-left text-sm font-medium transition-all border cursor-pointer ${
                                         location === state
                                             ? "border-[#F97316] bg-[#FFF7F2] text-[#F97316]"
                                             : "border-gray-100 bg-gray-50 text-gray-600 hover:border-[#F97316]/30"

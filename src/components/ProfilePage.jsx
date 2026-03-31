@@ -1,9 +1,27 @@
+// app/profile/page.js
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+    doc,
+    getDoc,
+    collection,
+    query,
+    where,
+    getDocs,
+    orderBy,
+    limit,
+    updateDoc,
+    serverTimestamp,
+} from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { onAuthStateChanged, signOut, signInAnonymously } from "firebase/auth";
+import { toast } from "sonner";
+import Image from "next/image";
 
-// ── Icons ──────────────────────────────────────────────────────────────────
+// ── Icons ────────────────────────────────────────────────────────────────────
 const LocationIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -136,7 +154,7 @@ const ShieldIcon = () => (
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
     </svg>
 );
-const BellIcon = () => (
+const ActivityIcon = () => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
@@ -145,8 +163,7 @@ const BellIcon = () => (
         strokeLinecap="round"
         className="w-4 h-4"
     >
-        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
-        <path d="M13.73 21a2 2 0 01-3.46 0" />
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
     </svg>
 );
 const HelpIcon = () => (
@@ -164,88 +181,7 @@ const HelpIcon = () => (
     </svg>
 );
 
-// ── Data ──────────────────────────────────────────────────────────────────
-const userIssues = [
-    {
-        id: "1",
-        category: "Infrastructure",
-        categoryEmoji: "🏗️",
-        categoryBg: "bg-orange-50",
-        categoryColor: "text-orange-700",
-        title: "Fix Bad Road at Allen Junction, Lagos",
-        location: "Lagos, Nigeria",
-        upvotes: 1200,
-        comments: 48,
-        status: "trending",
-        timeAgo: "2h ago",
-    },
-    {
-        id: "2",
-        category: "Healthcare",
-        categoryEmoji: "❤️",
-        categoryBg: "bg-rose-50",
-        categoryColor: "text-rose-700",
-        title: "No Clinic in My Community – Help!",
-        location: "Kano State",
-        upvotes: 532,
-        comments: 21,
-        status: "needs-attention",
-        timeAgo: "Yesterday",
-    },
-    {
-        id: "3",
-        category: "Education",
-        categoryEmoji: "📚",
-        categoryBg: "bg-blue-50",
-        categoryColor: "text-blue-700",
-        title: "Our School Needs More Classrooms!",
-        location: "Ibadan, Oyo State",
-        upvotes: 876,
-        comments: 32,
-        status: "under-review",
-        timeAgo: "5h ago",
-    },
-];
-
-const badges = [
-    {
-        emoji: "🔥",
-        label: "First Issue",
-        desc: "Posted your first issue",
-        earned: true,
-    },
-    {
-        emoji: "⬆️",
-        label: "100 Upvotes",
-        desc: "Received 100 upvotes on an issue",
-        earned: true,
-    },
-    {
-        emoji: "🏆",
-        label: "1K Club",
-        desc: "Received 1,000 upvotes",
-        earned: true,
-    },
-    {
-        emoji: "🌍",
-        label: "Voice of Lagos",
-        desc: "5 issues from Lagos",
-        earned: true,
-    },
-    {
-        emoji: "🌟",
-        label: "Super Reporter",
-        desc: "10 issues posted",
-        earned: false,
-    },
-    {
-        emoji: "✅",
-        label: "Change Maker",
-        desc: "2 issues resolved",
-        earned: false,
-    },
-];
-
+// ── Status Map ─────────────────────────────────────────────────────────────
 const statusMap = {
     trending: {
         label: "🔥 Trending",
@@ -274,14 +210,285 @@ function formatNum(n) {
     return n.toString();
 }
 
-// ── Main Component ────────────────────────────────────────────────────────
-export default function ProfilePage() {
-    const [activeTab, setActiveTab] = useState("issues");
+function formatTimeAgo(date) {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
+    if (diffInSeconds < 60) return "Just now";
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400)
+        return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 604800)
+        return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    return date.toLocaleDateString();
+}
+
+// ── Main Component ───────────────────────────────────────────────────────────
+export default function ProfilePage() {
+    const router = useRouter();
+    const [activeTab, setActiveTab] = useState("issues");
+    const [issues, setIssues] = useState([]);
+    const [badges, setBadges] = useState([]);
+    const [stats, setStats] = useState({
+        issuesCount: 0,
+        upvotesReceived: 0,
+        badgesCount: 0,
+    });
+    const [loading, setLoading] = useState(true);
+
+    // Auth states - same as home page
+    const [currentUser, setCurrentUser] = useState(null);
+    const [authReady, setAuthReady] = useState(false);
+    const [isAnonymous, setIsAnonymous] = useState(true);
+    const [userProfile, setUserProfile] = useState(null);
+
+    // Auth - same pattern as home page
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                setCurrentUser(user);
+                setIsAnonymous(user.isAnonymous);
+                setAuthReady(true);
+
+                // If user is not anonymous, fetch their profile from Firestore
+                if (!user.isAnonymous) {
+                    try {
+                        const userDoc = await getDoc(
+                            doc(db, "users", user.uid),
+                        );
+                        if (userDoc.exists()) {
+                            const userData = userDoc.data();
+                            setUserProfile({
+                                uid: user.uid,
+                                name:
+                                    userData.displayName ||
+                                    user.displayName ||
+                                    "User",
+                                email: userData.email || user.email,
+                                photoURL: userData.photoURL || user.photoURL,
+                                bio: userData.bio || "No bio yet",
+                                location:
+                                    typeof userData.location === "object"
+                                        ? [
+                                              userData.location.city,
+                                              userData.location.state,
+                                              userData.location.country,
+                                          ]
+                                              .filter(Boolean)
+                                              .join(", ") || "Nigeria"
+                                        : userData.location || "Nigeria",
+                                joinedAt: userData.createdAt
+                                    ? typeof userData.createdAt.toDate ===
+                                      "function"
+                                        ? userData.createdAt.toDate()
+                                        : new Date(userData.createdAt)
+                                    : new Date(),
+                                impactScore: userData.impactScore || 0,
+                                level: userData.level || 1,
+                                levelName: userData.levelName || "New Voice",
+                                pointsToNextLevel:
+                                    userData.pointsToNextLevel || 100,
+                                role: userData.role || "citizen",
+                                isOnline: true,
+                            });
+
+                            // Fetch user data after profile is loaded
+                            await fetchUserData(user.uid);
+                        } else {
+                            // Fallback to auth user data if Firestore doc doesn't exist
+                            setUserProfile({
+                                uid: user.uid,
+                                name: user.displayName || "User",
+                                email: user.email,
+                                photoURL: user.photoURL,
+                                bio: "No bio yet",
+                                location: "Nigeria",
+                                joinedAt: new Date(),
+                                impactScore: 0,
+                                level: 1,
+                                levelName: "New Voice",
+                                pointsToNextLevel: 100,
+                                role: "citizen",
+                                isOnline: true,
+                            });
+                            setLoading(false);
+                        }
+                    } catch (error) {
+                        console.error("Error fetching user profile:", error);
+                        toast.error("Failed to load profile data");
+                        setLoading(false);
+                    }
+                } else {
+                    // Anonymous user - redirect to login for profile page
+                    router.push("/login");
+                }
+            } else {
+                // No user signed in - sign in anonymously then redirect to login
+                try {
+                    await signInAnonymously(auth);
+                    // After anonymous sign in, redirect to login since profile requires auth
+                    router.push("/login");
+                } catch (err) {
+                    console.error("Anonymous sign-in failed:", err);
+                    setAuthReady(true);
+                    setLoading(false);
+                }
+            }
+        });
+
+        return () => unsubscribe();
+    }, [router]);
+
+    const fetchUserData = async (uid) => {
+        try {
+            // Fetch user's issues
+            const issuesQuery = query(
+                collection(db, "issues"),
+                where("authorId", "==", uid),
+                orderBy("createdAt", "desc"),
+                limit(10),
+            );
+            const issuesSnapshot = await getDocs(issuesQuery);
+
+            const issuesData = issuesSnapshot.docs.map((doc) => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    category: data.category,
+                    categoryEmoji: getCategoryEmoji(data.category),
+                    categoryBg: getCategoryBg(data.category),
+                    categoryColor: getCategoryColor(data.category),
+                    title: data.title,
+                    location: data.location,
+                    upvotes: data.upvotes || 0,
+                    comments: data.commentsCount || 0,
+                    status: data.status || "under-review",
+                    timeAgo: formatTimeAgo(data.createdAt?.toDate()),
+                    createdAt: data.createdAt?.toDate(),
+                };
+            });
+            setIssues(issuesData);
+
+            // Fetch badges
+            const badgesQuery = query(collection(db, "users", uid, "badges"));
+            const badgesSnapshot = await getDocs(badgesQuery);
+
+            const badgesData = badgesSnapshot.docs.map((doc) => ({
+                emoji: doc.data().emoji,
+                label: doc.data().label,
+                desc: doc.data().description,
+                earned: true,
+                earnedAt: doc.data().earnedAt?.toDate(),
+            }));
+            setBadges(badgesData);
+
+            // Calculate stats
+            const statsDoc = await getDoc(
+                doc(db, "users", uid, "stats", "overview"),
+            );
+
+            if (statsDoc.exists()) {
+                const s = statsDoc.data();
+                setStats({
+                    issuesCount: s.issuesCount || 0,
+                    upvotesReceived: s.upvotesReceived || 0,
+                    badgesCount: s.badgesCount || 0,
+                });
+            } else {
+                setStats({
+                    issuesCount: issuesData.length,
+                    upvotesReceived: issuesData.reduce(
+                        (acc, i) => acc + i.upvotes,
+                        0,
+                    ),
+                    badgesCount: badgesData.length,
+                });
+            }
+        } catch (error) {
+            console.error("Error fetching user data:", error);
+            toast.error("Failed to load profile data");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const getCategoryEmoji = (category) => {
+        const map = {
+            Infrastructure: "🏗️",
+            Healthcare: "❤️",
+            Education: "📚",
+            Security: "🛡️",
+            Environment: "🌿",
+            Transportation: "🚌",
+            Electricity: "⚡",
+            Water: "💧",
+        };
+        return map[category] || "📋";
+    };
+
+    const getCategoryBg = (category) => {
+        const map = {
+            Infrastructure: "bg-orange-50",
+            Healthcare: "bg-rose-50",
+            Education: "bg-blue-50",
+            Security: "bg-red-50",
+            Environment: "bg-green-50",
+        };
+        return map[category] || "bg-gray-50";
+    };
+
+    const getCategoryColor = (category) => {
+        const map = {
+            Infrastructure: "text-orange-700",
+            Healthcare: "text-rose-700",
+            Education: "text-blue-700",
+            Security: "text-red-700",
+            Environment: "text-green-700",
+        };
+        return map[category] || "text-gray-700";
+    };
+
+    const handleSignOut = async () => {
+        try {
+            // Update last seen
+            if (auth.currentUser && !auth.currentUser.isAnonymous) {
+                await updateDoc(doc(db, "users", auth.currentUser.uid), {
+                    lastSeen: serverTimestamp(),
+                    isOnline: false,
+                });
+            }
+            await signOut(auth);
+            toast.success("Signed out successfully");
+            router.push("/login");
+        } catch (error) {
+            toast.error("Failed to sign out");
+        }
+    };
+
+    const handleShareProfile = async () => {
+        const shareData = {
+            title: `${userProfile?.name} on We The People NG`,
+            text: `Check out ${userProfile?.name}'s profile on We The People NG - Making Nigeria better together!`,
+            url: `${window.location.origin}/profile/${userProfile?.uid}`,
+        };
+
+        if (navigator.share) {
+            try {
+                await navigator.share(shareData);
+            } catch (err) {
+                // User cancelled or share failed
+            }
+        } else {
+            // Fallback: copy to clipboard
+            navigator.clipboard.writeText(shareData.url);
+            toast.success("Profile link copied to clipboard!");
+        }
+    };
+
+    // Only 2 tabs now - removed "saved"
     const tabs = [
-        { key: "issues", label: "My Issues", count: 12 },
-        { key: "badges", label: "Badges", count: 4 },
-        { key: "saved", label: "Saved", count: 8 },
+        { key: "issues", label: "My Issues", count: stats.issuesCount },
+        { key: "badges", label: "Badges", count: stats.badgesCount },
     ];
 
     const settingsGroups = [
@@ -292,16 +499,19 @@ export default function ProfilePage() {
                     icon: <EditIcon />,
                     label: "Edit Profile",
                     desc: "Update your name & bio",
+                    href: "/profile/edit",
                 },
                 {
                     icon: <ShieldIcon />,
                     label: "Privacy & Security",
                     desc: "Manage account security",
+                    href: "/profile/privacy",
                 },
                 {
-                    icon: <BellIcon />,
+                    icon: <ActivityIcon />,
                     label: "Notifications",
-                    desc: "Choose what alerts you get",
+                    desc: "View your activity",
+                    href: "/activity",
                 },
             ],
         },
@@ -312,22 +522,44 @@ export default function ProfilePage() {
                     icon: <HelpIcon />,
                     label: "Help & FAQ",
                     desc: "Get answers to common questions",
+                    href: "/profile/help",
                 },
                 {
                     icon: <ShareIcon />,
                     label: "Invite Friends",
                     desc: "Grow the community",
+                    href: "/profile/invite",
                 },
             ],
         },
     ];
+
+    if (loading) {
+        return (
+            <div
+                className="min-h-screen flex items-center justify-center"
+                style={{ background: "#FDF6EF" }}
+            >
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#F97316]"></div>
+            </div>
+        );
+    }
+
+    if (!userProfile) return null;
+
+    // Calculate progress percentage based on current accumulated points
+    // Formula: (currentPoints / pointsToNextLevel) * 100
+    const progressPercent = Math.min(
+        100,
+        (userProfile.impactScore / userProfile.pointsToNextLevel) * 100,
+    );
 
     return (
         <div
             className="min-h-screen pb-24 md:pb-8"
             style={{ background: "#FDF6EF" }}
         >
-            {/* ── Mobile Header ── */}
+            {/* Mobile Header */}
             <header className="md:hidden sticky top-0 z-40 bg-[#F97316] px-4 pt-4 pb-4 mb-6">
                 <div className="flex items-center justify-between">
                     <h1
@@ -337,17 +569,23 @@ export default function ProfilePage() {
                         My Profile
                     </h1>
                     <div className="flex items-center gap-2">
-                        <button className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
+                        <button
+                            onClick={handleShareProfile}
+                            className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center"
+                        >
                             <ShareIcon />
                         </button>
-                        <button className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
+                        <Link
+                            href="/profile/settings"
+                            className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center"
+                        >
                             <SettingsIcon />
-                        </button>
+                        </Link>
                     </div>
                 </div>
             </header>
 
-            {/* ── Desktop Header ── */}
+            {/* Desktop Header */}
             <div className="hidden md:flex items-center justify-between px-6 pt-8 pb-4">
                 <div>
                     <h1
@@ -361,38 +599,35 @@ export default function ProfilePage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button className="flex items-center gap-2 text-xs font-semibold text-gray-600 bg-white border border-gray-100 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors shadow-card cursor-pointer">
+                    <button
+                        onClick={handleShareProfile}
+                        className="flex items-center gap-2 text-xs font-semibold text-gray-600 bg-white border border-gray-100 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors shadow-sm cursor-pointer"
+                    >
                         <ShareIcon />
                         Share Profile
                     </button>
-                    <button className="flex items-center gap-2 text-xs font-semibold text-white bg-[#F97316] px-3 py-2 rounded-xl hover:bg-[#C2410C] transition-colors shadow-sm cursor-pointer">
+                    <Link
+                        href="/profile/edit"
+                        className="flex items-center gap-2 text-xs font-semibold text-white bg-[#F97316] px-3 py-2 rounded-xl hover:bg-[#C2410C] transition-colors shadow-sm cursor-pointer"
+                    >
                         <EditIcon />
                         Edit Profile
-                    </button>
+                    </Link>
                 </div>
             </div>
 
             <div className="px-4 md:px-6 space-y-4">
-                {/* ── Profile Card ── */}
-                <div className="bg-white rounded-2xl overflow-hidden border border-gray-50 shadow-card">
-                    {/* Cover */}
+                {/* Profile Card */}
+                <div className="bg-white rounded-2xl overflow-hidden border border-gray-50 shadow-sm">
                     <div
                         className="h-24 md:h-32 relative"
-                        style={{
-                            background: "#EA580C",
-                        }}
+                        style={{ background: "#EA580C" }}
                     >
-                        <div
-                            className="absolute inset-0"
-                            style={{
-                                background: "#EA580C",
-                            }}
-                        />
-                        {/* Pattern dots */}
                         <div
                             className="absolute inset-0 opacity-10"
                             style={{
-                                backgroundImage: "#EA580C",
+                                backgroundImage:
+                                    "radial-gradient(circle, #fff 1px, transparent 1px)",
                                 backgroundSize: "20px 20px",
                             }}
                         />
@@ -400,15 +635,17 @@ export default function ProfilePage() {
 
                     <div className="px-4 md:px-5 pb-4 md:pb-5">
                         <div className="flex items-end justify-between -mt-10 mb-3">
-                            {/* Avatar */}
                             <div className="relative">
-                                <div
-                                    className="w-20 h-20 md:w-24 md:h-24 rounded-2xl border-4 border-white shadow-lg flex items-center justify-center text-white text-3xl font-black"
-                                    style={{
-                                        background: "#EA580C",
-                                    }}
-                                >
-                                    A
+                                <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl border-4 border-white shadow-lg flex items-center justify-center text-white text-3xl font-black bg-[#EA580C]">
+                                    {userProfile.photoURL ? (
+                                        <Image
+                                            src={userProfile.photoURL}
+                                            alt={userProfile.name}
+                                            className="w-full h-full object-cover rounded-2xl"
+                                        />
+                                    ) : (
+                                        userProfile.name.charAt(0).toUpperCase()
+                                    )}
                                 </div>
                                 <div
                                     className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-white"
@@ -416,14 +653,15 @@ export default function ProfilePage() {
                                 />
                             </div>
 
-                            {/* Edit button (desktop hidden — shown in header) */}
-                            <button className="md:hidden flex items-center gap-1.5 text-xs font-semibold text-[#F97316] bg-orange-50 border border-orange-100 px-3 py-1.5 rounded-xl">
+                            <Link
+                                href="/profile/edit"
+                                className="md:hidden flex items-center gap-1.5 text-xs font-semibold text-[#F97316] bg-orange-50 border border-orange-100 px-3 py-1.5 rounded-xl"
+                            >
                                 <EditIcon />
                                 Edit
-                            </button>
+                            </Link>
                         </div>
 
-                        {/* Name & bio */}
                         <div className="mb-3">
                             <div className="flex items-center gap-2 flex-wrap">
                                 <h2
@@ -433,28 +671,34 @@ export default function ProfilePage() {
                                             "Plus Jakarta Sans, sans-serif",
                                     }}
                                 >
-                                    Ada Okonkwo
+                                    {userProfile.name}
                                 </h2>
-                                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#F97316]/10 text-[#F97316]">
-                                    🔥 Top Reporter
-                                </span>
+                                {userProfile.role === "top_reporter" && (
+                                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#F97316]/10 text-[#F97316]">
+                                        🔥 Top Reporter
+                                    </span>
+                                )}
                             </div>
                             <p className="text-gray-500 text-sm mt-1 leading-relaxed">
-                                Passionate about community development.
-                                Reporting issues so Nigeria can be better for
-                                all of us 🇳🇬
+                                {userProfile.bio}
                             </p>
                         </div>
 
-                        {/* Meta */}
                         <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mb-4">
                             <span className="flex items-center gap-1">
                                 <LocationIcon />
-                                Lagos, Nigeria
+                                {userProfile.location}
                             </span>
                             <span className="flex items-center gap-1">
                                 <CalendarIcon />
-                                Joined Jan 2024
+                                Joined{" "}
+                                {userProfile.joinedAt.toLocaleDateString(
+                                    "en-US",
+                                    {
+                                        month: "short",
+                                        year: "numeric",
+                                    },
+                                )}
                             </span>
                             <span className="text-emerald-600 font-semibold flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
@@ -462,13 +706,24 @@ export default function ProfilePage() {
                             </span>
                         </div>
 
-                        {/* Stats row */}
-                        <div className="grid grid-cols-4 gap-2">
+                        {/* Stats Grid - Only 3 cards now (removed resolved) */}
+                        <div className="grid grid-cols-3 gap-2">
                             {[
-                                { label: "Issues", value: "12", icon: "📋" },
-                                { label: "Upvotes", value: "3.4K", icon: "⬆️" },
-                                { label: "Resolved", value: "4", icon: "✅" },
-                                { label: "Badges", value: "4", icon: "🏅" },
+                                {
+                                    label: "Issues",
+                                    value: stats.issuesCount.toString(),
+                                    icon: "📋",
+                                },
+                                {
+                                    label: "Upvotes",
+                                    value: formatNum(stats.upvotesReceived),
+                                    icon: "⬆️",
+                                },
+                                {
+                                    label: "Badges",
+                                    value: stats.badgesCount.toString(),
+                                    icon: "🏅",
+                                },
                             ].map((s) => (
                                 <div
                                     key={s.label}
@@ -495,12 +750,14 @@ export default function ProfilePage() {
                     </div>
                 </div>
 
-                {/* ── Impact Banner ── */}
+                {/* Impact Banner - Progress bar based on current accumulated points */}
                 <div className="bg-[#EA580C] rounded-2xl p-4 text-white relative overflow-hidden">
                     <div
-                        className="absolute inset-0"
+                        className="absolute inset-0 opacity-10"
                         style={{
-                            background: "#EA580C",
+                            backgroundImage:
+                                "radial-gradient(circle, #fff 1px, transparent 1px)",
+                            backgroundSize: "20px 20px",
                         }}
                     />
                     <div className="relative z-10">
@@ -513,24 +770,30 @@ export default function ProfilePage() {
                                 fontFamily: "Plus Jakarta Sans, sans-serif",
                             }}
                         >
-                            847 pts
+                            {userProfile.impactScore} pts
                         </div>
                         <div className="w-full bg-white/20 rounded-full h-2 mb-2">
                             <div
-                                className="bg-white rounded-full h-2 transition-all"
-                                style={{ width: "68%" }}
+                                className="bg-white rounded-full h-2 transition-all duration-500"
+                                style={{ width: `${progressPercent}%` }}
                             />
                         </div>
                         <div className="flex justify-between text-[10px] text-white/60">
-                            <span>Level 4 — Community Voice</span>
-                            <span>153 pts to Level 5</span>
+                            <span>
+                                Level {userProfile.level} —{" "}
+                                {userProfile.levelName}
+                            </span>
+                            <span>
+                                {userProfile.impactScore} /{" "}
+                                {userProfile.pointsToNextLevel} pts to Level{" "}
+                                {userProfile.level + 1}
+                            </span>
                         </div>
                     </div>
                 </div>
 
-                {/* ── Tabs ── */}
-                <div className="bg-white rounded-2xl border border-gray-50 shadow-card overflow-hidden">
-                    {/* Tab header */}
+                {/* Tabs - Only 2 tabs now (removed saved) */}
+                <div className="bg-white rounded-2xl border border-gray-50 shadow-sm overflow-hidden">
                     <div className="flex border-b border-gray-100">
                         {tabs.map((t) => (
                             <button
@@ -548,56 +811,76 @@ export default function ProfilePage() {
                         ))}
                     </div>
 
-                    {/* Tab content */}
                     <div className="p-4">
                         {activeTab === "issues" && (
                             <div className="space-y-3">
-                                {userIssues.map((issue) => {
-                                    const s = statusMap[issue.status];
-                                    return (
-                                        <div
-                                            key={issue.id}
-                                            className="flex gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100 hover:border-[#F97316]/20 hover:bg-orange-50/30 transition-all cursor-pointer"
+                                {issues.length === 0 ? (
+                                    <div className="text-center py-10">
+                                        <div className="text-4xl mb-3">📋</div>
+                                        <p className="font-semibold text-gray-700 text-sm">
+                                            No issues posted yet
+                                        </p>
+                                        <p className="text-gray-400 text-xs mt-1">
+                                            Be the first to report an issue in
+                                            your community
+                                        </p>
+                                        <Link
+                                            href="/create-issue"
+                                            className="inline-block mt-4 text-xs font-semibold text-[#F97316] bg-orange-50 px-4 py-2 rounded-xl hover:bg-orange-100 transition-colors"
                                         >
-                                            <div
-                                                className={`w-9 h-9 rounded-xl ${issue.categoryBg} flex items-center justify-center text-lg shrink-0`}
+                                            Report an Issue
+                                        </Link>
+                                    </div>
+                                ) : (
+                                    issues.map((issue) => {
+                                        const s = statusMap[issue.status];
+                                        return (
+                                            <Link
+                                                href={`/issues/${issue.id}`}
+                                                key={issue.id}
                                             >
-                                                {issue.categoryEmoji}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4
-                                                    className="text-sm font-semibold text-gray-900 leading-snug mb-1 line-clamp-1"
-                                                    style={{
-                                                        fontFamily:
-                                                            "Plus Jakarta Sans, sans-serif",
-                                                    }}
-                                                >
-                                                    {issue.title}
-                                                </h4>
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <span
-                                                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.bg} ${s.text}`}
+                                                <div className="flex gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100 hover:border-[#F97316]/20 hover:bg-orange-50/30 transition-all cursor-pointer">
+                                                    <div
+                                                        className={`w-9 h-9 rounded-xl ${issue.categoryBg} flex items-center justify-center text-lg shrink-0`}
                                                     >
-                                                        {s.label}
-                                                    </span>
-                                                    <span className="flex items-center gap-1 text-[11px] text-gray-400">
-                                                        <UpvoteIcon />
-                                                        {formatNum(
-                                                            issue.upvotes,
-                                                        )}
-                                                    </span>
-                                                    <span className="flex items-center gap-1 text-[11px] text-gray-400">
-                                                        <CommentIcon />
-                                                        {issue.comments}
-                                                    </span>
-                                                    <span className="text-[11px] text-gray-400 ml-auto">
-                                                        {issue.timeAgo}
-                                                    </span>
+                                                        {issue.categoryEmoji}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4
+                                                            className="text-sm font-semibold text-gray-900 leading-snug mb-1 line-clamp-1"
+                                                            style={{
+                                                                fontFamily:
+                                                                    "Plus Jakarta Sans, sans-serif",
+                                                            }}
+                                                        >
+                                                            {issue.title}
+                                                        </h4>
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span
+                                                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.bg} ${s.text}`}
+                                                            >
+                                                                {s.label}
+                                                            </span>
+                                                            <span className="flex items-center gap-1 text-[11px] text-gray-400">
+                                                                <UpvoteIcon />
+                                                                {formatNum(
+                                                                    issue.upvotes,
+                                                                )}
+                                                            </span>
+                                                            <span className="flex items-center gap-1 text-[11px] text-gray-400">
+                                                                <CommentIcon />
+                                                                {issue.comments}
+                                                            </span>
+                                                            <span className="text-[11px] text-gray-400 ml-auto">
+                                                                {issue.timeAgo}
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                            </Link>
+                                        );
+                                    })
+                                )}
                                 <Link
                                     href="/create-issue"
                                     className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-[#F97316]/30 text-[#F97316] text-sm font-semibold hover:bg-orange-50 transition-colors"
@@ -610,69 +893,56 @@ export default function ProfilePage() {
 
                         {activeTab === "badges" && (
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                {badges.map((b, i) => (
-                                    <div
-                                        key={i}
-                                        className={`p-3.5 rounded-xl text-center transition-all ${b.earned ? "bg-gray-50 border border-gray-100" : "bg-gray-50/50 border border-dashed border-gray-200 opacity-50"}`}
-                                    >
-                                        <div
-                                            className={`text-3xl mb-2 ${!b.earned ? "grayscale" : ""}`}
-                                        >
-                                            {b.emoji}
-                                        </div>
-                                        <div
-                                            className="text-xs font-bold text-gray-900 mb-0.5"
-                                            style={{
-                                                fontFamily:
-                                                    "Plus Jakarta Sans, sans-serif",
-                                            }}
-                                        >
-                                            {b.label}
-                                        </div>
-                                        <div className="text-[10px] text-gray-400 leading-snug">
-                                            {b.desc}
-                                        </div>
-                                        {b.earned && (
-                                            <div className="mt-2 text-[10px] font-bold text-[#F97316]">
-                                                ✓ Earned
-                                            </div>
-                                        )}
-                                        {!b.earned && (
-                                            <div className="mt-2 text-[10px] font-semibold text-gray-400">
-                                                Locked
-                                            </div>
-                                        )}
+                                {badges.length === 0 ? (
+                                    <div className="col-span-full text-center py-10">
+                                        <div className="text-4xl mb-3">🏅</div>
+                                        <p className="font-semibold text-gray-700 text-sm">
+                                            No badges yet
+                                        </p>
+                                        <p className="text-gray-400 text-xs mt-1">
+                                            Start posting issues to earn badges!
+                                        </p>
                                     </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {activeTab === "saved" && (
-                            <div className="text-center py-10">
-                                <div className="text-4xl mb-3">🔖</div>
-                                <p className="font-semibold text-gray-700 text-sm">
-                                    No saved issues yet
-                                </p>
-                                <p className="text-gray-400 text-xs mt-1">
-                                    Bookmark issues to follow their progress
-                                </p>
-                                <Link
-                                    href="/trending"
-                                    className="inline-block mt-4 text-xs font-semibold text-[#F97316] bg-orange-50 px-4 py-2 rounded-xl hover:bg-orange-100 transition-colors"
-                                >
-                                    Browse Issues
-                                </Link>
+                                ) : (
+                                    badges.map((b, i) => (
+                                        <div
+                                            key={i}
+                                            className="p-3.5 rounded-xl text-center transition-all bg-gray-50 border border-gray-100"
+                                        >
+                                            <div className="text-3xl mb-2">
+                                                {b.emoji}
+                                            </div>
+                                            <div
+                                                className="text-xs font-bold text-gray-900 mb-0.5"
+                                                style={{
+                                                    fontFamily:
+                                                        "Plus Jakarta Sans, sans-serif",
+                                                }}
+                                            >
+                                                {b.label}
+                                            </div>
+                                            <div className="text-[10px] text-gray-400 leading-snug">
+                                                {b.desc}
+                                            </div>
+                                            <div className="mt-2 text-[10px] font-bold text-[#F97316]">
+                                                ✓ Earned{" "}
+                                                {b.earnedAt &&
+                                                    `• ${formatTimeAgo(b.earnedAt)}`}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* ── Settings ── */}
+                {/* Settings */}
                 <div className="space-y-3">
                     {settingsGroups.map((group) => (
                         <div
                             key={group.title}
-                            className="bg-white rounded-2xl border border-gray-50 shadow-card overflow-hidden"
+                            className="bg-white rounded-2xl border border-gray-50 shadow-sm overflow-hidden"
                         >
                             <div className="px-4 pt-3 pb-1">
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
@@ -680,14 +950,15 @@ export default function ProfilePage() {
                                 </span>
                             </div>
                             {group.items.map((item, i) => (
-                                <button
+                                <Link
                                     key={i}
+                                    href={item.href}
                                     className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors border-t border-gray-50 first:border-t-0"
                                 >
                                     <div className="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center text-black shrink-0">
                                         {item.icon}
                                     </div>
-                                    <div className="flex-1 text-left min-w-0">
+                                    <div className="flex-1 min-w-0">
                                         <div
                                             className="text-sm font-semibold text-gray-800"
                                             style={{
@@ -702,19 +973,21 @@ export default function ProfilePage() {
                                         </div>
                                     </div>
                                     <ChevronRightIcon />
-                                </button>
+                                </Link>
                             ))}
                         </div>
                     ))}
                 </div>
 
-                {/* ── Sign Out ── */}
-                <button className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-red-100 bg-[#EA580C] text-white text-sm font-semibold hover:bg-[#F97316] transition-colors cursor-pointer">
+                {/* Sign Out */}
+                <button
+                    onClick={handleSignOut}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-red-100 bg-[#EA580C] text-white text-sm font-semibold hover:bg-[#F97316] transition-colors cursor-pointer"
+                >
                     <LogoutIcon />
                     Sign Out
                 </button>
 
-                {/* Version */}
                 <p
                     className="text-center text-[10px] text-gray-300 pb-2"
                     style={{ fontFamily: "DM Sans, sans-serif" }}
