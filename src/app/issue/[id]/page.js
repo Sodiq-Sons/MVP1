@@ -1,4 +1,4 @@
-// app/issue/[id]/page.tsx
+// app/issue/[id]/page.js
 "use client";
 
 import { useState, useEffect, use, useMemo } from "react";
@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import {
     doc,
     collection,
-    addDoc,
     serverTimestamp,
     onSnapshot,
     query,
@@ -19,28 +18,20 @@ import { db, auth } from "@/lib/firebase";
 import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
 
-// ─── Category Meta ────────────────────────────────────────────────────────────
+// ─── Category Meta ────────
 const CATEGORY_META = {
     infrastructure: {
         color: "text-orange-700",
         bg: "bg-orange-50",
         label: "Infrastructure",
     },
-    education: {
-        color: "text-blue-700",
-        bg: "bg-blue-50",
-        label: "Education",
-    },
+    education: { color: "text-blue-700", bg: "bg-blue-50", label: "Education" },
     healthcare: {
         color: "text-rose-700",
         bg: "bg-rose-50",
         label: "Healthcare",
     },
-    water: {
-        color: "text-cyan-700",
-        bg: "bg-cyan-50",
-        label: "Water",
-    },
+    water: { color: "text-cyan-700", bg: "bg-cyan-50", label: "Water" },
     security: {
         color: "text-purple-700",
         bg: "bg-purple-50",
@@ -56,41 +47,49 @@ const CATEGORY_META = {
         bg: "bg-green-50",
         label: "Environment",
     },
-    other: {
-        color: "text-gray-700",
-        bg: "bg-gray-100",
-        label: "Other",
-    },
+    other: { color: "text-gray-700", bg: "bg-gray-100", label: "Other" },
 };
 
-// ─── Updated Demographic Config ───────────────────────────────────────────────
+// ─── Demographic Config ───
 const DEMOGRAPHIC_CONFIG = {
     age: {
         emoji: "🎂",
         label: "Age Groups",
-        // Updated age groups: Teens (13-19), Youth (20-35), Adult (35+)
+        firestoreField: "age",
         groups: ["Teens (13-19)", "Youth (20-35)", "Adult (35+)"],
-        getGroup: (age) => {
-            const ageNum = parseInt(age);
-            if (ageNum >= 13 && ageNum <= 19) return "Teens (13-19)";
-            if (ageNum >= 20 && ageNum <= 35) return "Youth (20-35)";
-            if (ageNum > 35) return "Adult (35+)";
+        getGroup: (rawAge) => {
+            const n = parseInt(String(rawAge), 10);
+            if (isNaN(n)) return null;
+            if (n >= 13 && n <= 19) return "Teens (13-19)";
+            if (n >= 20 && n <= 35) return "Youth (20-35)";
+            if (n > 35) return "Adult (35+)";
             return null;
         },
     },
     gender: {
         emoji: "⚧️",
         label: "Gender",
+        firestoreField: "gender",
         groups: ["Male", "Female", "Other"],
+        getGroup: (val) =>
+            ["Male", "Female", "Other"].includes(val) ? val : null,
     },
     maritalStatus: {
         emoji: "💍",
         label: "Marital Status",
+        firestoreField: "maritalStatus",
         groups: ["Single", "Married", "Divorced", "Widowed", "Separated"],
+        getGroup: (val) =>
+            ["Single", "Married", "Divorced", "Widowed", "Separated"].includes(
+                val,
+            )
+                ? val
+                : null,
     },
     education: {
         emoji: "🎓",
         label: "Education Level",
+        firestoreField: "education",
         groups: [
             "No Formal Education",
             "Primary Education",
@@ -100,11 +99,32 @@ const DEMOGRAPHIC_CONFIG = {
             "Master's Degree",
             "PhD/Doctorate",
         ],
+        getGroup: (val) =>
+            [
+                "No Formal Education",
+                "Primary Education",
+                "Secondary Education",
+                "NCE/OND",
+                "HND/Bachelor's Degree",
+                "Master's Degree",
+                "PhD/Doctorate",
+            ].includes(val)
+                ? val
+                : null,
     },
-    // Removed: state (State of Residence)
 };
 
-// ─── Time Ago ───────────────────────────────────────────────────────────────
+// ─── Chart Colors ─────────
+const CHART_COLORS = [
+    "#F97316",
+    "#3B82F6",
+    "#10B981",
+    "#8B5CF6",
+    "#EC4899",
+    "#F59E0B",
+];
+
+// ─── Helpers ──────────────
 function timeAgo(seconds) {
     const diff = Math.floor(Date.now() / 1000) - seconds;
     if (diff < 60) return "just now";
@@ -151,7 +171,7 @@ const BAR_COLORS = [
     "bg-pink-500",
 ];
 
-// ─── Pure SVG Icons ───────────────────────────────────────────────────────────
+// ─── SVG Icons ────────────
 const SvgBack = () => (
     <svg
         viewBox="0 0 24 24"
@@ -165,7 +185,6 @@ const SvgBack = () => (
         <polyline points="15 18 9 12 15 6" />
     </svg>
 );
-
 const SvgLocation = ({ className = "w-4 h-4" }) => (
     <svg
         viewBox="0 0 24 24"
@@ -180,7 +199,6 @@ const SvgLocation = ({ className = "w-4 h-4" }) => (
         <circle cx="12" cy="10" r="3" />
     </svg>
 );
-
 const SvgClock = () => (
     <svg
         viewBox="0 0 24 24"
@@ -195,7 +213,6 @@ const SvgClock = () => (
         <polyline points="12 6 12 12 16 14" />
     </svg>
 );
-
 const SvgShare = () => (
     <svg
         viewBox="0 0 24 24"
@@ -211,7 +228,6 @@ const SvgShare = () => (
         <line x1="12" y1="2" x2="12" y2="15" />
     </svg>
 );
-
 const SvgCheckCircle = () => (
     <svg
         viewBox="0 0 24 24"
@@ -225,7 +241,6 @@ const SvgCheckCircle = () => (
         <polyline points="20 6 9 17 4 12" />
     </svg>
 );
-
 const SvgCheckFill = () => (
     <svg
         viewBox="0 0 24 24"
@@ -235,7 +250,6 @@ const SvgCheckFill = () => (
         <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
     </svg>
 );
-
 const SvgSend = () => (
     <svg
         viewBox="0 0 24 24"
@@ -250,7 +264,6 @@ const SvgSend = () => (
         <polygon points="22 2 15 22 11 13 2 9 22 2" />
     </svg>
 );
-
 const SvgUpvote = ({ active }) => (
     <svg
         viewBox="0 0 24 24"
@@ -264,7 +277,6 @@ const SvgUpvote = ({ active }) => (
         <polyline points="18 15 12 9 6 15" />
     </svg>
 );
-
 const SvgReply = () => (
     <svg
         viewBox="0 0 24 24"
@@ -279,7 +291,6 @@ const SvgReply = () => (
         <path d="M20 18v-2a4 4 0 00-4-4H4" />
     </svg>
 );
-
 const SvgHeart = ({ active }) => (
     <svg
         viewBox="0 0 24 24"
@@ -293,7 +304,6 @@ const SvgHeart = ({ active }) => (
         <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
     </svg>
 );
-
 const SvgChevronDown = () => (
     <svg
         viewBox="0 0 24 24"
@@ -307,7 +317,6 @@ const SvgChevronDown = () => (
         <polyline points="6 9 12 15 18 9" />
     </svg>
 );
-
 const SvgChevronUp = () => (
     <svg
         viewBox="0 0 24 24"
@@ -321,7 +330,6 @@ const SvgChevronUp = () => (
         <polyline points="18 15 12 9 6 15" />
     </svg>
 );
-
 const SvgSpinner = () => (
     <svg
         viewBox="0 0 24 24"
@@ -335,7 +343,6 @@ const SvgSpinner = () => (
         <path d="M12 2a10 10 0 0110 10" />
     </svg>
 );
-
 const SvgBubbleEmpty = () => (
     <svg
         viewBox="0 0 24 24"
@@ -354,7 +361,6 @@ const SvgBubbleEmpty = () => (
         />
     </svg>
 );
-
 const SvgDots = () => (
     <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
         <circle cx="5" cy="12" r="1.5" />
@@ -362,25 +368,6 @@ const SvgDots = () => (
         <circle cx="19" cy="12" r="1.5" />
     </svg>
 );
-
-const SvgRobot = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="w-5 h-5"
-    >
-        <rect x="3" y="11" width="18" height="10" rx="2" />
-        <circle cx="12" cy="5" r="2" />
-        <path d="M12 7v4" />
-        <line x1="8" y1="16" x2="8" y2="16" />
-        <line x1="16" y1="16" x2="16" y2="16" />
-    </svg>
-);
-
 const SvgChart = () => (
     <svg
         viewBox="0 0 24 24"
@@ -395,203 +382,6 @@ const SvgChart = () => (
         <path d="M6 20v-6" />
     </svg>
 );
-
-// ─── Category SVG Icons ────────────────────────────────────────────────────
-const SvgInfrastructure = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="w-4 h-4"
-    >
-        <path d="M2 22h20M2 6h20M2 10h20M2 14h20M6 2v20M18 2v20" />
-    </svg>
-);
-
-const SvgEducation = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="w-4 h-4"
-    >
-        <path d="M4 19.5A2.5 2.5 0 016.5 22H20" />
-        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
-        <path d="M12 6h.01M16 6h.01M8 10h8M8 14h8M8 18h5" />
-    </svg>
-);
-
-const SvgHealthcare = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="w-4 h-4"
-    >
-        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-    </svg>
-);
-
-const SvgWater = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="w-4 h-4"
-    >
-        <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z" />
-    </svg>
-);
-
-const SvgSecurity = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="w-4 h-4"
-    >
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-        <path d="M7 11V7a5 5 0 0110 0v4" />
-    </svg>
-);
-
-const SvgElectricity = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="w-4 h-4"
-    >
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-    </svg>
-);
-
-const SvgEnvironment = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="w-4 h-4"
-    >
-        <path d="M2 22h20M7 22v-6a2 2 0 012-2h6a2 2 0 012 2v6M12 2v10" />
-        <circle cx="12" cy="8" r="2" />
-    </svg>
-);
-
-const SvgOther = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="w-4 h-4"
-    >
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 8v8M8 12h8" />
-    </svg>
-);
-
-const SvgTrending = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="w-3 h-3"
-    >
-        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-        <polyline points="17 6 23 6 23 12" />
-    </svg>
-);
-
-const SvgUnderReview = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="w-3 h-3"
-    >
-        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-        <path d="M9 15l2 2 4-4" />
-    </svg>
-);
-
-const SvgResolved = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="w-3 h-3"
-    >
-        <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-        <polyline points="22 4 12 14.01 9 11.01" />
-    </svg>
-);
-
-const SvgNeedsAttention = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="w-3 h-3"
-    >
-        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-    </svg>
-);
-
-const SvgViral = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="w-3 h-3"
-    >
-        <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z" />
-        <path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0112 2.64V15z" />
-        <path d="M12 15l3-3a22 22 0 00-2-3.95A12.88 12.88 0 0012 2.64V15z" />
-        <path d="M18 15l-3-3" />
-        <path d="M20 9l-3 3 2.46 4.54" />
-    </svg>
-);
-
-const SvgVote = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="w-4 h-4"
-    >
-        <path d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6-4.8-6 4.8 2.4-7.2-6-4.8h7.6z" />
-    </svg>
-);
-
-const SvgDiscussion = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="w-4 h-4"
-    >
-        <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
-    </svg>
-);
-
 const SvgDocument = () => (
     <svg
         viewBox="0 0 24 24"
@@ -607,7 +397,6 @@ const SvgDocument = () => (
         <line x1="10" y1="9" x2="9" y2="9" />
     </svg>
 );
-
 const SvgSearch = () => (
     <svg
         viewBox="0 0 24 24"
@@ -620,7 +409,6 @@ const SvgSearch = () => (
         <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
 );
-
 const SvgComments = ({ className = "w-4 h-4" }) => (
     <svg
         viewBox="0 0 24 24"
@@ -632,49 +420,151 @@ const SvgComments = ({ className = "w-4 h-4" }) => (
         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
     </svg>
 );
+const SvgVote = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        className="w-4 h-4"
+    >
+        <path d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6-4.8-6 4.8 2.4-7.2-6-4.8h7.6z" />
+    </svg>
+);
+const SvgDiscussion = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        className="w-4 h-4"
+    >
+        <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+    </svg>
+);
 
-// ─── Category Icon Component ──────────────────────────────────────────────
+// ─── Category Icons ───────
+const categoryIcons = {
+    infrastructure: (
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="w-4 h-4"
+        >
+            <path d="M2 22h20M2 6h20M2 10h20M2 14h20M6 2v20M18 2v20" />
+        </svg>
+    ),
+    education: (
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="w-4 h-4"
+        >
+            <path d="M4 19.5A2.5 2.5 0 016.5 22H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+        </svg>
+    ),
+    healthcare: (
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="w-4 h-4"
+        >
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+    ),
+    water: (
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="w-4 h-4"
+        >
+            <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z" />
+        </svg>
+    ),
+    security: (
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="w-4 h-4"
+        >
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0110 0v4" />
+        </svg>
+    ),
+    electricity: (
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="w-4 h-4"
+        >
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </svg>
+    ),
+    environment: (
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="w-4 h-4"
+        >
+            <path d="M2 22h20M7 22v-6a2 2 0 012-2h6a2 2 0 012 2v6M12 2v10" />
+            <circle cx="12" cy="8" r="2" />
+        </svg>
+    ),
+    other: (
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="w-4 h-4"
+        >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v8M8 12h8" />
+        </svg>
+    ),
+};
+
 function CategoryIcon({ category }) {
-    const icons = {
-        infrastructure: <SvgInfrastructure />,
-        education: <SvgEducation />,
-        healthcare: <SvgHealthcare />,
-        water: <SvgWater />,
-        security: <SvgSecurity />,
-        electricity: <SvgElectricity />,
-        environment: <SvgEnvironment />,
-        other: <SvgOther />,
-    };
-    return icons[category] || icons.other;
+    return categoryIcons[category] || categoryIcons.other;
 }
 
-// ─── Status Badge ─────────────────────────────────────────────────────────
+// ─── Status Badge ─────────
 function StatusBadge({ status }) {
     const map = {
         trending: {
             label: "Trending",
             cls: "bg-red-50 text-red-600 border-red-100",
-            icon: <SvgTrending />,
         },
         "under-review": {
             label: "Under Review",
             cls: "bg-blue-50 text-blue-600 border-blue-100",
-            icon: <SvgUnderReview />,
         },
         resolved: {
             label: "Resolved",
             cls: "bg-green-50 text-green-600 border-green-100",
-            icon: <SvgResolved />,
         },
         "needs-attention": {
             label: "Needs Attention",
             cls: "bg-yellow-50 text-yellow-600 border-yellow-100",
-            icon: <SvgNeedsAttention />,
         },
         viral: {
             label: "Viral",
             cls: "bg-orange-50 text-orange-600 border-orange-100",
-            icon: <SvgViral />,
         },
     };
     if (!status || !map[status]) return null;
@@ -682,13 +572,12 @@ function StatusBadge({ status }) {
         <span
             className={`text-xs font-semibold px-2.5 py-1 rounded-full border flex items-center gap-1 ${map[status].cls}`}
         >
-            {map[status].icon}
             {map[status].label}
         </span>
     );
 }
 
-// ─── Avatar ─────────────────────────────────────────────────────────────────
+// ─── Avatar ───────────────
 function Avatar({ name, size = "md", isBot = false }) {
     const color = isBot
         ? "bg-gradient-to-br from-purple-500 to-indigo-600"
@@ -703,170 +592,138 @@ function Avatar({ name, size = "md", isBot = false }) {
         <div
             className={`${dim} ${color} rounded-full flex items-center justify-center text-white font-bold shrink-0 select-none`}
         >
-            {isBot ? <SvgRobot /> : name.charAt(0).toUpperCase()}
+            {isBot ? (
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="w-4 h-4"
+                >
+                    <rect x="3" y="11" width="18" height="10" rx="2" />
+                    <circle cx="12" cy="5" r="2" />
+                    <path d="M12 7v4" />
+                    <line x1="8" y1="16" x2="8" y2="16" />
+                    <line x1="16" y1="16" x2="16" y2="16" />
+                </svg>
+            ) : (
+                name.charAt(0).toUpperCase()
+            )}
         </div>
     );
 }
 
-// ─── Demographic Chat Message Component ──────────────────────────────────────
-function DemographicChatMessage({
-    demographic,
-    data,
-    voteOptions,
-    totalVotes,
-}) {
-    // ALL HOOKS MUST BE CALLED FIRST, before any conditional logic
-    const [isExpanded, setIsExpanded] = useState(true);
-
+// ─── Demographic Chart Card ───────────────────────────────────────────────────
+function DemographicChart({ demographic, data, voteOptions }) {
     const config = DEMOGRAPHIC_CONFIG[demographic];
+    if (!config) return null;
 
-    // Move the safety check into useMemo - still runs but returns empty object if invalid
-    const groupStats = useMemo(() => {
-        // If config doesn't exist, return empty object (graceful degradation)
-        if (!config) return {};
+    const activeGroups = config.groups.filter((group) =>
+        voteOptions.some((opt) => (data?.[group]?.[opt] || 0) > 0),
+    );
 
-        const stats = {};
-        config.groups.forEach((group) => {
-            stats[group] = {};
-            voteOptions.forEach((option) => {
-                stats[group][option] = data?.[group]?.[option] || 0;
-            });
-        });
-        return stats;
-    }, [data, voteOptions, config]);
-
-    // If config doesn't exist, render nothing (but after all hooks are called)
-    if (!config) {
-        console.warn(`Unknown demographic: ${demographic}`);
-        return null;
+    if (activeGroups.length === 0) {
+        return (
+            <div className="rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-4">
+                <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm">{config.emoji}</span>
+                    <span className="text-xs font-bold text-gray-700">
+                        {config.label}
+                    </span>
+                </div>
+                <p className="text-[11px] text-gray-400 pl-6">
+                    No demographic data yet
+                </p>
+            </div>
+        );
     }
 
-    // Use constant instead of Date.now() during render
-    const timeLabel = "just now";
-
     return (
-        <div className="flex gap-3 mb-4">
-            <Avatar name="Bot" isBot={true} size="md" />
-            <div className="flex-1">
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    {/* Header */}
-                    <button
-                        onClick={() => setIsExpanded(!isExpanded)}
-                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50/50 transition-colors"
-                    >
-                        <div className="flex items-center gap-2">
-                            <span className="text-lg">{config.emoji}</span>
-                            <span className="text-sm font-bold text-gray-900">
-                                {config.label}
-                            </span>
-                            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                                {config.groups.length} groups
+        <div className="rounded-xl border border-gray-100 bg-white overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <span className="text-sm">{config.emoji}</span>
+                    <span className="text-xs font-bold text-gray-800">
+                        {config.label}
+                    </span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                    {voteOptions.map((opt, i) => (
+                        <div key={opt} className="flex items-center gap-1">
+                            <div
+                                className="w-2 h-2 rounded-full shrink-0"
+                                style={{
+                                    backgroundColor:
+                                        CHART_COLORS[i % CHART_COLORS.length],
+                                }}
+                            />
+                            <span className="text-[10px] text-gray-500 font-medium max-w-14 truncate">
+                                {opt}
                             </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-400">
-                                {formatNumber(totalVotes)} votes
-                            </span>
-                            {isExpanded ? <SvgChevronUp /> : <SvgChevronDown />}
-                        </div>
-                    </button>
+                    ))}
+                </div>
+            </div>
 
-                    {/* Content */}
-                    {isExpanded && (
-                        <div className="px-4 pb-4 border-t border-gray-50">
-                            <div className="mt-3 space-y-4">
-                                {config.groups.map((group, idx) => {
-                                    const groupTotal = voteOptions.reduce(
-                                        (sum, opt) =>
-                                            sum +
-                                            (groupStats[group]?.[opt] || 0),
-                                        0,
-                                    );
-                                    if (groupTotal === 0) return null;
+            <div className="px-4 py-3 space-y-3">
+                {activeGroups.map((group) => {
+                    const groupTotal = voteOptions.reduce(
+                        (sum, opt) => sum + (data?.[group]?.[opt] || 0),
+                        0,
+                    );
 
+                    return (
+                        <div key={group}>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-[11px] font-semibold text-gray-600 truncate max-w-35">
+                                    {group}
+                                </span>
+                                <span className="text-[10px] text-gray-400 shrink-0 ml-2">
+                                    {groupTotal} vote
+                                    {groupTotal !== 1 ? "s" : ""}
+                                </span>
+                            </div>
+                            <div className="h-6 w-full bg-gray-100 rounded-lg overflow-hidden flex">
+                                {voteOptions.map((opt, i) => {
+                                    const count = data?.[group]?.[opt] || 0;
+                                    const pct =
+                                        groupTotal > 0
+                                            ? (count / groupTotal) * 100
+                                            : 0;
+                                    if (pct === 0) return null;
                                     return (
                                         <div
-                                            key={group}
-                                            className="bg-gray-50 rounded-xl p-3"
+                                            key={opt}
+                                            title={`${opt}: ${count} (${pct.toFixed(1)}%)`}
+                                            className="h-full relative flex items-center justify-center transition-all duration-500"
+                                            style={{
+                                                width: `${pct}%`,
+                                                backgroundColor:
+                                                    CHART_COLORS[
+                                                        i % CHART_COLORS.length
+                                                    ],
+                                            }}
                                         >
-                                            <div className="flex items-center justify-between mb-2">
-                                                <span className="text-xs font-bold text-gray-700">
-                                                    {group}
+                                            {pct >= 14 && (
+                                                <span className="text-white text-[9px] font-bold pointer-events-none select-none">
+                                                    {Math.round(pct)}%
                                                 </span>
-                                                <span className="text-xs text-gray-500">
-                                                    {groupTotal} votes
-                                                </span>
-                                            </div>
-                                            <div className="space-y-2">
-                                                {voteOptions.map(
-                                                    (option, optIdx) => {
-                                                        const count =
-                                                            groupStats[group]?.[
-                                                                option
-                                                            ] || 0;
-                                                        const percentage =
-                                                            groupTotal > 0
-                                                                ? (count /
-                                                                      groupTotal) *
-                                                                  100
-                                                                : 0;
-
-                                                        return (
-                                                            <div
-                                                                key={option}
-                                                                className="flex items-center gap-2"
-                                                            >
-                                                                <div className="w-20 text-xs text-gray-600 truncate">
-                                                                    {option}
-                                                                </div>
-                                                                <div className="flex-1 h-6 bg-white rounded-lg overflow-hidden relative">
-                                                                    <div
-                                                                        className={`h-full ${BAR_COLORS[optIdx % BAR_COLORS.length]} opacity-20 absolute inset-0`}
-                                                                        style={{
-                                                                            width: `${percentage}%`,
-                                                                        }}
-                                                                    />
-                                                                    <div className="absolute inset-0 flex items-center px-2">
-                                                                        <div
-                                                                            className={`h-1.5 ${BAR_COLORS[optIdx % BAR_COLORS.length]} rounded-full transition-all duration-500`}
-                                                                            style={{
-                                                                                width: `${percentage}%`,
-                                                                            }}
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                                <div className="w-12 text-right">
-                                                                    <span className="text-xs font-bold text-gray-700">
-                                                                        {count}
-                                                                    </span>
-                                                                    <span className="text-[10px] text-gray-400 ml-1">
-                                                                        {percentage.toFixed(
-                                                                            0,
-                                                                        )}
-                                                                        %
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    },
-                                                )}
-                                            </div>
+                                            )}
                                         </div>
                                     );
                                 })}
                             </div>
                         </div>
-                    )}
-                </div>
-                <span className="text-[10px] text-gray-400 mt-1 ml-1">
-                    Demographics Bot • {timeLabel}
-                </span>
+                    );
+                })}
             </div>
         </div>
     );
 }
 
-// ─── Reply Input Form ───────────────────────────────────────────────────────
+// ─── Reply Form ───────────
 function ReplyForm({
     parentId,
     replyingTo,
@@ -884,13 +741,9 @@ function ReplyForm({
         setSaving(true);
         try {
             const issueRef = doc(db, "issues", issueId);
-
             await runTransaction(db, async (transaction) => {
-                // READ first
                 const issueSnap = await transaction.get(issueRef);
                 const currentCount = issueSnap.data()?.commentCount || 0;
-
-                // WRITES after
                 const commentsRef = collection(
                     db,
                     "issues",
@@ -911,7 +764,6 @@ function ReplyForm({
                     commentCount: currentCount + 1,
                 });
             });
-
             setText("");
             onSuccess();
         } catch (e) {
@@ -975,7 +827,7 @@ function ReplyForm({
     );
 }
 
-// ─── Single Comment with recursive replies ──────────────────────────────────
+// ─── Comment Item ─────────
 function CommentItem({
     comment,
     allComments,
@@ -1004,7 +856,6 @@ function CommentItem({
         const newLiked = !liked;
         setLiked(newLiked);
         setLikeCount((c) => (liked ? Math.max(0, c - 1) : c + 1));
-
         try {
             const commentRef = doc(
                 db,
@@ -1023,7 +874,6 @@ function CommentItem({
             });
         } catch (err) {
             console.error("Like failed:", err);
-            // Revert on failure
             setLiked(liked);
             setLikeCount(comment.likes || 0);
         }
@@ -1038,7 +888,6 @@ function CommentItem({
                         <div className="w-0.5 bg-gray-100 flex-1 min-h-5 mt-1.5 rounded-full" />
                     )}
                 </div>
-
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                         <span className="text-sm font-bold text-gray-900 leading-none">
@@ -1059,7 +908,6 @@ function CommentItem({
                             <SvgDots />
                         </button>
                     </div>
-
                     <p
                         className="text-sm text-gray-700 leading-relaxed"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
@@ -1071,7 +919,6 @@ function CommentItem({
                         )}
                         {comment.text}
                     </p>
-
                     <div className="flex items-center gap-4 mt-2">
                         <button
                             onClick={toggleLike}
@@ -1086,17 +933,14 @@ function CommentItem({
                                 </span>
                             )}
                         </button>
-
                         {authReady && (
                             <button
                                 onClick={() => setReplying((r) => !r)}
                                 className="flex items-center gap-1 text-gray-400 hover:text-[#F97316] transition-colors cursor-pointer text-xs font-semibold"
                             >
-                                <SvgReply />
-                                Reply
+                                <SvgReply /> Reply
                             </button>
                         )}
-
                         {hasReplies && (
                             <button
                                 onClick={() => setShowReplies((s) => !s)}
@@ -1113,7 +957,6 @@ function CommentItem({
                             </button>
                         )}
                     </div>
-
                     {replying && (
                         <div className="mt-3">
                             <ReplyForm
@@ -1132,7 +975,6 @@ function CommentItem({
                     )}
                 </div>
             </div>
-
             {hasReplies && showReplies && (
                 <div className="ml-9 mt-3 pl-3 border-l-2 border-gray-100 space-y-4">
                     {replies.map((reply) => (
@@ -1152,7 +994,7 @@ function CommentItem({
     );
 }
 
-// ─── Loading Screen ─────────────────────────────────────────────────────────
+// ─── Loading Screen ───────
 function LoadingScreen() {
     return (
         <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
@@ -1185,7 +1027,7 @@ function LoadingScreen() {
     );
 }
 
-// ─── Main Page Component ────────────────────────────────────────────────────
+// ─── Main Page ────────────
 export default function IssueDetailPage({ params }) {
     const { id } = use(params);
     const router = useRouter();
@@ -1211,6 +1053,7 @@ export default function IssueDetailPage({ params }) {
     const [demographicData, setDemographicData] = useState({});
     const [demographicsLoading, setDemographicsLoading] = useState(false);
 
+    // ── Auth ──────────────
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -1221,6 +1064,7 @@ export default function IssueDetailPage({ params }) {
         return unsub;
     }, []);
 
+    // ── Issue Snapshot ────
     useEffect(() => {
         if (!id) return;
         const ref = doc(db, "issues", id);
@@ -1256,6 +1100,7 @@ export default function IssueDetailPage({ params }) {
         return unsub;
     }, [id]);
 
+    // ── Restore local vote/upvote ─────────────────────────────────────────────
     useEffect(() => {
         if (!id || !currentUser) return;
         const v = localStorage.getItem(`vote_${id}_${currentUser.uid}`);
@@ -1264,25 +1109,19 @@ export default function IssueDetailPage({ params }) {
             setUpvoted(true);
     }, [id, currentUser]);
 
+    // ── Comments Snapshot ─
     useEffect(() => {
         if (!id) return;
-
         setCommentsLoading(true);
         setCommentsError(null);
-
         const q = query(
             collection(db, "issues", id, "comments"),
             orderBy("createdAt", "asc"),
         );
-
         const unsub = onSnapshot(
             q,
             (snap) => {
-                const fetchedComments = snap.docs.map((d) => ({
-                    id: d.id,
-                    ...d.data(),
-                }));
-                setComments(fetchedComments);
+                setComments(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
                 setCommentsLoading(false);
             },
             (err) => {
@@ -1291,110 +1130,131 @@ export default function IssueDetailPage({ params }) {
                 setCommentsLoading(false);
             },
         );
-
         return () => unsub();
     }, [id]);
 
-    // Fetch real demographic voting data from Firestore
+    // ── Demographics Fetch
     useEffect(() => {
-        if (!id || !issue?.demographics?.length) return;
+        if (
+            !id ||
+            !issue?.demographics?.length ||
+            !issue?.voteOptions?.length ||
+            !currentUser
+        )
+            return;
 
         const fetchDemographicData = async () => {
             setDemographicsLoading(true);
-            try {
-                // Fetch all votes for this issue
-                const votesRef = collection(db, "issues", id, "votes");
-                const votesSnap = await getDocs(votesRef);
 
-                const demoData = {};
-
-                // Initialize structure for each selected demographic
-                issue.demographics.forEach((demo) => {
-                    demoData[demo] = {};
-                    const config = DEMOGRAPHIC_CONFIG[demo];
-                    if (config && config.groups) {
-                        config.groups.forEach((group) => {
-                            demoData[demo][group] = {};
-                            issue.voteOptions?.forEach((option) => {
-                                demoData[demo][group][option] = 0;
-                            });
-                        });
-                    }
+            // Build empty structure
+            const demoData = {};
+            issue.demographics.forEach((demo) => {
+                const config = DEMOGRAPHIC_CONFIG[demo];
+                if (!config) return;
+                demoData[demo] = {};
+                config.groups.forEach((group) => {
+                    demoData[demo][group] = {};
+                    issue.voteOptions.forEach((option) => {
+                        demoData[demo][group][option] = 0;
+                    });
                 });
+            });
 
-                // Process each vote
+            try {
+                const votesSnap = await getDocs(
+                    collection(db, "issues", id, "votes"),
+                );
+
                 for (const voteDoc of votesSnap.docs) {
                     const voteData = voteDoc.data();
                     const userId = voteData.userId;
                     const selectedOption = voteData.option;
 
                     if (!userId || !selectedOption) continue;
+                    if (!issue.voteOptions.includes(selectedOption)) continue;
 
-                    // Fetch user data from signup
-                    const userDoc = await getDoc(doc(db, "users", userId));
-                    if (!userDoc.exists()) continue;
+                    let userData = {};
+                    try {
+                        const userSnap = await getDoc(doc(db, "users", userId));
+                        if (!userSnap.exists()) {
+                            console.log(`User ${userId} not found`);
+                            continue;
+                        }
+                        userData = userSnap.data();
+                    } catch (err) {
+                        console.error(`Error fetching user ${userId}:`, err);
+                        continue;
+                    }
 
-                    const userData = userDoc.data();
-
-                    // Aggregate by each selected demographic
                     issue.demographics.forEach((demo) => {
-                        let userValue = userData[demo];
+                        const config = DEMOGRAPHIC_CONFIG[demo];
+                        if (!config) return;
 
-                        // Special handling for age groups
-                        if (demo === "age" && userValue) {
-                            const ageConfig = DEMOGRAPHIC_CONFIG.age;
-                            userValue = ageConfig.getGroup(userValue);
+                        const rawValue =
+                            userData[config.firestoreField ?? demo];
+                        if (rawValue === undefined || rawValue === null) {
+                            console.log(`Missing ${demo} for user ${userId}`);
+                            return;
                         }
 
-                        if (userValue && demoData[demo][userValue]) {
-                            demoData[demo][userValue][selectedOption] =
-                                (demoData[demo][userValue][selectedOption] ||
-                                    0) + 1;
+                        const group = config.getGroup
+                            ? config.getGroup(rawValue)
+                            : String(rawValue);
+
+                        if (!group || !demoData[demo][group]) {
+                            console.log(`Invalid group ${group} for ${demo}`);
+                            return;
                         }
+
+                        demoData[demo][group][selectedOption] =
+                            (demoData[demo][group][selectedOption] || 0) + 1;
                     });
                 }
 
                 setDemographicData(demoData);
+                console.log("Demographics loaded:", demoData); // Debug log
             } catch (err) {
-                console.error("Demographics error:", err);
+                console.error("Demographics fetch error:", err);
             } finally {
                 setDemographicsLoading(false);
             }
         };
 
         fetchDemographicData();
-    }, [id, issue?.demographics, issue?.voteOptions]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        id,
+        issue?.demographics?.join(","),
+        issue?.voteOptions?.join(","),
+        currentUser,
+    ]); // FIXED: Added currentUser
 
+    // ── Vote Handler ──────
     const handleVote = async (option) => {
         if (!authReady || !currentUser || voteLoading) return;
         if (!issue.voteOptions?.includes(option)) return;
 
         const prev = userVote;
         const wasSameVote = prev === option;
-
         setVoteLoading(true);
-        const newCounts = { ...voteCounts };
 
+        const newCounts = { ...voteCounts };
         if (wasSameVote) {
             newCounts[option] = Math.max(0, (newCounts[option] || 0) - 1);
             setUserVote(null);
             setTotalVotes((p) => Math.max(0, p - 1));
         } else {
-            if (prev) {
-                newCounts[prev] = Math.max(0, (newCounts[prev] || 0) - 1);
-            }
+            if (prev) newCounts[prev] = Math.max(0, (newCounts[prev] || 0) - 1);
             newCounts[option] = (newCounts[option] || 0) + 1;
             setUserVote(option);
             setTotalVotes((p) => (prev ? p : p + 1));
         }
-
         setVoteCounts(newCounts);
 
         try {
             await runTransaction(db, async (tx) => {
                 const snap = await tx.get(doc(db, "issues", id));
                 if (!snap.exists()) throw new Error("missing");
-
                 const d = snap.data();
                 const cv = { ...(d.votes || {}) };
                 let ct = d.totalVotes || 0;
@@ -1402,16 +1262,7 @@ export default function IssueDetailPage({ params }) {
                 if (wasSameVote) {
                     cv[option] = Math.max(0, (cv[option] || 0) - 1);
                     ct = Math.max(0, ct - 1);
-
-                    // Remove vote record
-                    const voteRef = doc(
-                        db,
-                        "issues",
-                        id,
-                        "votes",
-                        currentUser.uid,
-                    );
-                    tx.delete(voteRef);
+                    tx.delete(doc(db, "issues", id, "votes", currentUser.uid));
                 } else {
                     if (prev) {
                         cv[prev] = Math.max(0, (cv[prev] || 0) - 1);
@@ -1419,30 +1270,18 @@ export default function IssueDetailPage({ params }) {
                         ct += 1;
                     }
                     cv[option] = (cv[option] || 0) + 1;
-
-                    // Store vote with user reference for demographics
-                    const voteRef = doc(
-                        db,
-                        "issues",
-                        id,
-                        "votes",
-                        currentUser.uid,
-                    );
-                    tx.set(voteRef, {
+                    tx.set(doc(db, "issues", id, "votes", currentUser.uid), {
                         userId: currentUser.uid,
-                        option: option,
+                        option,
                         votedAt: serverTimestamp(),
                     });
                 }
-
                 tx.update(doc(db, "issues", id), { votes: cv, totalVotes: ct });
             });
 
-            if (wasSameVote) {
+            if (wasSameVote)
                 localStorage.removeItem(`vote_${id}_${currentUser.uid}`);
-            } else {
-                localStorage.setItem(`vote_${id}_${currentUser.uid}`, option);
-            }
+            else localStorage.setItem(`vote_${id}_${currentUser.uid}`, option);
         } catch (err) {
             console.error("Vote failed:", err);
             setVoteCounts(voteCounts);
@@ -1453,35 +1292,28 @@ export default function IssueDetailPage({ params }) {
         }
     };
 
+    // ── Upvote Handler ────
     const handleUpvote = async (e) => {
         e.preventDefault();
         if (!authReady || !currentUser || upvoteLoading) return;
-
         const wasUpvoted = upvoted;
-
         setUpvoted(!wasUpvoted);
         setUpvoteCount((c) => (wasUpvoted ? Math.max(0, c - 1) : c + 1));
         setUpvoteLoading(true);
-
         try {
-            const docRef = doc(db, "issues", id);
             await runTransaction(db, async (tx) => {
-                const snap = await tx.get(docRef);
+                const snap = await tx.get(doc(db, "issues", id));
                 if (!snap.exists()) throw new Error("not found");
-
                 const current = snap.data().upvotes || 0;
-                const newUpvotes = wasUpvoted
-                    ? Math.max(0, current - 1)
-                    : current + 1;
-
-                tx.update(docRef, { upvotes: newUpvotes });
+                tx.update(doc(db, "issues", id), {
+                    upvotes: wasUpvoted
+                        ? Math.max(0, current - 1)
+                        : current + 1,
+                });
             });
-
-            if (wasUpvoted) {
+            if (wasUpvoted)
                 localStorage.removeItem(`upvote_${id}_${currentUser.uid}`);
-            } else {
-                localStorage.setItem(`upvote_${id}_${currentUser.uid}`, "1");
-            }
+            else localStorage.setItem(`upvote_${id}_${currentUser.uid}`, "1");
         } catch (err) {
             console.error("Upvote failed:", err);
             setUpvoted(wasUpvoted);
@@ -1491,6 +1323,7 @@ export default function IssueDetailPage({ params }) {
         }
     };
 
+    // ── Comment Submit ────
     const handleSubmitComment = async (e) => {
         e.preventDefault();
         if (!commentText.trim() || !authReady || submittingComment) return;
@@ -1514,18 +1347,13 @@ export default function IssueDetailPage({ params }) {
         setSubmittingComment(true);
 
         try {
-            // Add comment AND update commentCount in a batch
             const issueRef = doc(db, "issues", id);
-
-            // read first, then all writes
             await runTransaction(db, async (transaction) => {
-                // READ first
                 const issueSnap = await transaction.get(issueRef);
                 const currentCount = issueSnap.data()?.commentCount || 0;
-
-                // WRITES after
-                const commentsRef = collection(db, "issues", id, "comments");
-                const newCommentRef = doc(commentsRef);
+                const newCommentRef = doc(
+                    collection(db, "issues", id, "comments"),
+                );
                 transaction.set(newCommentRef, {
                     text: originalText.trim(),
                     userName: "Anonymous",
@@ -1549,6 +1377,7 @@ export default function IssueDetailPage({ params }) {
         }
     };
 
+    // ── Share ─────────────
     const handleShare = async () => {
         try {
             await navigator.clipboard.writeText(window.location.href);
@@ -1564,6 +1393,7 @@ export default function IssueDetailPage({ params }) {
         [comments],
     );
 
+    // ── Guards ────────────
     if (loading) return <LoadingScreen />;
     if (error || !issue) {
         return (
@@ -1599,6 +1429,7 @@ export default function IssueDetailPage({ params }) {
 
     return (
         <div className="min-h-screen bg-[#FDF6EF] pb-24">
+            {/* ── Header ── */}
             <header className="sticky top-0 z-40 bg-[#F97316] px-4 pt-6 md:pt-4 pb-3">
                 <div className="flex items-center justify-between max-w-3xl mx-auto">
                     <div className="flex items-center gap-3">
@@ -1635,7 +1466,7 @@ export default function IssueDetailPage({ params }) {
             </header>
 
             <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-4">
-                {/* Issue Card */}
+                {/* ── Issue Card ── */}
                 <div className="bg-white rounded-2xl border border-[#FED7AA] overflow-hidden shadow-sm">
                     <div className="px-4 pt-4 pb-3 border-b border-gray-50">
                         <div className="flex items-center justify-between mb-3">
@@ -1767,7 +1598,7 @@ export default function IssueDetailPage({ params }) {
                     </div>
                 </div>
 
-                {/* Voting Section */}
+                {/* ── Voting Section ── */}
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
                     <h2
                         className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2"
@@ -1777,7 +1608,7 @@ export default function IssueDetailPage({ params }) {
                         Cast Your Vote
                         {hasVoted && (
                             <span className="text-xs font-normal text-green-600 ml-auto flex items-center gap-1">
-                                <SvgCheckCircle className="w-3 h-3" /> Voted
+                                <SvgCheckCircle /> Voted
                             </span>
                         )}
                     </h2>
@@ -1831,7 +1662,7 @@ export default function IssueDetailPage({ params }) {
                     )}
                 </div>
 
-                {/* Demographics Chat Section - Only show demographics selected by issue creator */}
+                {/* ── Demographic Insights ── */}
                 {issue.demographics?.length > 0 && (
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                         <div className="px-4 pt-4 pb-3 border-b border-gray-50 flex items-center justify-between">
@@ -1845,54 +1676,37 @@ export default function IssueDetailPage({ params }) {
                                 Demographic Insights
                             </h2>
                             <span className="text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
-                                {issue.demographics.length} filters
+                                {totalVotes} total votes
                             </span>
                         </div>
 
-                        <div className="px-4 py-4 bg-linear-to-b from-orange-50/30 to-transparent">
-                            {/* Welcome Message */}
-                            <div className="flex gap-3 mb-4">
-                                <Avatar name="Bot" isBot={true} size="md" />
-                                <div className="flex-1">
-                                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3">
-                                        <p
-                                            className="text-sm text-gray-700"
-                                            style={{
-                                                fontFamily:
-                                                    "DM Sans, sans-serif",
-                                            }}
-                                        >
-                                            📊 Here&apos;s how different
-                                            demographic groups voted on this
-                                            issue. Each section shows the
-                                            breakdown by group with vote
-                                            distribution across all options.
-                                        </p>
-                                    </div>
-                                    <span className="text-[10px] text-gray-400 mt-1 ml-1">
-                                        Demographics Bot • just now
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Demographic Messages - Only show selected demographics */}
+                        <div className="px-4 py-4 space-y-3">
                             {demographicsLoading ? (
-                                <div className="flex items-center justify-center py-8 gap-2 text-gray-400">
+                                <div className="flex items-center justify-center py-6 gap-2 text-gray-400">
                                     <SvgSpinner />
                                     <span className="text-sm">
                                         Loading insights...
                                     </span>
                                 </div>
+                            ) : totalVotes === 0 ? (
+                                <div className="py-6 text-center">
+                                    <p className="text-sm text-gray-400 font-medium">
+                                        No votes yet
+                                    </p>
+                                    <p className="text-xs text-gray-300 mt-1">
+                                        Demographic breakdown will appear once
+                                        people vote
+                                    </p>
+                                </div>
                             ) : (
                                 issue.demographics
-                                    ?.filter((demo) => DEMOGRAPHIC_CONFIG[demo]) // Only render known demographics
+                                    .filter((demo) => DEMOGRAPHIC_CONFIG[demo])
                                     .map((demo) => (
-                                        <DemographicChatMessage
+                                        <DemographicChart
                                             key={demo}
                                             demographic={demo}
                                             data={demographicData[demo]}
                                             voteOptions={voteOptions}
-                                            totalVotes={totalVotes}
                                         />
                                     ))
                             )}
@@ -1900,7 +1714,7 @@ export default function IssueDetailPage({ params }) {
                     </div>
                 )}
 
-                {/* Discussion Section */}
+                {/* ── Discussion ── */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                     <div className="px-4 pt-4 pb-3 border-b border-gray-50 flex items-center justify-between">
                         <h2
@@ -1918,7 +1732,6 @@ export default function IssueDetailPage({ params }) {
                         </span>
                     </div>
 
-                    {/* Comment Input Form */}
                     <form
                         onSubmit={handleSubmitComment}
                         className="px-4 py-3 border-b border-gray-50"
@@ -1967,7 +1780,6 @@ export default function IssueDetailPage({ params }) {
                         </div>
                     </form>
 
-                    {/* Loading State */}
                     {commentsLoading && (
                         <div className="px-4 py-8 text-center">
                             <SvgSpinner />
@@ -1977,7 +1789,6 @@ export default function IssueDetailPage({ params }) {
                         </div>
                     )}
 
-                    {/* Error State */}
                     {!commentsLoading && !commentsError && (
                         <div className="px-4 divide-y divide-gray-50">
                             {topLevel.length === 0 ? (
@@ -2012,7 +1823,6 @@ export default function IssueDetailPage({ params }) {
                         </div>
                     )}
 
-                    {/* Error State - Show actual error message */}
                     {commentsError && !commentsLoading && (
                         <div className="px-4 py-8 text-center">
                             <p className="text-red-400 text-sm">
@@ -2028,7 +1838,7 @@ export default function IssueDetailPage({ params }) {
                     )}
                 </div>
 
-                {/* Action Buttons */}
+                {/* ── Action Buttons ── */}
                 <div className="flex gap-3">
                     <Link
                         href="/"

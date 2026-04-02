@@ -12,7 +12,9 @@ import {
     orderBy,
     onSnapshot,
     getDocs,
-    collectionGroup, // ✅ Added for subcollection queries
+    collectionGroup,
+    doc,
+    getDoc,
 } from "firebase/firestore";
 import Image from "next/image";
 
@@ -400,7 +402,7 @@ export default function ActivityPage() {
     });
     const [loading, setLoading] = useState(false);
 
-    // Auth check - same pattern as home page
+    // Auth check
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -419,14 +421,16 @@ export default function ActivityPage() {
         let active = true;
         setLoading(true);
 
+        // FIXED: Use createdBy instead of authorId
         const issuesQuery = query(
             collection(db, "issues"),
-            where("authorId", "==", currentUser.uid),
+            where("createdBy", "==", currentUser.uid),
         );
 
         const activityQuery = query(
             collection(db, "notifications"),
             where("userId", "==", currentUser.uid),
+            orderBy("createdAt", "desc"),
         );
 
         const unsubscribeIssues = onSnapshot(
@@ -438,7 +442,7 @@ export default function ActivityPage() {
                     ...doc.data(),
                 }));
                 const totalUpvotes = issues.reduce(
-                    (sum, issue) => sum + (issue.upvotes || 0),
+                    (sum, issue) => sum + (issue.totalVotes || 0),
                     0,
                 );
                 const resolved = issues.filter(
@@ -461,33 +465,25 @@ export default function ActivityPage() {
             activityQuery,
             (snapshot) => {
                 if (!active) return;
-                const activities = snapshot.docs
-                    .map((doc) => {
-                        const data = doc.data();
-                        return {
-                            id: doc.id,
-                            type: data.type || "update",
-                            actor: data.actorName || "System",
-                            actorInitial: data.actorInitial || "S",
-                            actorColor: data.actorColor || "bg-gray-400",
-                            actorPhotoURL: data.actorPhotoURL || null,
-                            message: data.message || "posted an update",
-                            issue: data.issueTitle || "Unknown Issue",
-                            issueId: data.issueId || "",
-                            timeAgo: formatTimeAgo(data.createdAt),
-                            timestamp: getTimestampGroup(data.createdAt),
-                            read: data.read || false,
-                            meta: data.meta || null,
-                            // ✅ Keep raw createdAt for client-side sorting
-                            _createdAt: data.createdAt,
-                        };
-                    })
-                    // ✅ Sort on the client instead
-                    .sort((a, b) => {
-                        const aTime = a._createdAt?.toDate?.() ?? new Date(0);
-                        const bTime = b._createdAt?.toDate?.() ?? new Date(0);
-                        return bTime - aTime;
-                    });
+                const activities = snapshot.docs.map((doc) => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        type: data.type || "update",
+                        actor: data.actorName || "System",
+                        actorInitial: data.actorInitial || "S",
+                        actorColor: data.actorColor || "bg-gray-400",
+                        actorPhotoURL: data.actorPhotoURL || null,
+                        message: data.message || "posted an update",
+                        issue: data.issueTitle || "Unknown Issue",
+                        issueId: data.issueId || "",
+                        timeAgo: formatTimeAgo(data.createdAt),
+                        timestamp: getTimestampGroup(data.createdAt),
+                        read: data.read || false,
+                        meta: data.meta || null,
+                        _createdAt: data.createdAt,
+                    };
+                });
 
                 setActivityData(activities);
                 if (active) setLoading(false);
@@ -498,12 +494,29 @@ export default function ActivityPage() {
             },
         );
 
-        // ✅ FIXED: Use collectionGroup to query comments subcollection across all issues
+        // Fetch comments count - this requires a composite index
         const fetchCommentsCount = async () => {
             try {
+                // Try to get comments count from user stats document first
+                const userStatsDoc = await getDoc(
+                    doc(db, "users", currentUser.uid, "stats", "overview"),
+                );
+
+                if (
+                    userStatsDoc.exists() &&
+                    userStatsDoc.data().commentsCount !== undefined
+                ) {
+                    setUserStats((prev) => ({
+                        ...prev,
+                        comments: userStatsDoc.data().commentsCount.toString(),
+                    }));
+                    return;
+                }
+
+                // Fallback: try collectionGroup query (requires index)
                 const commentsQuery = query(
-                    collectionGroup(db, "comments"), // ✅ Searches all /issues/{issueId}/comments
-                    where("authorId", "==", currentUser.uid),
+                    collectionGroup(db, "comments"),
+                    where("createdBy", "==", currentUser.uid),
                 );
                 const snapshot = await getDocs(commentsQuery);
                 if (active) {
@@ -514,6 +527,13 @@ export default function ActivityPage() {
                 }
             } catch (error) {
                 console.error("Error fetching comments:", error);
+                // Set to 0 if query fails (missing index)
+                if (active) {
+                    setUserStats((prev) => ({
+                        ...prev,
+                        comments: "0",
+                    }));
+                }
             }
         };
         fetchCommentsCount();

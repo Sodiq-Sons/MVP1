@@ -15,6 +15,8 @@ import {
     limit,
     updateDoc,
     serverTimestamp,
+    increment,
+    onSnapshot,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut, signInAnonymously } from "firebase/auth";
@@ -211,6 +213,7 @@ function formatNum(n) {
 }
 
 function formatTimeAgo(date) {
+    if (!date) return "Just now";
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
@@ -236,7 +239,7 @@ export default function ProfilePage() {
     });
     const [loading, setLoading] = useState(true);
 
-    // Auth states - same as home page
+    // Auth states
     const [currentUser, setCurrentUser] = useState(null);
     const [authReady, setAuthReady] = useState(false);
     const [isAnonymous, setIsAnonymous] = useState(true);
@@ -341,10 +344,10 @@ export default function ProfilePage() {
 
     const fetchUserData = async (uid) => {
         try {
-            // Fetch user's issues
+            // Fetch user's issues - FIXED: use createdBy instead of authorId
             const issuesQuery = query(
                 collection(db, "issues"),
-                where("authorId", "==", uid),
+                where("createdBy", "==", uid),
                 orderBy("createdAt", "desc"),
                 limit(10),
             );
@@ -360,7 +363,7 @@ export default function ProfilePage() {
                     categoryColor: getCategoryColor(data.category),
                     title: data.title,
                     location: data.location,
-                    upvotes: data.upvotes || 0,
+                    upvotes: data.totalVotes || 0, // FIXED: use totalVotes instead of upvotes
                     comments: data.commentsCount || 0,
                     status: data.status || "under-review",
                     timeAgo: formatTimeAgo(data.createdAt?.toDate()),
@@ -368,6 +371,12 @@ export default function ProfilePage() {
                 };
             });
             setIssues(issuesData);
+
+            // Calculate upvotes received from issues
+            const totalUpvotes = issuesData.reduce(
+                (sum, issue) => sum + issue.upvotes,
+                0,
+            );
 
             // Fetch badges
             const badgesQuery = query(collection(db, "users", uid, "badges"));
@@ -390,17 +399,14 @@ export default function ProfilePage() {
             if (statsDoc.exists()) {
                 const s = statsDoc.data();
                 setStats({
-                    issuesCount: s.issuesCount || 0,
-                    upvotesReceived: s.upvotesReceived || 0,
-                    badgesCount: s.badgesCount || 0,
+                    issuesCount: s.issuesCount || issuesData.length,
+                    upvotesReceived: s.upvotesReceived || totalUpvotes,
+                    badgesCount: s.badgesCount || badgesData.length,
                 });
             } else {
                 setStats({
                     issuesCount: issuesData.length,
-                    upvotesReceived: issuesData.reduce(
-                        (acc, i) => acc + i.upvotes,
-                        0,
-                    ),
+                    upvotesReceived: totalUpvotes,
                     badgesCount: badgesData.length,
                 });
             }
@@ -412,38 +418,68 @@ export default function ProfilePage() {
         }
     };
 
+    // Real-time updates for stats
+    useEffect(() => {
+        if (!currentUser || isAnonymous) return;
+
+        // Subscribe to user document changes for real-time impact score updates
+        const unsubscribe = onSnapshot(
+            doc(db, "users", currentUser.uid),
+            (doc) => {
+                if (doc.exists()) {
+                    const data = doc.data();
+                    setUserProfile((prev) => ({
+                        ...prev,
+                        impactScore: data.impactScore || 0,
+                        level: data.level || 1,
+                        levelName: data.levelName || "New Voice",
+                        pointsToNextLevel: data.pointsToNextLevel || 100,
+                    }));
+                }
+            },
+        );
+
+        return () => unsubscribe();
+    }, [currentUser, isAnonymous]);
+
     const getCategoryEmoji = (category) => {
         const map = {
-            Infrastructure: "🏗️",
-            Healthcare: "❤️",
-            Education: "📚",
-            Security: "🛡️",
-            Environment: "🌿",
-            Transportation: "🚌",
-            Electricity: "⚡",
-            Water: "💧",
+            infrastructure: "🏗️",
+            education: "📚",
+            healthcare: "❤️",
+            water: "💧",
+            security: "🛡️",
+            electricity: "⚡",
+            environment: "🌿",
+            other: "📋",
         };
         return map[category] || "📋";
     };
 
     const getCategoryBg = (category) => {
         const map = {
-            Infrastructure: "bg-orange-50",
-            Healthcare: "bg-rose-50",
-            Education: "bg-blue-50",
-            Security: "bg-red-50",
-            Environment: "bg-green-50",
+            infrastructure: "bg-orange-50",
+            education: "bg-blue-50",
+            healthcare: "bg-rose-50",
+            security: "bg-red-50",
+            environment: "bg-green-50",
+            water: "bg-cyan-50",
+            electricity: "bg-yellow-50",
+            other: "bg-gray-50",
         };
         return map[category] || "bg-gray-50";
     };
 
     const getCategoryColor = (category) => {
         const map = {
-            Infrastructure: "text-orange-700",
-            Healthcare: "text-rose-700",
-            Education: "text-blue-700",
-            Security: "text-red-700",
-            Environment: "text-green-700",
+            infrastructure: "text-orange-700",
+            education: "text-blue-700",
+            healthcare: "text-rose-700",
+            security: "text-red-700",
+            environment: "text-green-700",
+            water: "text-cyan-700",
+            electricity: "text-yellow-700",
+            other: "text-gray-700",
         };
         return map[category] || "text-gray-700";
     };
@@ -485,7 +521,6 @@ export default function ProfilePage() {
         }
     };
 
-    // Only 2 tabs now - removed "saved"
     const tabs = [
         { key: "issues", label: "My Issues", count: stats.issuesCount },
         { key: "badges", label: "Badges", count: stats.badgesCount },
@@ -547,8 +582,6 @@ export default function ProfilePage() {
 
     if (!userProfile) return null;
 
-    // Calculate progress percentage based on current accumulated points
-    // Formula: (currentPoints / pointsToNextLevel) * 100
     const progressPercent = Math.min(
         100,
         (userProfile.impactScore / userProfile.pointsToNextLevel) * 100,
@@ -706,7 +739,7 @@ export default function ProfilePage() {
                             </span>
                         </div>
 
-                        {/* Stats Grid - Only 3 cards now (removed resolved) */}
+                        {/* Stats Grid */}
                         <div className="grid grid-cols-3 gap-2">
                             {[
                                 {
@@ -750,7 +783,7 @@ export default function ProfilePage() {
                     </div>
                 </div>
 
-                {/* Impact Banner - Progress bar based on current accumulated points */}
+                {/* Impact Banner */}
                 <div className="bg-[#EA580C] rounded-2xl p-4 text-white relative overflow-hidden">
                     <div
                         className="absolute inset-0 opacity-10"
@@ -792,7 +825,7 @@ export default function ProfilePage() {
                     </div>
                 </div>
 
-                {/* Tabs - Only 2 tabs now (removed saved) */}
+                {/* Tabs */}
                 <div className="bg-white rounded-2xl border border-gray-50 shadow-sm overflow-hidden">
                     <div className="flex border-b border-gray-100">
                         {tabs.map((t) => (

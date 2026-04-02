@@ -3,10 +3,18 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+    collection,
+    addDoc,
+    serverTimestamp,
+    doc,
+    getDoc,
+    writeBatch,
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from "@/lib/firebase";
 import Link from "next/link";
+import { toast } from "sonner";
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -693,7 +701,8 @@ function CreateIssueForm({ currentUser, router }) {
                 voteOptions.map((opt) => [opt, 0]),
             );
 
-            await addDoc(collection(db, "issues"), {
+            // Create the issue
+            const issueRef = await addDoc(collection(db, "issues"), {
                 title: title.trim(),
                 description: description.trim(),
                 location,
@@ -702,10 +711,262 @@ function CreateIssueForm({ currentUser, router }) {
                 voteOptions,
                 votes,
                 totalVotes: 0,
-                demographics: selectedDemographics, // Store selected demographics for results
+                demographics: selectedDemographics,
                 createdAt: serverTimestamp(),
                 createdBy: currentUser.uid,
+                authorName: currentUser.displayName || "Anonymous",
+                status: "under-review",
+                commentsCount: 0,
             });
+
+            // Update user stats and impact score
+            const userRef = doc(db, "users", currentUser.uid);
+            const userDoc = await getDoc(userRef);
+
+            const batch = writeBatch(db);
+            const now = serverTimestamp();
+
+            let newIssuesCount = 1;
+            let newImpactScore = 10;
+            let newLevel = 1;
+            let newLevelName = "New Voice";
+            let pointsToNextLevel = 100;
+            let badgesToAward = [];
+            let notificationsToCreate = [];
+
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                newIssuesCount = (userData.issuesCount || 0) + 1;
+                newImpactScore = (userData.impactScore || 0) + 10;
+
+                // Level progression logic
+                if (newImpactScore >= 500) {
+                    newLevel = 5;
+                    newLevelName = "National Champion";
+                    pointsToNextLevel = 1000;
+                } else if (newImpactScore >= 250) {
+                    newLevel = 4;
+                    newLevelName = "Change Maker";
+                    pointsToNextLevel = 500;
+                } else if (newImpactScore >= 100) {
+                    newLevel = 3;
+                    newLevelName = "Active Citizen";
+                    pointsToNextLevel = 250;
+                } else if (newImpactScore >= 50) {
+                    newLevel = 2;
+                    newLevelName = "Community Voice";
+                    pointsToNextLevel = 100;
+                }
+
+                // Check for first issue badge
+                if (newIssuesCount === 1) {
+                    const firstIssueBadgeRef = doc(
+                        db,
+                        "users",
+                        currentUser.uid,
+                        "badges",
+                        "first_issue",
+                    );
+                    batch.set(firstIssueBadgeRef, {
+                        emoji: "📝",
+                        label: "First Issue",
+                        description: "Posted your first community issue",
+                        earnedAt: now,
+                    });
+                    badgesToAward.push({
+                        emoji: "📝",
+                        label: "First Issue",
+                        description: "Posted your first community issue",
+                    });
+                    notificationsToCreate.push({
+                        type: "milestone",
+                        message: "You earned the First Issue badge!",
+                        meta: "Keep posting to unlock more badges",
+                    });
+                }
+
+                // Check for 5 issues badge
+                if (newIssuesCount === 5) {
+                    const fiveIssuesBadgeRef = doc(
+                        db,
+                        "users",
+                        currentUser.uid,
+                        "badges",
+                        "five_issues",
+                    );
+                    batch.set(fiveIssuesBadgeRef, {
+                        emoji: "📊",
+                        label: "Regular Reporter",
+                        description: "Posted 5 community issues",
+                        earnedAt: now,
+                    });
+                    badgesToAward.push({
+                        emoji: "📊",
+                        label: "Regular Reporter",
+                        description: "Posted 5 community issues",
+                    });
+                    notificationsToCreate.push({
+                        type: "milestone",
+                        message: "You earned the Regular Reporter badge!",
+                        meta: "5 issues posted",
+                    });
+                }
+
+                // Check for 10 issues badge
+                if (newIssuesCount === 10) {
+                    const tenIssuesBadgeRef = doc(
+                        db,
+                        "users",
+                        currentUser.uid,
+                        "badges",
+                        "ten_issues",
+                    );
+                    batch.set(tenIssuesBadgeRef, {
+                        emoji: "🔥",
+                        label: "Top Reporter",
+                        description: "Posted 10 community issues",
+                        earnedAt: now,
+                    });
+                    badgesToAward.push({
+                        emoji: "🔥",
+                        label: "Top Reporter",
+                        description: "Posted 10 community issues",
+                    });
+                    notificationsToCreate.push({
+                        type: "milestone",
+                        message: "You earned the Top Reporter badge!",
+                        meta: "10 issues posted - you're a community leader!",
+                    });
+
+                    // Also update user role
+                    batch.update(userRef, {
+                        role: "top_reporter",
+                    });
+                }
+
+                // Check for level up notification
+                const oldLevel = userData.level || 1;
+                if (newLevel > oldLevel) {
+                    notificationsToCreate.push({
+                        type: "milestone",
+                        message: `Level Up! You're now Level ${newLevel} — ${newLevelName}`,
+                        meta: `${newImpactScore} impact points earned`,
+                    });
+                }
+            } else {
+                // First time user - create user document
+                batch.set(userRef, {
+                    displayName: currentUser.displayName || "User",
+                    email: currentUser.email,
+                    photoURL: currentUser.photoURL || null,
+                    createdAt: now,
+                    bio: "No bio yet",
+                    location: "Nigeria",
+                    isOnline: true,
+                });
+
+                // Award first issue badge
+                const firstIssueBadgeRef = doc(
+                    db,
+                    "users",
+                    currentUser.uid,
+                    "badges",
+                    "first_issue",
+                );
+                batch.set(firstIssueBadgeRef, {
+                    emoji: "📝",
+                    label: "First Issue",
+                    description: "Posted your first community issue",
+                    earnedAt: now,
+                });
+                badgesToAward.push({
+                    emoji: "📝",
+                    label: "First Issue",
+                    description: "Posted your first community issue",
+                });
+                notificationsToCreate.push({
+                    type: "milestone",
+                    message: "Welcome! You earned your First Issue badge!",
+                    meta: "Start of your community impact journey",
+                });
+            }
+
+            // Update user stats
+            batch.update(userRef, {
+                issuesCount: newIssuesCount,
+                impactScore: newImpactScore,
+                level: newLevel,
+                levelName: newLevelName,
+                pointsToNextLevel: pointsToNextLevel,
+                lastActive: now,
+            });
+
+            // Update stats subcollection for quick access
+            const statsRef = doc(
+                db,
+                "users",
+                currentUser.uid,
+                "stats",
+                "overview",
+            );
+            batch.set(
+                statsRef,
+                {
+                    issuesCount: newIssuesCount,
+                    impactScore: newImpactScore,
+                    badgesCount:
+                        badgesToAward.length +
+                        (userDoc.exists()
+                            ? userDoc.data().badgesCount || 0
+                            : 0),
+                    lastUpdated: now,
+                },
+                { merge: true },
+            );
+
+            // Create notifications
+            for (const notif of notificationsToCreate) {
+                const notifRef = doc(collection(db, "notifications"));
+                batch.set(notifRef, {
+                    userId: currentUser.uid,
+                    type: notif.type,
+                    actorName: "System",
+                    actorInitial: "S",
+                    actorColor: "bg-[#F97316]",
+                    message: notif.message,
+                    issueTitle: title.trim(),
+                    issueId: issueRef.id,
+                    meta: notif.meta,
+                    createdAt: now,
+                    read: false,
+                });
+            }
+
+            // Always create a "issue created" notification
+            const issueCreatedNotifRef = doc(collection(db, "notifications"));
+            batch.set(issueCreatedNotifRef, {
+                userId: currentUser.uid,
+                type: "milestone",
+                actorName: "You",
+                actorInitial: "Y",
+                actorColor: "bg-[#F97316]",
+                message: "posted a new issue",
+                issueTitle: title.trim(),
+                issueId: issueRef.id,
+                meta: `Posted in ${location} • ${category}`,
+                createdAt: now,
+                read: true, // Auto-mark as read since it's your own action
+            });
+
+            // Commit all operations
+            await batch.commit();
+
+            // Show success toast for badges
+            for (const badge of badgesToAward) {
+                toast.success(`🏅 Badge Earned: ${badge.label}!`, {
+                    description: badge.description,
+                });
+            }
 
             router.push("/");
         } catch (err) {
