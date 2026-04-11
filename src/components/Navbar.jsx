@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useSidebar } from "./SidebarContext";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { auth, db } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 
@@ -115,7 +119,7 @@ const ChevronIcon = ({ direction }) => (
 const navItems = [
     { href: "/", label: "Home", Icon: HomeIcon },
     { href: "/trending", label: "Trending", Icon: TrendingIcon },
-    { href: "/create-issue", label: "Post Issue", Icon: null, isPost: true },
+    { href: "/create-issue", label: "Post to Camp", Icon: null, isPost: true },
     { href: "/activity", label: "Activity", Icon: ActivityIcon },
     { href: "/profile", label: "Profile", Icon: ProfileIcon },
 ];
@@ -127,6 +131,41 @@ export default function Navbar() {
     const isCreateIssue = pathname === "/create-issue";
 
     const { collapsed, toggle } = useSidebar();
+    const [userData, setUserData] = useState(null);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user && !user.isAnonymous) {
+                const userRef = doc(db, "users", user.uid);
+                const snap = await getDoc(userRef);
+
+                if (snap.exists()) {
+                    const data = snap.data();
+
+                    setUserData({
+                        name: user.displayName || data.displayName || "User",
+                        location:
+                            typeof data.location === "object"
+                                ? [
+                                      data.location.city,
+                                      data.location.state,
+                                      data.location.country,
+                                  ]
+                                      .filter(Boolean)
+                                      .join(", ")
+                                : data.location || "Nigeria",
+                    });
+                } else {
+                    setUserData({
+                        name: user.displayName || "User",
+                        location: "Nigeria",
+                    });
+                }
+            }
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     return (
         <>
@@ -210,7 +249,7 @@ export default function Navbar() {
                               ? pathname === "/"
                               : pathname.startsWith(href);
 
-                        /* Post Issue CTA */
+                        /* Post to Camp CTA */
                         if (isPost) {
                             return (
                                 <Link
@@ -312,18 +351,16 @@ export default function Navbar() {
                                 "linear-gradient(135deg, #fb923c 0%, #c2410c 100%)",
                         }}
                     >
-                        A
+                        {userData?.name?.charAt(0)?.toUpperCase() || "U"}
                     </div>
                     {!collapsed && (
                         <div className="flex-1 min-w-0">
-                            <div
-                                className="text-[12px] font-semibold text-gray-800 truncate leading-none"
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
-                            >
-                                Ada Okonkwo
+                            <div className="text-[12px] font-semibold text-gray-800 truncate leading-none">
+                                {userData?.name || "Loading..."}
                             </div>
+
                             <div className="text-[10px] text-gray-400 mt-0.5 truncate">
-                                Lagos, Nigeria
+                                {userData?.location || ""}
                             </div>
                         </div>
                     )}
@@ -366,7 +403,7 @@ export default function Navbar() {
                                     href={href}
                                     className="flex items-center justify-center"
                                     style={{ marginTop: -22 }}
-                                    aria-label="Post Issue"
+                                    aria-label="Post to Camp"
                                 >
                                     <div
                                         className="bg-[#F97316] rounded-4.5 flex items-center justify-center active:scale-95 transition-transform rounded-full"

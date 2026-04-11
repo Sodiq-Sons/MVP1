@@ -10,9 +10,11 @@ import {
     query,
     doc,
     runTransaction,
+    getDoc,
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
+import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
 
 // ── Category display map ──────────────────────────────────────────────────────
 const CATEGORY_META = {
@@ -58,6 +60,24 @@ const CATEGORY_META = {
         bg: "bg-green-50",
         label: "Environment",
     },
+    gist: {
+        emoji: "💬",
+        color: "text-pink-700",
+        bg: "bg-pink-50",
+        label: "Gist",
+    },
+    polls: {
+        emoji: "🗳️",
+        color: "text-violet-700",
+        bg: "bg-violet-50",
+        label: "Poll",
+    },
+    food: {
+        emoji: "🍛",
+        color: "text-amber-700",
+        bg: "bg-amber-50",
+        label: "Food",
+    },
     other: {
         emoji: "📌",
         color: "text-gray-700",
@@ -66,7 +86,26 @@ const CATEGORY_META = {
     },
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Filter map
+const FILTER_MAP = {
+    gist: { field: "category", values: ["gist", "gossip", "discussion"] },
+    polls: { field: "responseType", values: ["multiple_choice", "yes_no"] },
+    food: { field: "category", values: ["food"] },
+    issues: {
+        field: "category",
+        values: [
+            "infrastructure",
+            "education",
+            "healthcare",
+            "water",
+            "security",
+            "electricity",
+            "environment",
+        ],
+    },
+};
+
+// ── Helpers
 function timeAgo(seconds) {
     const diff = Math.floor(Date.now() / 1000) - seconds;
     if (diff < 60) return "Just now";
@@ -81,7 +120,6 @@ function formatUpvotes(n) {
     return n.toString();
 }
 
-// Avatar count: 0 votes → 0 avatars | 1→1 | 2→2 | 3→3 | 4+→4
 function getAvatarCount(upvotes) {
     if (upvotes <= 0) return 0;
     return Math.min(upvotes, 4);
@@ -99,7 +137,7 @@ const avatarColors = [
     "bg-indigo-400",
 ];
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
+// ── Icons ─────
 const SearchIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -164,19 +202,6 @@ const CommentIcon = () => (
         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
     </svg>
 );
-const BellIcon = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="white"
-        strokeWidth="2"
-        strokeLinecap="round"
-        className="w-5 h-5 md:stroke-[#F97316]"
-    >
-        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
-        <path d="M13.73 21a2 2 0 01-3.46 0" />
-    </svg>
-);
 const UserIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -224,7 +249,7 @@ function StatusBadge({ status }) {
     );
 }
 
-// ── Skeleton ──────────────────────────────────────────────────────────────────
+// ── Skeleton ──
 function SkeletonCard() {
     return (
         <div className="bg-white rounded-2xl p-4 border border-[#FED7AA] animate-pulse">
@@ -293,7 +318,7 @@ function LoginPromptModal({ isOpen, onClose, onLogin }) {
     );
 }
 
-// ── Issue Card ────────────────────────────────────────────────────────────────
+// ── Issue Card
 function IssueCard({
     issue,
     currentUser,
@@ -307,26 +332,19 @@ function IssueCard({
     const [loading, setLoading] = useState(false);
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
     const meta = CATEGORY_META[issue.category] ?? CATEGORY_META.other;
-
-    // Real-time comment count
     const [realtimeCommentCount, setRealtimeCommentCount] = useState(0);
 
-    // Listen to comments in real-time
     useEffect(() => {
         if (!issue.id) return;
-
-        const commentsQuery = query(
-            collection(db, "issues", issue.id, "comments"),
+        const unsubscribe = onSnapshot(
+            query(collection(db, "issues", issue.id, "comments")),
+            (snap) => {
+                setRealtimeCommentCount(snap.docs.length);
+            },
         );
-
-        const unsubscribe = onSnapshot(commentsQuery, (snapshot) => {
-            setRealtimeCommentCount(snapshot.docs.length);
-        });
-
         return () => unsubscribe();
     }, [issue.id]);
 
-    // Rest of your existing code...
     useEffect(() => {
         if (!currentUser || !issue.id || isAnonymous) return;
         const saved = localStorage.getItem(
@@ -342,20 +360,16 @@ function IssueCard({
     const handleUpvote = async (e) => {
         e.preventDefault();
         e.stopPropagation();
-
         if (isAnonymous || !currentUser || currentUser.isAnonymous) {
             setShowLoginPrompt(true);
             return;
         }
-
         if (!authReady || loading) return;
-
         const wasUpvoted = upvoted;
-
+        const newCount = wasUpvoted ? Math.max(0, count - 1) : count + 1;
         setUpvoted(!wasUpvoted);
-        setCount((c) => (wasUpvoted ? Math.max(0, c - 1) : c + 1));
+        setCount(newCount);
         setLoading(true);
-
         try {
             const docRef = doc(db, "issues", issue.id);
             await runTransaction(db, async (tx) => {
@@ -368,7 +382,37 @@ function IssueCard({
                         : current + 1,
                 });
             });
-
+            if (!wasUpvoted) {
+                const issueSnap = await getDoc(doc(db, "issues", issue.id));
+                const issueData = issueSnap.data();
+                if (
+                    issueData?.author?.uid &&
+                    issueData.author.uid !== currentUser.uid
+                ) {
+                    await createNotification({
+                        type: NOTIFICATION_TYPES.UPVOTE,
+                        recipientId: issueData.author.uid,
+                        actorId: currentUser.uid,
+                        actorName: currentUser.displayName || "Someone",
+                        actorPhotoURL: currentUser.photoURL,
+                        issueId: issue.id,
+                        issueTitle: issue.title,
+                        meta: `${newCount} total upvotes`,
+                    });
+                }
+                const milestones = [10, 25, 50, 100, 250, 500];
+                if (milestones.includes(newCount) && issueData?.author?.uid) {
+                    await createNotification({
+                        type: NOTIFICATION_TYPES.MILESTONE,
+                        recipientId: issueData.author.uid,
+                        actorId: "system",
+                        actorName: "Camp Voice",
+                        issueId: issue.id,
+                        issueTitle: issue.title,
+                        meta: `🎉 ${newCount} upvotes reached!`,
+                    });
+                }
+            }
             if (wasUpvoted) {
                 localStorage.removeItem(
                     `upvote_${issue.id}_${currentUser.uid}`,
@@ -394,24 +438,13 @@ function IssueCard({
         <>
             <Link href={`/issue/${issue.id}`} className="block">
                 <div className="issue-card bg-white rounded-2xl p-4 shadow-card border border-[#FED7AA] hover:shadow-lg hover:border-orange-300 transition-all cursor-pointer relative">
-                    {/* Rank Badge for Trending */}
                     {rank && (
                         <div
-                            className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white ${
-                                rank === 1
-                                    ? "bg-linear-to-br from-yellow-400 to-yellow-600 text-white"
-                                    : rank === 2
-                                      ? "bg-linear-to-br from-gray-300 to-gray-500 text-white"
-                                      : rank === 3
-                                        ? "bg-linear-to-br from-orange-400 to-orange-600 text-white"
-                                        : "bg-gray-100 text-gray-600"
-                            }`}
+                            className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white ${rank === 1 ? "bg-linear-to-br from-yellow-400 to-yellow-600 text-white" : rank === 2 ? "bg-linear-to-br from-gray-300 to-gray-500 text-white" : rank === 3 ? "bg-linear-to-br from-orange-400 to-orange-600 text-white" : "bg-gray-100 text-gray-600"}`}
                         >
                             {rank}
                         </div>
                     )}
-
-                    {/* Header */}
                     <div className="flex items-center justify-between mb-2.5">
                         <span
                             className={`text-xs font-semibold px-2.5 py-1 rounded-full ${meta.bg} ${meta.color} flex items-center gap-1.5`}
@@ -427,8 +460,6 @@ function IssueCard({
                             {issue.timeAgo}
                         </span>
                     </div>
-
-                    {/* Content + Upvote */}
                     <div className="flex gap-3">
                         <div className="flex-1 min-w-0">
                             <h3
@@ -453,13 +484,7 @@ function IssueCard({
                             <button
                                 onClick={handleUpvote}
                                 disabled={loading}
-                                className={`upvote-btn flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-60 ${
-                                    upvoted
-                                        ? "border-green-500 bg-green-50"
-                                        : isAnonymous
-                                          ? "border-gray-200 bg-gray-50 hover:border-gray-300"
-                                          : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50"
-                                }`}
+                                className={`upvote-btn flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-60 ${upvoted ? "border-green-500 bg-green-50" : isAnonymous ? "border-gray-200 bg-gray-50 hover:border-gray-300" : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50"}`}
                             >
                                 <span className="mt-2">
                                     <UpvoteIcon active={upvoted} />
@@ -472,8 +497,6 @@ function IssueCard({
                             </button>
                         </div>
                     </div>
-
-                    {/* Footer */}
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
                         <div className="flex items-center gap-2 flex-wrap">
                             <span className="flex items-center gap-1 text-xs text-gray-400">
@@ -482,7 +505,6 @@ function IssueCard({
                             </span>
                             <StatusBadge status={issue.status} />
                         </div>
-                        {/* FIXED: Show real-time comment count */}
                         <button
                             className="flex items-center gap-1.5 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
                             onClick={(e) => e.preventDefault()}
@@ -492,14 +514,10 @@ function IssueCard({
                                 className="text-xs font-semibold"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
-                                {realtimeCommentCount > 0
-                                    ? realtimeCommentCount
-                                    : "0"}
+                                {realtimeCommentCount}
                             </span>
                         </button>
                     </div>
-
-                    {/* Avatars */}
                     {avatarCount > 0 && (
                         <div className="flex items-center gap-2 mt-2.5">
                             <div className="flex items-center">
@@ -524,7 +542,6 @@ function IssueCard({
                     )}
                 </div>
             </Link>
-
             <LoginPromptModal
                 isOpen={showLoginPrompt}
                 onClose={() => setShowLoginPrompt(false)}
@@ -546,17 +563,13 @@ export default function HomePage() {
     const [isAnonymous, setIsAnonymous] = useState(true);
     const [userProfile, setUserProfile] = useState(null);
 
-    // Auth
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 setCurrentUser(user);
                 setIsAnonymous(user.isAnonymous);
                 setAuthReady(true);
-
-                // If user is not anonymous, try to get their profile
                 if (!user.isAnonymous) {
-                    // You can fetch additional user data from Firestore here if needed
                     setUserProfile({
                         name: user.displayName || "User",
                         email: user.email,
@@ -564,7 +577,6 @@ export default function HomePage() {
                     });
                 }
             } else {
-                // Sign in anonymously for browsing
                 try {
                     await signInAnonymously(auth);
                 } catch (err) {
@@ -576,7 +588,6 @@ export default function HomePage() {
         return () => unsubscribe();
     }, []);
 
-    // Real-time Firestore
     useEffect(() => {
         const q = query(collection(db, "issues"), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(
@@ -621,22 +632,28 @@ export default function HomePage() {
     const filters = [
         { key: "all", label: "All" },
         { key: "trending", label: "🔥 Trending" },
+        { key: "gist", label: "💬 Gist" },
+        { key: "polls", label: "🗳️ Polls" },
+        { key: "food", label: "🍛 Food" },
+        { key: "issues", label: "🚨 Issues" },
     ];
 
     const filteredIssues = issues
         .filter((issue) => {
-            if (activeFilter === "trending") {
-                return true;
-            }
             if (search) {
-                return (
-                    issue.title.toLowerCase().includes(search.toLowerCase()) ||
-                    issue.description
-                        .toLowerCase()
-                        .includes(search.toLowerCase())
-                );
+                const q = search.toLowerCase();
+                if (
+                    !issue.title.toLowerCase().includes(q) &&
+                    !issue.description.toLowerCase().includes(q)
+                )
+                    return false;
             }
-            return true;
+            if (activeFilter === "all" || activeFilter === "trending")
+                return true;
+            const rule = FILTER_MAP[activeFilter];
+            if (!rule) return true;
+            const issueVal = (issue[rule.field] ?? "").toLowerCase();
+            return rule.values.includes(issueVal);
         })
         .sort((a, b) => {
             if (activeFilter === "trending")
@@ -644,7 +661,6 @@ export default function HomePage() {
             return 0;
         });
 
-    // Get display name - use actual user name if logged in, otherwise "Guest"
     const displayName = isAnonymous ? "Guest" : userProfile?.name || "User";
     const displayLocation = isAnonymous ? "" : userProfile?.state || "Nigeria";
 
@@ -679,13 +695,11 @@ export default function HomePage() {
                                 Login
                             </Link>
                         ) : (
-                            <>
-                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-orange-200 to-orange-400 border-2 border-white flex items-center justify-center">
-                                    <span className="text-white text-xs font-bold">
-                                        {displayName.charAt(0).toUpperCase()}
-                                    </span>
-                                </div>
-                            </>
+                            <div className="w-8 h-8 rounded-full bg-linear-to-br from-orange-200 to-orange-400 border-2 border-white flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">
+                                    {displayName.charAt(0).toUpperCase()}
+                                </span>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -715,26 +729,24 @@ export default function HomePage() {
                             Login
                         </Link>
                     ) : (
-                        <>
-                            <div className="flex items-center gap-2.5 bg-white rounded-xl px-3 py-2 shadow-sm border border-gray-100">
-                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-orange-300 to-orange-500 flex items-center justify-center text-white text-sm font-bold">
-                                    {displayName.charAt(0).toUpperCase()}
+                        <div className="flex items-center gap-2.5 bg-white rounded-xl px-3 py-2 shadow-sm border border-gray-100">
+                            <div className="w-8 h-8 rounded-full bg-linear-to-br from-orange-300 to-orange-500 flex items-center justify-center text-white text-sm font-bold">
+                                {displayName.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <div
+                                    className="text-sm font-semibold text-gray-800 leading-none"
+                                    style={{
+                                        fontFamily: "DM Sans, sans-serif",
+                                    }}
+                                >
+                                    {displayName}
                                 </div>
-                                <div>
-                                    <div
-                                        className="text-sm font-semibold text-gray-800 leading-none"
-                                        style={{
-                                            fontFamily: "DM Sans, sans-serif",
-                                        }}
-                                    >
-                                        {displayName}
-                                    </div>
-                                    <div className="text-xs text-gray-400 mt-0.5">
-                                        {displayLocation || "Nigeria"}
-                                    </div>
+                                <div className="text-xs text-gray-400 mt-0.5">
+                                    {displayLocation || "Nigeria"}
                                 </div>
                             </div>
-                        </>
+                        </div>
                     )}
                 </div>
             </div>
@@ -836,11 +848,7 @@ export default function HomePage() {
                         <button
                             key={f.key}
                             onClick={() => setActiveFilter(f.key)}
-                            className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${
-                                activeFilter === f.key
-                                    ? "bg-[#F97316] text-white shadow-sm"
-                                    : "bg-white text-black border border-gray-200 hover:border-[#F97316]/40 hover:text-[#F97316]"
-                            }`}
+                            className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${activeFilter === f.key ? "bg-[#F97316] text-white shadow-sm" : "bg-white text-black border border-gray-200 hover:border-[#F97316]/40 hover:text-[#F97316]"}`}
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
                             {f.label}
@@ -849,7 +857,6 @@ export default function HomePage() {
                 </div>
             </div>
 
-            {/* Trending label hint */}
             {activeFilter === "trending" && (
                 <p
                     className="px-4 md:px-6 mt-2 text-xs text-gray-400"
@@ -859,7 +866,6 @@ export default function HomePage() {
                 </p>
             )}
 
-            {/* ── Error ── */}
             {error && (
                 <div
                     className="mx-4 md:mx-6 mt-4 px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-500"
@@ -919,7 +925,7 @@ export default function HomePage() {
                 }}
             >
                 <span className="text-lg font-light">+</span>
-                Post Issue
+                Post to Camp
             </Link>
         </div>
     );

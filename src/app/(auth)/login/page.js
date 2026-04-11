@@ -1,4 +1,3 @@
-// app/login/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -23,7 +22,7 @@ const BackIcon = () => (
     </svg>
 );
 
-const EmailIcon = () => (
+const UserIcon = () => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
@@ -32,8 +31,8 @@ const EmailIcon = () => (
         strokeLinecap="round"
         className="w-4 h-4"
     >
-        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-        <polyline points="22,6 12,13 2,6" />
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
     </svg>
 );
 
@@ -107,11 +106,9 @@ export default function LoginPage() {
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
-            // Only redirect if properly authenticated (NOT anonymous)
             if (user && !user.isAnonymous) {
                 router.push("/");
             } else {
-                // User is anonymous or not logged in - show login page
                 setCheckingAuth(false);
             }
         });
@@ -119,15 +116,14 @@ export default function LoginPage() {
     }, [router]);
 
     // ── Form State ──────────────────────────────────────────────────────────────
-    const [email, setEmail] = useState("");
+    const [fullName, setFullName] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
     // ── Validation ──────────────────────────────────────────────────────────────
-    const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    const formValid = isValidEmail(email) && password.length >= 6;
+    const formValid = fullName.trim().length >= 2 && password.length >= 6;
 
     // ── Login Handler ───────────────────────────────────────────────────────────
     const handleLogin = async (e) => {
@@ -137,32 +133,26 @@ export default function LoginPage() {
         setLoading(true);
         setError("");
 
+        // Generate camp email from name
+        const campEmail = `${fullName.toLowerCase().replace(/\s+/g, ".")}@camp.local`;
+
         try {
-            await signInWithEmailAndPassword(auth, email, password);
-            // Successful login will trigger onAuthStateChanged, which will redirect
+            await signInWithEmailAndPassword(auth, campEmail, password);
         } catch (err) {
             console.error("Login error:", err);
-            let errorMessage = "Login failed. Please try again.";
+            let errorMessage = "Login failed. Try again.";
 
             switch (err.code) {
                 case "auth/user-not-found":
                     errorMessage =
-                        "No account found with this email. Please sign up.";
+                        "No camper found with that name. Check your name or sign up.";
                     break;
                 case "auth/wrong-password":
                 case "auth/invalid-credential":
-                    errorMessage = "Incorrect email or password.";
+                    errorMessage = "Wrong password. Try again.";
                     break;
                 case "auth/too-many-requests":
-                    errorMessage =
-                        "Too many failed attempts. Please try again later.";
-                    break;
-                case "auth/user-disabled":
-                    errorMessage = "This account has been disabled.";
-                    break;
-                case "auth/network-request-failed":
-                    errorMessage =
-                        "Network error. Please check your connection.";
+                    errorMessage = "Too many tries. Chill for a bit.";
                     break;
                 default:
                     errorMessage = err.message || "Failed to sign in.";
@@ -173,7 +163,7 @@ export default function LoginPage() {
         }
     };
 
-    // ── Loading State While Checking Auth ───────────────────────────────────────
+    // ── Loading State ───────────────────────────────────────────────────────────
     if (checkingAuth) {
         return (
             <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
@@ -204,13 +194,13 @@ export default function LoginPage() {
                                 fontFamily: "Plus Jakarta Sans, sans-serif",
                             }}
                         >
-                            Welcome Back
+                            Welcome Back 🏕️
                         </h1>
                         <p
                             className="text-orange-100 text-xs"
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
-                            Sign in to continue
+                            Sign in to your camp
                         </p>
                     </div>
                 </div>
@@ -220,7 +210,7 @@ export default function LoginPage() {
                 {/* Hero */}
                 <div className="flex flex-col items-center pt-8 pb-6">
                     <div className="w-24 h-24 bg-[#FFF7F2] rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
-                        <span className="text-4xl">✊</span>
+                        <span className="text-4xl">🏕️</span>
                     </div>
                     <h2
                         className="text-xl font-bold text-gray-900 text-center"
@@ -228,13 +218,13 @@ export default function LoginPage() {
                             fontFamily: "Plus Jakarta Sans, sans-serif",
                         }}
                     >
-                        We The People NG
+                        Camp Life
                     </h2>
                     <p
                         className="text-gray-500 text-sm text-center mt-1 max-w-xs"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     >
-                        Be the voice. Drive the change.
+                        Drop something. Rate the food. Vote on polls.
                     </p>
                 </div>
 
@@ -253,24 +243,23 @@ export default function LoginPage() {
                     onSubmit={handleLogin}
                     className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden divide-y divide-gray-50"
                 >
-                    {/* Email */}
+                    {/* Name */}
                     <div className="px-4 pt-4 pb-3 flex items-center gap-3">
                         <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
-                            <EmailIcon />
+                            <UserIcon />
                         </div>
                         <div className="flex-1">
                             <label
                                 className="block text-sm font-semibold text-black mb-1"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
-                                Email Address
+                                Your Name
                             </label>
                             <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="your@email.com"
-                                autoComplete="email"
+                                type="text"
+                                value={fullName}
+                                onChange={(e) => setFullName(e.target.value)}
+                                placeholder="e.g. Ada, Chidi, Fatima"
                                 className="w-full text-sm text-black placeholder-gray-300 focus:outline-none bg-transparent"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             />
@@ -296,8 +285,7 @@ export default function LoginPage() {
                                     onChange={(e) =>
                                         setPassword(e.target.value)
                                     }
-                                    placeholder="Enter your password"
-                                    autoComplete="current-password"
+                                    placeholder="Your camp password"
                                     className="flex-1 text-sm text-black placeholder-gray-300 focus:outline-none bg-transparent"
                                     style={{
                                         fontFamily: "DM Sans, sans-serif",
@@ -320,17 +308,6 @@ export default function LoginPage() {
                         </div>
                     </div>
                 </form>
-
-                {/* Forgot Password Link */}
-                <div className="flex justify-end mt-3">
-                    <Link
-                        href="/forgot-password"
-                        className="text-sm text-[#F97316] font-medium hover:underline"
-                        style={{ fontFamily: "DM Sans, sans-serif" }}
-                    >
-                        Forgot password?
-                    </Link>
-                </div>
 
                 {/* Login Button */}
                 <button
@@ -355,7 +332,7 @@ export default function LoginPage() {
                         </>
                     ) : (
                         <>
-                            Sign In
+                            Enter Camp
                             <svg
                                 viewBox="0 0 24 24"
                                 fill="none"
@@ -375,12 +352,12 @@ export default function LoginPage() {
                     className="text-sm text-center mt-6 text-gray-500"
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
-                    Don&apos;t have an account?{" "}
+                    New to camp?{" "}
                     <Link
                         href="/register"
                         className="text-[#F97316] font-semibold hover:underline"
                     >
-                        Sign up
+                        Join now
                     </Link>
                 </p>
 
@@ -390,14 +367,14 @@ export default function LoginPage() {
                         className="text-xs text-center text-gray-400 mb-3"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     >
-                        Or continue as
+                        Or just look around
                     </p>
                     <button
                         onClick={() => router.push("/")}
                         className="w-full py-3 rounded-2xl font-semibold text-sm border-2 border-gray-200 text-gray-700 hover:border-[#F97316]/40 hover:text-[#F97316] transition-all cursor-pointer"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     >
-                        Browse as Guest
+                        Browse as Visitor 🕵️
                     </button>
                 </div>
             </div>

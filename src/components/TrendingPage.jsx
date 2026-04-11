@@ -1,3 +1,4 @@
+// app/trending/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,7 +9,9 @@ import {
     query,
     doc,
     runTransaction,
+    getDoc,
 } from "firebase/firestore";
+import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
 import { db, auth } from "@/lib/firebase";
 import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
@@ -57,6 +60,18 @@ const CATEGORY_META = {
         bg: "bg-green-50",
         label: "Environment",
     },
+    gist: {
+        emoji: "💬",
+        color: "text-pink-700",
+        bg: "bg-pink-50",
+        label: "Gist",
+    },
+    food: {
+        emoji: "🍛",
+        color: "text-amber-700",
+        bg: "bg-amber-50",
+        label: "Food",
+    },
     other: {
         emoji: "📌",
         color: "text-gray-700",
@@ -64,6 +79,39 @@ const CATEGORY_META = {
         label: "Other",
     },
 };
+
+// ── Filter map — same as home page ───────────────────────────────────────────
+const FILTER_MAP = {
+    gist: { field: "category", values: ["gist", "gossip", "discussion"] },
+    polls: { field: "responseType", values: ["multiple_choice", "yes_no"] },
+    food: { field: "category", values: ["food"] },
+    issues: {
+        field: "category",
+        values: [
+            "infrastructure",
+            "education",
+            "healthcare",
+            "water",
+            "security",
+            "electricity",
+            "environment",
+        ],
+    },
+};
+
+// ── Time range helpers ────────────────────────────────────────────────────────
+const TIME_RANGE_SECONDS = {
+    "24h": 60 * 60 * 24,
+    "7d": 60 * 60 * 24 * 7,
+    "30d": 60 * 60 * 24 * 30,
+};
+
+function isWithinRange(createdAt, timeRange) {
+    if (!createdAt?.seconds) return true; // if no date, always show
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const cutoff = nowSeconds - TIME_RANGE_SECONDS[timeRange];
+    return createdAt.seconds >= cutoff;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function timeAgo(seconds) {
@@ -278,22 +326,16 @@ function TrendingCard({
     const [count, setCount] = useState(issue.upvotes || 0);
     const [loading, setLoading] = useState(false);
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-
-    // Real-time comment count
     const [realtimeCommentCount, setRealtimeCommentCount] = useState(0);
 
-    // Listen to comments in real-time
     useEffect(() => {
         if (!issue.id) return;
-
-        const commentsQuery = query(
-            collection(db, "issues", issue.id, "comments"),
+        const unsubscribe = onSnapshot(
+            query(collection(db, "issues", issue.id, "comments")),
+            (snap) => {
+                setRealtimeCommentCount(snap.docs.length);
+            },
         );
-
-        const unsubscribe = onSnapshot(commentsQuery, (snapshot) => {
-            setRealtimeCommentCount(snapshot.docs.length);
-        });
-
         return () => unsubscribe();
     }, [issue.id]);
 
@@ -312,18 +354,15 @@ function TrendingCard({
     const handleUpvote = async (e) => {
         e.preventDefault();
         e.stopPropagation();
-
         if (isAnonymous || !currentUser || currentUser.isAnonymous) {
             setShowLoginPrompt(true);
             return;
         }
-
         if (!authReady || loading) return;
-
         const wasUpvoted = upvoted;
+        const newCount = wasUpvoted ? Math.max(0, count - 1) : count + 1;
         setUpvoted(!wasUpvoted);
-        setCount((c) => (wasUpvoted ? Math.max(0, c - 1) : c + 1));
-
+        setCount(newCount);
         setLoading(true);
         try {
             const docRef = doc(db, "issues", issue.id);
@@ -337,6 +376,37 @@ function TrendingCard({
                         : current + 1,
                 });
             });
+            if (!wasUpvoted) {
+                const issueSnap = await getDoc(docRef);
+                const issueData = issueSnap.data();
+                if (
+                    issueData?.author?.uid &&
+                    issueData.author.uid !== currentUser.uid
+                ) {
+                    await createNotification({
+                        type: NOTIFICATION_TYPES.UPVOTE,
+                        recipientId: issueData.author.uid,
+                        actorId: currentUser.uid,
+                        actorName: currentUser.displayName || "Someone",
+                        actorPhotoURL: currentUser.photoURL,
+                        issueId: issue.id,
+                        issueTitle: issue.title,
+                        meta: `${newCount} total upvotes`,
+                    });
+                }
+                const milestones = [10, 25, 50, 100, 250, 500];
+                if (milestones.includes(newCount) && issueData?.author?.uid) {
+                    await createNotification({
+                        type: NOTIFICATION_TYPES.MILESTONE,
+                        recipientId: issueData.author.uid,
+                        actorId: "system",
+                        actorName: "Camp Voice",
+                        issueId: issue.id,
+                        issueTitle: issue.title,
+                        meta: `🎉 ${newCount} upvotes reached!`,
+                    });
+                }
+            }
             if (wasUpvoted) {
                 localStorage.removeItem(
                     `upvote_${issue.id}_${currentUser.uid}`,
@@ -362,22 +432,11 @@ function TrendingCard({
         <>
             <Link href={`/issue/${issue.id}`} className="block">
                 <div className="issue-card bg-white rounded-2xl p-4 shadow-card border border-[#FED7AA] hover:shadow-lg hover:border-orange-300 transition-all cursor-pointer relative">
-                    {/* Rank Badge - Always show on trending page */}
                     <div
-                        className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white ${
-                            rank === 1
-                                ? "bg-linear-to-br from-yellow-400 to-yellow-600 text-white"
-                                : rank === 2
-                                  ? "bg-linear-to-br from-gray-300 to-gray-500 text-white"
-                                  : rank === 3
-                                    ? "bg-linear-to-br from-orange-400 to-orange-600 text-white"
-                                    : "bg-gray-100 text-gray-600"
-                        }`}
+                        className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white ${rank === 1 ? "bg-linear-to-br from-yellow-400 to-yellow-600 text-white" : rank === 2 ? "bg-linear-to-br from-gray-300 to-gray-500 text-white" : rank === 3 ? "bg-linear-to-br from-orange-400 to-orange-600 text-white" : "bg-gray-100 text-gray-600"}`}
                     >
                         {rank}
                     </div>
-
-                    {/* Header */}
                     <div className="flex items-center justify-between mb-2.5">
                         <span
                             className={`text-xs font-semibold px-2.5 py-1 rounded-full ${issue.categoryBg} ${issue.categoryColor} flex items-center gap-1.5`}
@@ -392,8 +451,6 @@ function TrendingCard({
                             <span>· {issue.timeAgo}</span>
                         </span>
                     </div>
-
-                    {/* Content + Upvote */}
                     <div className="flex gap-3">
                         <div className="flex-1 min-w-0">
                             <h3
@@ -418,13 +475,7 @@ function TrendingCard({
                             <button
                                 onClick={handleUpvote}
                                 disabled={loading}
-                                className={`flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-60 ${
-                                    upvoted
-                                        ? "border-green-500 bg-green-50"
-                                        : isAnonymous
-                                          ? "border-gray-200 bg-gray-50 hover:border-gray-300"
-                                          : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50"
-                                }`}
+                                className={`flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-60 ${upvoted ? "border-green-500 bg-green-50" : isAnonymous ? "border-gray-200 bg-gray-50 hover:border-gray-300" : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50"}`}
                             >
                                 <span className="mt-2">
                                     <UpvoteIcon active={upvoted} />
@@ -437,8 +488,6 @@ function TrendingCard({
                             </button>
                         </div>
                     </div>
-
-                    {/* Footer */}
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
                         <div className="flex items-center gap-2 flex-wrap">
                             <span className="flex items-center gap-1 text-xs text-gray-400">
@@ -447,18 +496,13 @@ function TrendingCard({
                             </span>
                             <StatusBadge status={issue.status} />
                         </div>
-                        {/* FIXED: Real-time comment count */}
                         <div className="flex items-center gap-1.5 text-gray-400">
                             <CommentIcon />
                             <span className="text-xs font-semibold">
-                                {realtimeCommentCount > 0
-                                    ? realtimeCommentCount
-                                    : "0"}
+                                {realtimeCommentCount}
                             </span>
                         </div>
                     </div>
-
-                    {/* Avatars */}
                     {avatarCount > 0 && (
                         <div className="flex items-center gap-2 mt-2.5">
                             <div className="flex items-center">
@@ -486,7 +530,6 @@ function TrendingCard({
                     )}
                 </div>
             </Link>
-
             <LoginPromptModal
                 isOpen={showLoginPrompt}
                 onClose={() => setShowLoginPrompt(false)}
@@ -501,14 +544,13 @@ export default function TrendingPage() {
     const [issues, setIssues] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [activeCategory, setActiveCategory] = useState("all");
+    const [activeFilter, setActiveFilter] = useState("all");
     const [search, setSearch] = useState("");
     const [timeRange, setTimeRange] = useState("24h");
     const [currentUser, setCurrentUser] = useState(null);
     const [authReady, setAuthReady] = useState(false);
     const [isAnonymous, setIsAnonymous] = useState(true);
 
-    // Auth
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -522,7 +564,6 @@ export default function TrendingPage() {
         return () => unsubscribe();
     }, []);
 
-    // Real-time Firestore
     useEffect(() => {
         const q = query(collection(db, "issues"), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(
@@ -539,6 +580,7 @@ export default function TrendingPage() {
                         description: d.description ?? "",
                         location: d.location ?? "Nigeria",
                         category: d.category ?? "other",
+                        responseType: d.responseType ?? "yes_no",
                         totalVotes: d.totalVotes ?? 0,
                         upvotes: d.upvotes ?? 0,
                         commentCount: d.commentCount ?? 0,
@@ -567,39 +609,46 @@ export default function TrendingPage() {
         window.location.href = "/login";
     };
 
-    // Category pill counts
-    const categoryCounts = issues.reduce((acc, i) => {
-        acc[i.category] = (acc[i.category] ?? 0) + 1;
-        return acc;
-    }, {});
-
-    const categoryPills = [
-        { key: "all", label: "All Issues", emoji: "📋", count: issues.length },
-        ...Object.entries(CATEGORY_META)
-            .map(([key, meta]) => ({
-                key,
-                label: meta.label,
-                emoji: meta.emoji,
-                count: categoryCounts[key] ?? 0,
-            }))
-            .filter((c) => c.count > 0),
+    // ── Same filter pills as home page ────────────────────────────────────────
+    const filters = [
+        { key: "all", label: "All" },
+        { key: "gist", label: "💬 Gist" },
+        { key: "polls", label: "🗳️ Polls" },
+        { key: "food", label: "🍛 Food" },
+        { key: "issues", label: "🚨 Issues" },
     ];
 
-    // Filter + sort by upvotes desc (trending = most upvoted)
+    // ── Filter + time range + sort ────────────────────────────────────────────
     const filtered = issues
-        .filter((i) => {
-            const matchCat =
-                activeCategory === "all" || i.category === activeCategory;
-            const matchSearch =
-                !search || i.title.toLowerCase().includes(search.toLowerCase());
-            return matchCat && matchSearch;
+        .filter((issue) => {
+            // 1. Time range
+            if (!isWithinRange(issue.createdAt, timeRange)) return false;
+            // 2. Search
+            if (search) {
+                const q = search.toLowerCase();
+                if (
+                    !issue.title.toLowerCase().includes(q) &&
+                    !issue.description.toLowerCase().includes(q)
+                )
+                    return false;
+            }
+            // 3. Category filter
+            if (activeFilter === "all" || activeFilter === "trending")
+                return true;
+            const rule = FILTER_MAP[activeFilter];
+            if (!rule) return true;
+            const issueVal = (issue[rule.field] ?? "").toLowerCase();
+            return rule.values.includes(issueVal);
         })
-        .sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+        .sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0)); // always sort by upvotes on this page
 
-    const resolvedCount = issues.filter((i) => i.status === "resolved").length;
-    const mostActiveState = issues.length
+    // ── Stats ─────────────────────────────────────────────────────────────────
+    const resolvedCount = filtered.filter(
+        (i) => i.status === "resolved",
+    ).length;
+    const mostActiveState = filtered.length
         ? (Object.entries(
-              issues.reduce((acc, i) => {
+              filtered.reduce((acc, i) => {
                   const state = i.location.split(",")[0].trim();
                   acc[state] = (acc[state] ?? 0) + 1;
                   return acc;
@@ -607,13 +656,19 @@ export default function TrendingPage() {
           ).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—")
         : "—";
 
+    const timeRangeLabel = {
+        "24h": "Last 24 hours",
+        "7d": "Last 7 days",
+        "30d": "Last 30 days",
+    }[timeRange];
+
     return (
         <div
             className="min-h-screen pb-24 md:pb-8"
             style={{ background: "#FDF6EF" }}
         >
             {/* ── Mobile Header ── */}
-            <header className="md:hidden sticky top-0 z-40 bg-[#F97316] px-4 pt-4 pb-4 mb-6">
+            <header className="md:hidden sticky top-0 z-40 bg-[#F97316] px-4 pt-4 pb-4 mb-4">
                 <div className="flex items-center justify-between">
                     <div>
                         <h1
@@ -638,7 +693,7 @@ export default function TrendingPage() {
             </header>
 
             {/* ── Desktop Header ── */}
-            <div className="hidden md:block px-6 pt-8 pb-6">
+            <div className="hidden md:block px-6 pt-8 pb-4">
                 <div className="flex items-center justify-between">
                     <div>
                         <h1
@@ -653,6 +708,7 @@ export default function TrendingPage() {
                             Browse and discover trending issues across Nigeria
                         </p>
                     </div>
+                    {/* Time range — desktop */}
                     <div className="flex items-center gap-2 bg-white rounded-xl p-1 border border-gray-100 shadow-sm">
                         {["24h", "7d", "30d"].map((t) => (
                             <button
@@ -672,10 +728,10 @@ export default function TrendingPage() {
                 <div className="grid grid-cols-3 gap-3">
                     {[
                         {
-                            label: "Total Issues",
+                            label: "In Range",
                             value: loading
                                 ? "…"
-                                : issues.length.toLocaleString(),
+                                : filtered.length.toLocaleString(),
                             icon: "📋",
                             color: "text-gray-800",
                         },
@@ -729,35 +785,26 @@ export default function TrendingPage() {
                 </div>
             </div>
 
-            {/* ── Category Pills ── */}
-            <div className="px-4 md:px-6 mb-4">
+            {/* ── Filter Pills — same as home ── */}
+            <div className="px-4 md:px-6 mb-3">
                 <div
                     className="flex gap-2 overflow-x-auto pb-1"
                     style={{ scrollbarWidth: "none" }}
                 >
-                    {categoryPills.map((c) => (
+                    {filters.map((f) => (
                         <button
-                            key={c.key}
-                            onClick={() => setActiveCategory(c.key)}
-                            className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border cursor-pointer ${
-                                activeCategory === c.key
-                                    ? "bg-[#F97316] text-white border-[#F97316] shadow-sm"
-                                    : "bg-white text-gray-600 border-gray-100 hover:border-[#F97316]/30 shadow-card"
-                            }`}
+                            key={f.key}
+                            onClick={() => setActiveFilter(f.key)}
+                            className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${activeFilter === f.key ? "bg-[#F97316] text-white shadow-sm" : "bg-white text-black border border-gray-200 hover:border-[#F97316]/40 hover:text-[#F97316]"}`}
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
-                            <span>{c.emoji}</span>
-                            <span>{c.label}</span>
-                            <span
-                                className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeCategory === c.key ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}
-                            >
-                                {c.count}
-                            </span>
+                            {f.label}
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* ── Time Range (mobile) ── */}
+            {/* ── Time Range — mobile ── */}
             <div className="md:hidden px-4 mb-4">
                 <div className="flex items-center gap-2 bg-white rounded-xl p-1 border border-gray-100 shadow-sm w-fit">
                     {["24h", "7d", "30d"].map((t) => (
@@ -780,7 +827,7 @@ export default function TrendingPage() {
                         className="text-sm font-bold"
                         style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                     >
-                        Trending by Upvotes · {timeRange}
+                        Trending by Upvotes · {timeRangeLabel}
                     </span>
                 </div>
                 <div className="flex-1 h-px bg-gray-200" />
@@ -789,7 +836,6 @@ export default function TrendingPage() {
                 </span>
             </div>
 
-            {/* ── Error ── */}
             {error && (
                 <div
                     className="mx-4 md:mx-6 mb-4 px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-500"
@@ -831,7 +877,7 @@ export default function TrendingPage() {
                         <p className="text-gray-400 text-sm mt-1">
                             {issues.length === 0
                                 ? "Be the first to report one!"
-                                : "Try a different category or search term"}
+                                : `Try a different filter or expand the time range`}
                         </p>
                     </div>
                 )}

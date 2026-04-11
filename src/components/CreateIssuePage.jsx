@@ -2,7 +2,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
     collection,
     addDoc,
@@ -11,13 +11,135 @@ import {
     getDoc,
     writeBatch,
 } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { db, auth } from "@/lib/firebase";
 import Link from "next/link";
 import { toast } from "sonner";
+import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
+import { awardPoints } from "@/lib/gamification";
 
-// ─── Icons ───────────────────────────────────────────────────────────────────
+// ─── Post Types────────
+const POST_TYPES = [
+    {
+        id: "gist",
+        emoji: "💬",
+        label: "Gist",
+        description: "Share camp gossip, updates, or random thoughts",
+        color: "#3B82F6",
+        bg: "bg-blue-50",
+        border: "border-blue-200",
+        titleLabel: "What's the gist?",
+        titlePlaceholder: "Spill the tea...",
+        descLabel: "Tell us more",
+        descPlaceholder: "Give us the full story...",
+    },
+    {
+        id: "poll",
+        emoji: "🗳️",
+        label: "Poll",
+        description: "Ask the camp a question and get votes",
+        color: "#8B5CF6",
+        bg: "bg-purple-50",
+        border: "border-purple-200",
+        titleLabel: "Your question",
+        titlePlaceholder: "What do you want to ask the camp?",
+        descLabel: "Add context (optional)",
+        descPlaceholder: "Tell us why you're asking...",
+    },
+    {
+        id: "food",
+        emoji: "🍛",
+        label: "Food",
+        description: "Rate camp food or share about meals",
+        color: "#F97316",
+        bg: "bg-orange-50",
+        border: "border-orange-200",
+        titleLabel: "Food name",
+        titlePlaceholder: "What did you eat?",
+        descLabel: "Your review",
+        descPlaceholder: "How was it? Portion size? Worth the money?",
+    },
+    {
+        id: "issue",
+        emoji: "🚨",
+        label: "Issue",
+        description: "Report problems or concerns in camp",
+        color: "#EF4444",
+        bg: "bg-red-50",
+        border: "border-red-200",
+        titleLabel: "What's the issue?",
+        titlePlaceholder: "Brief title of the problem",
+        descLabel: "Describe in detail",
+        descPlaceholder: "Give us all the details...",
+    },
+];
 
+// ─── Response Types────
+const RESPONSE_TYPES = [
+    {
+        id: "agreement",
+        emoji: "📊",
+        label: "Agreement Scale",
+        description: "Strongly Disagree → Strongly Agree (5-point scale)",
+        options: [
+            "Strongly Disagree",
+            "Disagree",
+            "Neutral",
+            "Agree",
+            "Strongly Agree",
+        ],
+    },
+    {
+        id: "yesno",
+        emoji: "✅",
+        label: "Yes / No",
+        description: "Simple binary choice",
+        options: ["Yes", "No"],
+    },
+    {
+        id: "custom",
+        emoji: "📝",
+        label: "Custom Options",
+        description: "Create your own response options",
+        options: [],
+    },
+];
+
+// ─── Demographic options ──────────────────────────────────────────────────────
+const DEMOGRAPHIC_OPTIONS = [
+    {
+        id: "age",
+        emoji: "🎂",
+        label: "Age Groups",
+        description:
+            "See how different age groups voted (Teens, Youth, Adults)",
+    },
+    {
+        id: "gender",
+        emoji: "⚧️",
+        label: "Gender",
+        description: "Breakdown by Male, Female, and Other",
+    },
+    {
+        id: "state",
+        emoji: "📍",
+        label: "State of Origin",
+        description: "See voting patterns by state",
+    },
+    {
+        id: "platoon",
+        emoji: "👥",
+        label: "Platoon",
+        description: "Breakdown by NYSC platoon numbers",
+    },
+];
+
+const MAX_DESC = 2000;
+const MAX_TITLE = 100;
+const MAX_POLL_OPTION = 60;
+const MAX_CUSTOM_OPTION = 60;
+
+// ─── Icons────────────
 const BackIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -31,128 +153,7 @@ const BackIcon = () => (
         <polyline points="15 18 9 12 15 6" />
     </svg>
 );
-const PenIcon = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#000"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        className="w-4 h-4"
-    >
-        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
-);
-const DescIcon = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#000"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        className="w-4 h-4"
-    >
-        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-        <line x1="7" y1="8" x2="17" y2="8" />
-        <line x1="7" y1="12" x2="17" y2="12" />
-        <line x1="7" y1="16" x2="11" y2="16" />
-    </svg>
-);
-const LocationIcon = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#000"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        className="w-4 h-4"
-    >
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-        <circle cx="12" cy="10" r="3" />
-    </svg>
-);
-const CategoryIcon = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#000"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        className="w-4 h-4"
-    >
-        <rect x="3" y="3" width="7" height="7" />
-        <rect x="14" y="3" width="7" height="7" />
-        <rect x="14" y="14" width="7" height="7" />
-        <rect x="3" y="14" width="7" height="7" />
-    </svg>
-);
-const ChevronRightIcon = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#9CA3AF"
-        strokeWidth="2"
-        strokeLinecap="round"
-        className="w-4 h-4"
-    >
-        <polyline points="9 18 15 12 9 6" />
-    </svg>
-);
-const SendIcon = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="white"
-        strokeWidth="2"
-        strokeLinecap="round"
-        className="w-5 h-5"
-    >
-        <line x1="22" y1="2" x2="11" y2="13" />
-        <polygon points="22 2 15 22 11 13 2 9 22 2" />
-    </svg>
-);
-const LockIcon = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#9CA3AF"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        className="w-3.5 h-3.5"
-    >
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-        <path d="M7 11V7a5 5 0 0110 0v4" />
-    </svg>
-);
-const PlusIcon = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        className="w-4 h-4"
-    >
-        <line x1="12" y1="5" x2="12" y2="19" />
-        <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-);
-const TrashIcon = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        className="w-4 h-4"
-    >
-        <polyline points="3 6 5 6 21 6" />
-        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-        <path d="M10 11v6M14 11v6" />
-        <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
-    </svg>
-);
+
 const SpinnerIcon = () => (
     <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
         <circle
@@ -170,7 +171,35 @@ const SpinnerIcon = () => (
         />
     </svg>
 );
-const ChartIcon = () => (
+
+const CampIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        className="w-5 h-5"
+    >
+        <path d="M3 21h18M5 21V7l8-4 8 4v14M8 21v-9a2 2 0 012-2h4a2 2 0 012 2v9" />
+    </svg>
+);
+
+const PlusIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        className="w-4 h-4"
+    >
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+);
+
+const TrashIcon = () => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
@@ -179,11 +208,54 @@ const ChartIcon = () => (
         strokeLinecap="round"
         className="w-4 h-4"
     >
-        <path d="M18 20V10" />
-        <path d="M12 20V4" />
-        <path d="M6 20v-6" />
+        <polyline points="3 6 5 6 21 6" />
+        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+        <path d="M10 11v6M14 11v6" />
+        <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
     </svg>
 );
+
+const StarIcon = ({ filled }) => (
+    <svg
+        viewBox="0 0 24 24"
+        fill={filled ? "#FBBF24" : "none"}
+        stroke={filled ? "#FBBF24" : "#D1D5DB"}
+        strokeWidth="2"
+        strokeLinecap="round"
+        className="w-8 h-8 cursor-pointer"
+    >
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+);
+
+const AnonymousIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        className="w-4 h-4"
+    >
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+    </svg>
+);
+
+const EyeIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        className="w-4 h-4"
+    >
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+    </svg>
+);
+
 const CheckIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -196,6 +268,7 @@ const CheckIcon = () => (
         <polyline points="20 6 9 17 4 12" />
     </svg>
 );
+
 const UsersIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -212,140 +285,72 @@ const UsersIcon = () => (
     </svg>
 );
 
-// ─── Data ────────────────────────────────────────────────────────────────────
+const ScaleIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        className="w-5 h-5"
+    >
+        <path d="M3 6h18M3 12h18M3 18h18" />
+        <circle cx="6" cy="6" r="2" fill="currentColor" />
+        <circle cx="12" cy="12" r="2" fill="currentColor" />
+        <circle cx="18" cy="18" r="2" fill="currentColor" />
+    </svg>
+);
 
-const categories = [
-    { value: "infrastructure", label: "🏗️ Infrastructure" },
-    { value: "education", label: "📚 Education" },
-    { value: "healthcare", label: "❤️ Healthcare" },
-    { value: "water", label: "💧 Water & Sanitation" },
-    { value: "security", label: "🔒 Security" },
-    { value: "electricity", label: "⚡ Electricity" },
-    { value: "environment", label: "🌿 Environment" },
-    { value: "other", label: "📌 Other" },
-];
+const YesNoIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        className="w-5 h-5"
+    >
+        <circle cx="12" cy="12" r="10" />
+        <path d="M8 12l2 2 4-4" />
+    </svg>
+);
 
-const states = [
-    "Abia",
-    "Adamawa",
-    "Akwa Ibom",
-    "Anambra",
-    "Bauchi",
-    "Bayelsa",
-    "Benue",
-    "Borno",
-    "Cross River",
-    "Delta",
-    "Ebonyi",
-    "Edo",
-    "Ekiti",
-    "Enugu",
-    "FCT Abuja",
-    "Gombe",
-    "Imo",
-    "Jigawa",
-    "Kaduna",
-    "Kano",
-    "Katsina",
-    "Kebbi",
-    "Kogi",
-    "Kwara",
-    "Lagos",
-    "Nasarawa",
-    "Niger",
-    "Ogun",
-    "Ondo",
-    "Osun",
-    "Oyo",
-    "Plateau",
-    "Rivers",
-    "Sokoto",
-    "Taraba",
-    "Yobe",
-    "Zamfara",
-];
+const CustomIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        className="w-5 h-5"
+    >
+        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+);
 
-const RESPONSE_TYPES = [
-    {
-        id: "yes_no",
-        emoji: "👍",
-        label: "Yes / No",
-        description: "Simple binary vote — great for clear decisions",
-        preview: ["✅ Yes", "❌ No"],
-    },
-    {
-        id: "likert",
-        emoji: "📊",
-        label: "Agreement Scale",
-        description: "Strongly Agree to Strongly Disagree",
-        preview: [
-            "Strongly Agree",
-            "Agree",
-            "Neutral",
-            "Disagree",
-            "Strongly Disagree",
-        ],
-    },
-    {
-        id: "poll",
-        emoji: "🗳️",
-        label: "Custom Poll",
-        description: "Define your own answer choices (up to 6)",
-        preview: null,
-    },
-];
+// ─── Character counter color helper ──────────────────────────────────────────
+function charCountColor(current, max) {
+    const pct = current / max;
+    if (pct >= 0.95) return "text-red-500 font-bold";
+    if (pct >= 0.8) return "text-amber-500 font-semibold";
+    return "text-gray-400";
+}
 
-// Demographic options for results filtering - REMOVED state
-const DEMOGRAPHIC_OPTIONS = [
-    {
-        id: "age",
-        emoji: "🎂",
-        label: "Age Groups",
-        description:
-            "See how different age groups voted (Teens, Youth, Adults)",
-    },
-    {
-        id: "gender",
-        emoji: "⚧️",
-        label: "Gender",
-        description: "Breakdown by Male, Female, and Other",
-    },
-    {
-        id: "maritalStatus",
-        emoji: "💍",
-        label: "Marital Status",
-        description: "Single, Married, Divorced, Widowed, Separated",
-    },
-    {
-        id: "education",
-        emoji: "🎓",
-        label: "Education Level",
-        description: "From Primary to PhD/Doctorate",
-    },
-];
-
-// ─── Step indicator ───────────────────────────────────────────────────────────
-
-function StepIndicator({ step }) {
+// ─── Step Indicator────
+function StepIndicator({ step, totalSteps }) {
     return (
         <div className="flex items-center justify-center gap-2 py-3">
-            {[1, 2, 3].map((s) => (
-                <div key={s} className="flex items-center gap-2">
+            {Array.from({ length: totalSteps }).map((_, i) => (
+                <div key={i} className="flex items-center gap-2">
                     <div
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-                            step === s
-                                ? "bg-[#F97316] text-white shadow-md shadow-orange-200"
-                                : step > s
-                                  ? "bg-green-500 text-white"
-                                  : "bg-gray-100 text-gray-400"
-                        }`}
-                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${step === i + 1 ? "bg-[#F97316] text-white shadow-md shadow-orange-200" : step > i + 1 ? "bg-green-500 text-white" : "bg-gray-100 text-gray-400"}`}
                     >
-                        {step > s ? "✓" : s}
+                        {step > i + 1 ? "✓" : i + 1}
                     </div>
-                    {s < 3 && (
+                    {i < totalSteps - 1 && (
                         <div
-                            className={`w-12 h-0.5 rounded-full transition-all duration-500 ${step > s ? "bg-green-400" : "bg-gray-100"}`}
+                            className={`w-8 h-0.5 rounded-full transition-all duration-500 ${step > i + 1 ? "bg-green-400" : "bg-gray-100"}`}
                         />
                     )}
                 </div>
@@ -354,89 +359,16 @@ function StepIndicator({ step }) {
     );
 }
 
-// ─── Response type card ───────────────────────────────────────────────────────
-
-function ResponseTypeCard({ type, selected, onSelect }) {
-    return (
-        <button
-            onClick={() => onSelect(type.id)}
-            className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${
-                selected
-                    ? "border-[#F97316] bg-[#FFF7F2]"
-                    : "border-gray-100 bg-white hover:border-orange-200"
-            }`}
-        >
-            <div className="flex items-start gap-3">
-                <span className="text-2xl">{type.emoji}</span>
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                        <span
-                            className={`font-bold text-sm ${selected ? "text-[#F97316]" : "text-gray-900"}`}
-                            style={{
-                                fontFamily: "Plus Jakarta Sans, sans-serif",
-                            }}
-                        >
-                            {type.label}
-                        </span>
-                        {selected && (
-                            <span className="ml-auto w-5 h-5 bg-[#F97316] rounded-full flex items-center justify-center shrink-0">
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="white"
-                                    strokeWidth="3"
-                                    strokeLinecap="round"
-                                    className="w-3 h-3"
-                                >
-                                    <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                            </span>
-                        )}
-                    </div>
-                    <p
-                        className="text-xs text-gray-400 mb-2"
-                        style={{ fontFamily: "DM Sans, sans-serif" }}
-                    >
-                        {type.description}
-                    </p>
-                    {type.preview && (
-                        <div className="flex flex-wrap gap-1.5">
-                            {type.preview.map((opt) => (
-                                <span
-                                    key={opt}
-                                    className={`px-2 py-0.5 rounded-full text-xs border ${selected ? "border-orange-200 bg-orange-50 text-orange-600" : "border-gray-100 bg-gray-50 text-gray-500"}`}
-                                    style={{
-                                        fontFamily: "DM Sans, sans-serif",
-                                    }}
-                                >
-                                    {opt}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-        </button>
-    );
-}
-
-// ─── Demographic Card Component ───────────────────────────────────────────────
-
+// ─── Demographic Card ─────────────────────────────────────────────────────────
 function DemographicCard({ option, selected, onToggle }) {
     return (
         <button
             onClick={() => onToggle(option.id)}
-            className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer relative ${
-                selected
-                    ? "border-[#F97316] bg-[#FFF7F2]"
-                    : "border-gray-100 bg-white hover:border-orange-200"
-            }`}
+            className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer relative ${selected ? "border-[#F97316] bg-[#FFF7F2]" : "border-gray-100 bg-white hover:border-orange-200"}`}
         >
             <div className="flex items-start gap-3">
                 <div
-                    className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                        selected ? "bg-[#F97316]" : "bg-gray-100"
-                    }`}
+                    className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-colors ${selected ? "bg-[#F97316]" : "bg-gray-100"}`}
                 >
                     {selected ? (
                         <CheckIcon />
@@ -484,29 +416,124 @@ function DemographicCard({ option, selected, onToggle }) {
     );
 }
 
-// ─── Field error badge ────────────────────────────────────────────────────────
-
-function FieldRow({ touched, valid, children, className = "" }) {
-    const showError = touched && !valid;
+// ─── Response Type Card ───────────────────────────────────────────────────────
+function ResponseTypeCard({ type, selected, onSelect }) {
+    const icons = {
+        agreement: <ScaleIcon />,
+        yesno: <YesNoIcon />,
+        custom: <CustomIcon />,
+    };
     return (
-        <div
-            className={`relative transition-all duration-200 ${showError ? "rounded-xl ring-2 ring-red-300" : ""} ${className}`}
+        <button
+            onClick={() => onSelect(type.id)}
+            className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${selected ? "border-[#F97316] bg-[#FFF7F2] ring-2 ring-[#F97316]/20" : "border-gray-100 bg-white hover:border-orange-200"}`}
         >
-            {children}
-            {showError && (
-                <span
-                    className="absolute -top-2 right-3 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full z-10"
+            <div className="flex items-start gap-3">
+                <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${selected ? "bg-[#F97316] text-white" : "bg-gray-100 text-gray-500"}`}
+                >
+                    {icons[type.id]}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span
+                            className={`font-bold text-sm ${selected ? "text-[#F97316]" : "text-gray-900"}`}
+                            style={{
+                                fontFamily: "Plus Jakarta Sans, sans-serif",
+                            }}
+                        >
+                            {type.label}
+                        </span>
+                    </div>
+                    <p
+                        className="text-xs text-gray-400 mb-2"
+                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                    >
+                        {type.description}
+                    </p>
+                    {type.options.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                            {type.options.map((opt, i) => (
+                                <span
+                                    key={i}
+                                    className={`text-[10px] px-2 py-0.5 rounded-full ${selected ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-500"}`}
+                                >
+                                    {opt}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+            {selected && (
+                <div className="mt-3 flex justify-end">
+                    <div className="w-5 h-5 bg-[#F97316] rounded-full flex items-center justify-center">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="white"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            className="w-3 h-3"
+                        >
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                    </div>
+                </div>
+            )}
+        </button>
+    );
+}
+
+// ─── Auth Error ───────────────────────────────────────────────────────────────
+function AuthErrorPrompt({ error, onRetry }) {
+    return (
+        <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
+            <div className="bg-white rounded-3xl shadow-lg border border-red-100 p-8 max-w-md w-full text-center">
+                <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-4xl">🔒</span>
+                </div>
+                <h2
+                    className="text-2xl font-bold text-gray-900 mb-2"
+                    style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
+                >
+                    Authentication Error
+                </h2>
+                <p
+                    className="text-gray-500 text-sm mb-6"
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
-                    Required
-                </span>
-            )}
+                    {error ||
+                        "Unable to authenticate. Please check your connection and try again."}
+                </p>
+                <button
+                    onClick={onRetry}
+                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg transition-all duration-200 cursor-pointer mb-3"
+                    style={{
+                        fontFamily: "DM Sans, sans-serif",
+                        boxShadow: "0 4px 20px rgba(232,97,26,0.35)",
+                    }}
+                >
+                    Retry
+                </button>
+                <p
+                    className="text-xs text-gray-400"
+                    style={{ fontFamily: "DM Sans, sans-serif" }}
+                >
+                    If the problem persists, try{" "}
+                    <Link
+                        href="/login"
+                        className="text-[#F97316] font-semibold hover:underline cursor-pointer"
+                    >
+                        signing in manually
+                    </Link>
+                </p>
+            </div>
         </div>
     );
 }
 
-// ─── Login Prompt Component ────────────────────────────────────────────────────
-
+// ─── Login Prompt ─────────────────────────────────────────────────────────────
 function LoginPrompt({ onLogin }) {
     return (
         <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
@@ -524,11 +551,11 @@ function LoginPrompt({ onLogin }) {
                     className="text-gray-500 text-sm mb-6"
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
-                    Please sign in to create issues and join the conversation.
+                    Please sign in to post and join the camp conversation.
                 </p>
                 <button
                     onClick={onLogin}
-                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98] transition-all duration-200 cursor-pointer"
+                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg transition-all duration-200 cursor-pointer"
                     style={{
                         fontFamily: "DM Sans, sans-serif",
                         boxShadow: "0 4px 20px rgba(232,97,26,0.35)",
@@ -543,7 +570,7 @@ function LoginPrompt({ onLogin }) {
                     Don&apos;t have an account?{" "}
                     <Link
                         href="/register"
-                        className="text-[#F97316] font-semibold hover:underline"
+                        className="text-[#F97316] font-semibold hover:underline cursor-pointer"
                     >
                         Sign up
                     </Link>
@@ -553,34 +580,93 @@ function LoginPrompt({ onLogin }) {
     );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
-
-export default function CreateIssuePage() {
+// ─── Main Component────
+export default function CreatePostPage() {
     const router = useRouter();
     const [currentUser, setCurrentUser] = useState(null);
     const [authReady, setAuthReady] = useState(false);
     const [isAnonymous, setIsAnonymous] = useState(true);
+    const [authError, setAuthError] = useState(null);
+    const [isInitializing, setIsInitializing] = useState(true);
 
-    // Auth check - same pattern as home page
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            if (user) {
-                setCurrentUser(user);
-                setIsAnonymous(user.isAnonymous);
+    const authSucceededRef = useRef(false);
+    const timeoutRef = useRef(null);
+
+    const initAuth = useCallback(async () => {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        authSucceededRef.current = false;
+        setIsInitializing(true);
+        setAuthError(null);
+        setAuthReady(false);
+
+        timeoutRef.current = setTimeout(() => {
+            if (!authSucceededRef.current) {
+                setIsInitializing(false);
+                setAuthError(
+                    "Authentication timeout. Please check your internet connection and try again.",
+                );
             }
-            setAuthReady(true);
-        });
+        }, 10000);
 
-        return () => unsubscribe();
+        try {
+            const unsubscribe = onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    authSucceededRef.current = true;
+                    if (timeoutRef.current) {
+                        clearTimeout(timeoutRef.current);
+                        timeoutRef.current = null;
+                    }
+                    setCurrentUser(user);
+                    setIsAnonymous(user.isAnonymous);
+                    setAuthReady(true);
+                    setIsInitializing(false);
+                } else {
+                    try {
+                        await signInAnonymously(auth);
+                    } catch (anonErr) {
+                        authSucceededRef.current = true;
+                        if (timeoutRef.current) {
+                            clearTimeout(timeoutRef.current);
+                            timeoutRef.current = null;
+                        }
+                        setAuthError(
+                            `Anonymous sign-in failed: ${anonErr.message}`,
+                        );
+                        setAuthReady(true);
+                        setIsInitializing(false);
+                    }
+                }
+            });
+            return () => {
+                if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                unsubscribe();
+            };
+        } catch (err) {
+            authSucceededRef.current = true;
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+            }
+            setAuthError(err.message);
+            setAuthReady(true);
+            setIsInitializing(false);
+        }
     }, []);
 
-    const handleLoginClick = () => {
-        const currentPath = window.location.pathname;
-        router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
-    };
+    useEffect(() => {
+        const cleanup = initAuth();
+        return () => {
+            if (typeof cleanup === "function") cleanup();
+        };
+    }, [initAuth]);
 
-    // Show loading while checking auth
-    if (!authReady) {
+    const handleLoginClick = () =>
+        router.push(
+            `/login?redirect=${encodeURIComponent(window.location.pathname)}`,
+        );
+    const handleRetryAuth = () => initAuth();
+
+    if (isInitializing && !authReady) {
         return (
             <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center">
                 <div className="flex flex-col items-center gap-3">
@@ -589,70 +675,68 @@ export default function CreateIssuePage() {
                         className="text-sm text-gray-500"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     >
-                        Loading...
+                        Connecting...
                     </p>
                 </div>
             </div>
         );
     }
-
-    // Show login prompt if not authenticated or anonymous
-    if (!currentUser || isAnonymous) {
-        return <LoginPrompt onLogin={handleLoginClick} />;
-    }
-
-    return <CreateIssueForm currentUser={currentUser} router={router} />;
+    if (authError)
+        return <AuthErrorPrompt error={authError} onRetry={handleRetryAuth} />;
+    if (!currentUser) return <LoginPrompt onLogin={handleLoginClick} />;
+    return <CreatePostForm currentUser={currentUser} router={router} />;
 }
 
-function CreateIssueForm({ currentUser, router }) {
-    // Step 1
+function CreatePostForm({ currentUser, router }) {
+    const [postType, setPostType] = useState("");
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
-    const [location, setLocation] = useState("");
-    const [category, setCategory] = useState("");
-    const [touched, setTouched] = useState({
-        title: false,
-        description: false,
-        location: false,
-        category: false,
-    });
-    const [showCategoryModal, setShowCategoryModal] = useState(false);
-    const [showLocationModal, setShowLocationModal] = useState(false);
-
-    // Step 2
-    const [responseType, setResponseType] = useState("yes_no");
+    const [foodRating, setFoodRating] = useState(0);
     const [pollOptions, setPollOptions] = useState(["", ""]);
-
-    // Step 3 - Demographics
+    const [isAnonymous, setIsAnonymous] = useState(true);
+    const [showDetails, setShowDetails] = useState(false);
+    const [responseType, setResponseType] = useState("");
+    const [customOptions, setCustomOptions] = useState(["", ""]);
     const [selectedDemographics, setSelectedDemographics] = useState([]);
-
-    // UI
     const [step, setStep] = useState(1);
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState("");
 
-    const selectedCategory = categories.find((c) => c.value === category);
+    const selectedType = POST_TYPES.find((t) => t.id === postType);
+    const selectedResponseType = RESPONSE_TYPES.find(
+        (t) => t.id === responseType,
+    );
+    const totalSteps = 4;
 
     // ── Validation ────────────────────────────────────────────────────────────
-    const step1Valid =
-        title.trim().length > 0 &&
-        description.trim().length > 0 &&
-        location.length > 0 &&
-        category.length > 0;
+    const step1Valid = postType.length > 0;
 
-    const step2Valid =
-        responseType !== "poll" ||
-        pollOptions.filter((o) => o.trim()).length >= 2;
+    const step2Valid = () => {
+        const baseValid = title.trim().length > 0;
+        switch (postType) {
+            case "gist":
+                return baseValid;
+            case "poll":
+                return (
+                    baseValid && pollOptions.filter((o) => o.trim()).length >= 2
+                );
+            case "food":
+                return baseValid && foodRating > 0;
+            case "issue":
+                return baseValid && description.trim().length > 0;
+            default:
+                return false;
+        }
+    };
 
-    const step3Valid = selectedDemographics.length > 0;
+    const step3Valid = () => {
+        if (!responseType) return false;
+        if (responseType === "custom")
+            return customOptions.filter((o) => o.trim()).length >= 2;
+        return true;
+    };
 
-    const touchAllStep1 = () =>
-        setTouched({
-            title: true,
-            description: true,
-            location: true,
-            category: true,
-        });
+    const step4Valid = selectedDemographics.length > 0;
 
     // ── Poll helpers ──────────────────────────────────────────────────────────
     const updatePollOption = (i, val) => {
@@ -661,322 +745,165 @@ function CreateIssueForm({ currentUser, router }) {
         setPollOptions(next);
     };
     const addPollOption = () => {
-        if (pollOptions.length < 6) setPollOptions([...pollOptions, ""]);
+        if (pollOptions.length < 4) setPollOptions([...pollOptions, ""]);
     };
     const removePollOption = (i) => {
         if (pollOptions.length > 2)
             setPollOptions(pollOptions.filter((_, idx) => idx !== i));
     };
 
-    // ── Demographics helpers ─────────────────────────────────────────────────
-    const toggleDemographic = (id) => {
+    // ── Custom option helpers ─────────────────────────────────────────────────
+    const updateCustomOption = (i, val) => {
+        const next = [...customOptions];
+        next[i] = val;
+        setCustomOptions(next);
+    };
+    const addCustomOption = () => {
+        if (customOptions.length < 6) setCustomOptions([...customOptions, ""]);
+    };
+    const removeCustomOption = (i) => {
+        if (customOptions.length > 2)
+            setCustomOptions(customOptions.filter((_, idx) => idx !== i));
+    };
+
+    const toggleDemographic = (id) =>
         setSelectedDemographics((prev) =>
             prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id],
         );
+
+    const getVoteOptions = () => {
+        switch (responseType) {
+            case "agreement":
+                return [
+                    "Strongly Disagree",
+                    "Disagree",
+                    "Neutral",
+                    "Agree",
+                    "Strongly Agree",
+                ];
+            case "yesno":
+                return ["Yes", "No"];
+            case "custom":
+                return customOptions.filter((o) => o.trim());
+            default:
+                return [];
+        }
     };
 
-    // ── Save to Firestore ───────────────────────────────────────────────────
+    // ── Submit ────────────────────────────────────────────────────────────────
     const handleSubmit = async () => {
-        if (!step1Valid || !step2Valid || !step3Valid || saving) return;
+        if (!step2Valid() || !step3Valid() || !step4Valid || saving) return;
         setSaving(true);
         setSaveError("");
 
         try {
-            let voteOptions = [];
-            if (responseType === "yes_no") {
-                voteOptions = ["Yes", "No"];
-            } else if (responseType === "likert") {
-                voteOptions = [
-                    "Strongly Agree",
-                    "Agree",
-                    "Neutral",
-                    "Disagree",
-                    "Strongly Disagree",
-                ];
-            } else {
-                voteOptions = pollOptions.filter((o) => o.trim());
+            let finalDescription = description;
+            let finalTitle = title;
+
+            if (postType === "food") {
+                const stars = "⭐".repeat(foodRating);
+                finalDescription = `${stars}\n\n${description}`;
             }
 
-            const votes = Object.fromEntries(
-                voteOptions.map((opt) => [opt, 0]),
-            );
+            const voteOptions = getVoteOptions();
 
-            // Create the issue
-            const issueRef = await addDoc(collection(db, "issues"), {
-                title: title.trim(),
-                description: description.trim(),
-                location,
-                category,
-                responseType,
+            let issueData = {
+                type: postType,
+                category: postType,
+                title: finalTitle.trim(),
+                description: finalDescription.trim(),
+                author: {
+                    uid: currentUser.uid,
+                    name: isAnonymous
+                        ? null
+                        : currentUser.displayName || "Corper",
+                    isAnonymous,
+                    showDetails: !isAnonymous && showDetails,
+                },
+                reactions: {},
+                commentCount: 0,
                 voteOptions,
-                votes,
-                totalVotes: 0,
+                responseType,
                 demographics: selectedDemographics,
                 createdAt: serverTimestamp(),
-                createdBy: currentUser.uid,
-                authorName: currentUser.displayName || "Anonymous",
-                status: "under-review",
-                commentsCount: 0,
+                updatedAt: serverTimestamp(),
+                votes: {},
+                totalVotes: 0,
+                upvotes: 0,
+                status: "new",
+            };
+
+            switch (postType) {
+                case "poll":
+                    issueData.pollOptions = pollOptions.filter((o) => o.trim());
+                    issueData.pollVotes = {};
+                    break;
+                case "food":
+                    issueData.foodRating = foodRating;
+                    break;
+            }
+
+            const issueRef = await addDoc(collection(db, "issues"), issueData);
+
+            // Notification — post is live
+            await createNotification({
+                type: NOTIFICATION_TYPES.ISSUE_CREATED,
+                recipientId: currentUser.uid,
+                actorId: "system",
+                actorName: "Camp Voice",
+                issueId: issueRef.id,
+                issueTitle: finalTitle.trim(),
+                meta: `Your ${selectedType?.label} "${finalTitle.trim()}" is now live! 🎉`,
             });
 
-            // Update user stats and impact score
+            // Update user doc
             const userRef = doc(db, "users", currentUser.uid);
             const userDoc = await getDoc(userRef);
-
+            const userData = userDoc.exists() ? userDoc.data() : null;
             const batch = writeBatch(db);
             const now = serverTimestamp();
 
-            let newIssuesCount = 1;
-            let newImpactScore = 10;
-            let newLevel = 1;
-            let newLevelName = "New Voice";
-            let pointsToNextLevel = 100;
-            let badgesToAward = [];
-            let notificationsToCreate = [];
-
-            if (userDoc.exists()) {
-                const userData = userDoc.data();
-                newIssuesCount = (userData.issuesCount || 0) + 1;
-                newImpactScore = (userData.impactScore || 0) + 10;
-
-                // Level progression logic
-                if (newImpactScore >= 500) {
-                    newLevel = 5;
-                    newLevelName = "National Champion";
-                    pointsToNextLevel = 1000;
-                } else if (newImpactScore >= 250) {
-                    newLevel = 4;
-                    newLevelName = "Change Maker";
-                    pointsToNextLevel = 500;
-                } else if (newImpactScore >= 100) {
-                    newLevel = 3;
-                    newLevelName = "Active Citizen";
-                    pointsToNextLevel = 250;
-                } else if (newImpactScore >= 50) {
-                    newLevel = 2;
-                    newLevelName = "Community Voice";
-                    pointsToNextLevel = 100;
-                }
-
-                // Check for first issue badge
-                if (newIssuesCount === 1) {
-                    const firstIssueBadgeRef = doc(
-                        db,
-                        "users",
-                        currentUser.uid,
-                        "badges",
-                        "first_issue",
-                    );
-                    batch.set(firstIssueBadgeRef, {
-                        emoji: "📝",
-                        label: "First Issue",
-                        description: "Posted your first community issue",
-                        earnedAt: now,
-                    });
-                    badgesToAward.push({
-                        emoji: "📝",
-                        label: "First Issue",
-                        description: "Posted your first community issue",
-                    });
-                    notificationsToCreate.push({
-                        type: "milestone",
-                        message: "You earned the First Issue badge!",
-                        meta: "Keep posting to unlock more badges",
-                    });
-                }
-
-                // Check for 5 issues badge
-                if (newIssuesCount === 5) {
-                    const fiveIssuesBadgeRef = doc(
-                        db,
-                        "users",
-                        currentUser.uid,
-                        "badges",
-                        "five_issues",
-                    );
-                    batch.set(fiveIssuesBadgeRef, {
-                        emoji: "📊",
-                        label: "Regular Reporter",
-                        description: "Posted 5 community issues",
-                        earnedAt: now,
-                    });
-                    badgesToAward.push({
-                        emoji: "📊",
-                        label: "Regular Reporter",
-                        description: "Posted 5 community issues",
-                    });
-                    notificationsToCreate.push({
-                        type: "milestone",
-                        message: "You earned the Regular Reporter badge!",
-                        meta: "5 issues posted",
-                    });
-                }
-
-                // Check for 10 issues badge
-                if (newIssuesCount === 10) {
-                    const tenIssuesBadgeRef = doc(
-                        db,
-                        "users",
-                        currentUser.uid,
-                        "badges",
-                        "ten_issues",
-                    );
-                    batch.set(tenIssuesBadgeRef, {
-                        emoji: "🔥",
-                        label: "Top Reporter",
-                        description: "Posted 10 community issues",
-                        earnedAt: now,
-                    });
-                    badgesToAward.push({
-                        emoji: "🔥",
-                        label: "Top Reporter",
-                        description: "Posted 10 community issues",
-                    });
-                    notificationsToCreate.push({
-                        type: "milestone",
-                        message: "You earned the Top Reporter badge!",
-                        meta: "10 issues posted - you're a community leader!",
-                    });
-
-                    // Also update user role
-                    batch.update(userRef, {
-                        role: "top_reporter",
-                    });
-                }
-
-                // Check for level up notification
-                const oldLevel = userData.level || 1;
-                if (newLevel > oldLevel) {
-                    notificationsToCreate.push({
-                        type: "milestone",
-                        message: `Level Up! You're now Level ${newLevel} — ${newLevelName}`,
-                        meta: `${newImpactScore} impact points earned`,
-                    });
-                }
+            if (userData) {
+                batch.update(userRef, {
+                    postsCount: (userData.postsCount || 0) + 1,
+                    lastActive: now,
+                });
             } else {
-                // First time user - create user document
                 batch.set(userRef, {
+                    uid: currentUser.uid,
                     displayName: currentUser.displayName || "User",
                     email: currentUser.email,
                     photoURL: currentUser.photoURL || null,
                     createdAt: now,
-                    bio: "No bio yet",
-                    location: "Nigeria",
+                    postsCount: 1,
                     isOnline: true,
                 });
-
-                // Award first issue badge
-                const firstIssueBadgeRef = doc(
-                    db,
-                    "users",
-                    currentUser.uid,
-                    "badges",
-                    "first_issue",
-                );
-                batch.set(firstIssueBadgeRef, {
-                    emoji: "📝",
-                    label: "First Issue",
-                    description: "Posted your first community issue",
-                    earnedAt: now,
-                });
-                badgesToAward.push({
-                    emoji: "📝",
-                    label: "First Issue",
-                    description: "Posted your first community issue",
-                });
-                notificationsToCreate.push({
-                    type: "milestone",
-                    message: "Welcome! You earned your First Issue badge!",
-                    meta: "Start of your community impact journey",
-                });
             }
 
-            // Update user stats
-            batch.update(userRef, {
-                issuesCount: newIssuesCount,
-                impactScore: newImpactScore,
-                level: newLevel,
-                levelName: newLevelName,
-                pointsToNextLevel: pointsToNextLevel,
-                lastActive: now,
-            });
-
-            // Update stats subcollection for quick access
-            const statsRef = doc(
-                db,
-                "users",
-                currentUser.uid,
-                "stats",
-                "overview",
-            );
-            batch.set(
-                statsRef,
-                {
-                    issuesCount: newIssuesCount,
-                    impactScore: newImpactScore,
-                    badgesCount:
-                        badgesToAward.length +
-                        (userDoc.exists()
-                            ? userDoc.data().badgesCount || 0
-                            : 0),
-                    lastUpdated: now,
-                },
-                { merge: true },
-            );
-
-            // Create notifications
-            for (const notif of notificationsToCreate) {
-                const notifRef = doc(collection(db, "notifications"));
-                batch.set(notifRef, {
-                    userId: currentUser.uid,
-                    type: notif.type,
-                    actorName: "System",
-                    actorInitial: "S",
-                    actorColor: "bg-[#F97316]",
-                    message: notif.message,
-                    issueTitle: title.trim(),
-                    issueId: issueRef.id,
-                    meta: notif.meta,
-                    createdAt: now,
-                    read: false,
-                });
-            }
-
-            // Always create a "issue created" notification
-            const issueCreatedNotifRef = doc(collection(db, "notifications"));
-            batch.set(issueCreatedNotifRef, {
-                userId: currentUser.uid,
-                type: "milestone",
-                actorName: "You",
-                actorInitial: "Y",
-                actorColor: "bg-[#F97316]",
-                message: "posted a new issue",
-                issueTitle: title.trim(),
-                issueId: issueRef.id,
-                meta: `Posted in ${location} • ${category}`,
-                createdAt: now,
-                read: true, // Auto-mark as read since it's your own action
-            });
-
-            // Commit all operations
             await batch.commit();
 
-            // Show success toast for badges
-            for (const badge of badgesToAward) {
-                toast.success(`🏅 Badge Earned: ${badge.label}!`, {
-                    description: badge.description,
-                });
-            }
+            // Award points after batch
+            await awardPoints(currentUser.uid, "CREATE_ISSUE", {
+                issueId: issueRef.id,
+                issueTitle: finalTitle.trim(),
+            });
 
+            toast.success("Posted to camp! 🔥");
             router.push("/");
         } catch (err) {
             console.error("Firestore error:", err);
-            setSaveError("Something went wrong. Please try again.");
+            if (err.code === "permission-denied") {
+                setSaveError(
+                    "Permission denied. Please make sure you're signed in and try again.",
+                );
+            } else {
+                setSaveError(
+                    err.message || "Something went wrong. Please try again.",
+                );
+            }
             setSaving(false);
         }
     };
-
-    // ─────────────────────────────────────────────────────────────────────────
 
     return (
         <div className="min-h-screen bg-[#FDF6EF] pb-24 md:pb-8">
@@ -999,32 +926,33 @@ function CreateIssueForm({ currentUser, router }) {
                             }}
                         >
                             {step === 1
-                                ? "Post a New Issue"
+                                ? "What do you want to drop?"
                                 : step === 2
-                                  ? "How Should People Respond?"
-                                  : "Demographic Insights"}
+                                  ? `Drop a ${selectedType?.label}`
+                                  : step === 3
+                                    ? "Response Type"
+                                    : "Demographics"}
                         </h1>
                         <p
                             className="text-orange-100 text-xs"
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
-                            Step {step} of 3
+                            Step {step} of {totalSteps}
                         </p>
                     </div>
                 </div>
                 <div className="max-w-2xl mx-auto">
-                    <StepIndicator step={step} />
+                    <StepIndicator step={step} totalSteps={totalSteps} />
                 </div>
             </header>
 
             <div className="max-w-2xl mx-auto px-4 md:px-6">
-                {/* ══ STEP 1 ══════════════════════════════════════════════════ */}
+                {/* ══ STEP 1 ════════════════════════════════════════════════════ */}
                 {step === 1 && (
                     <>
-                        {/* Hero */}
-                        <div className="flex flex-col items-center pt-6 pb-4">
-                            <div className="w-28 h-28 bg-[#FFF7F2] rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
-                                <span className="text-5xl">📢</span>
+                        <div className="flex flex-col items-center pt-6 pb-6">
+                            <div className="w-24 h-24 bg-[#FFF7F2] rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
+                                <span className="text-4xl">🎯</span>
                             </div>
                             <h2
                                 className="text-xl font-bold text-gray-900 text-center"
@@ -1032,241 +960,66 @@ function CreateIssueForm({ currentUser, router }) {
                                     fontFamily: "Plus Jakarta Sans, sans-serif",
                                 }}
                             >
-                                Your Voice Matters!
+                                Choose your vibe
                             </h2>
-                            <span
+                            <p
                                 className="text-gray-500 text-sm text-center mt-1 max-w-xs"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
-                                Report issues in your community.
-                                <br />
-                                Let&apos;s make Nigeria better — together
-                            </span>
+                                What are you sharing with the camp today?
+                            </p>
                         </div>
 
-                        {/* Form card */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-visible divide-y divide-gray-50">
-                            {/* Title */}
-                            <FieldRow
-                                touched={touched.title}
-                                valid={title.trim().length > 0}
-                                className="rounded-t-2xl"
-                            >
-                                <div className="px-4 pt-4 pb-3 flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
-                                        <PenIcon />
+                        <div className="grid grid-cols-2 gap-3">
+                            {POST_TYPES.map((type) => (
+                                <button
+                                    key={type.id}
+                                    onClick={() => setPostType(type.id)}
+                                    className={`p-4 rounded-2xl border-2 text-left transition-all duration-200 cursor-pointer ${postType === type.id ? `${type.bg} ${type.border} ring-2 ring-offset-2` : "bg-white border-gray-100 hover:border-gray-200"}`}
+                                    style={{
+                                        fontFamily: "DM Sans, sans-serif",
+                                    }}
+                                >
+                                    <div className="text-3xl mb-2">
+                                        {type.emoji}
                                     </div>
-                                    <div className="flex-1">
-                                        <label
-                                            className="block text-sm font-semibold text-black mb-1"
-                                            style={{
-                                                fontFamily:
-                                                    "DM Sans, sans-serif",
-                                            }}
-                                        >
-                                            Issue Title{" "}
-                                            <span className="text-red-400">
-                                                *
-                                            </span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={title}
-                                            onChange={(e) =>
-                                                setTitle(e.target.value)
-                                            }
-                                            onBlur={() =>
-                                                setTouched((t) => ({
-                                                    ...t,
-                                                    title: true,
-                                                }))
-                                            }
-                                            placeholder="e.g. Bad road, No water, School problem"
-                                            className="w-full text-sm text-black placeholder-gray-300 focus:outline-none bg-transparent"
-                                            style={{
-                                                fontFamily:
-                                                    "DM Sans, sans-serif",
-                                            }}
-                                        />
+                                    <div
+                                        className={`font-bold text-sm mb-1 ${postType === type.id ? "text-gray-900" : "text-gray-700"}`}
+                                    >
+                                        {type.label}
                                     </div>
-                                </div>
-                            </FieldRow>
-
-                            {/* Description */}
-                            <FieldRow
-                                touched={touched.description}
-                                valid={description.trim().length > 0}
-                            >
-                                <div className="px-4 pt-3 pb-3 flex items-start gap-3">
-                                    <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                                        <DescIcon />
+                                    <div className="text-xs text-gray-500 leading-tight">
+                                        {type.description}
                                     </div>
-                                    <div className="flex-1">
-                                        <label
-                                            className="block text-sm font-semibold text-black mb-1"
-                                            style={{
-                                                fontFamily:
-                                                    "DM Sans, sans-serif",
-                                            }}
-                                        >
-                                            Describe the Issue{" "}
-                                            <span className="text-red-400">
-                                                *
-                                            </span>
-                                        </label>
-                                        <textarea
-                                            value={description}
-                                            onChange={(e) =>
-                                                setDescription(e.target.value)
-                                            }
-                                            onBlur={() =>
-                                                setTouched((t) => ({
-                                                    ...t,
-                                                    description: true,
-                                                }))
-                                            }
-                                            placeholder="Tell us what's happening..."
-                                            rows={5}
-                                            maxLength={1500}
-                                            className="w-full text-sm text-black placeholder-gray-300 focus:outline-none bg-transparent resize-none"
-                                            style={{
-                                                fontFamily:
-                                                    "DM Sans, sans-serif",
-                                            }}
-                                        />
-                                        {description.length > 0 && (
-                                            <p
-                                                className="text-xs text-gray-400 text-right"
+                                    {postType === type.id && (
+                                        <div className="mt-2 flex justify-end">
+                                            <div
+                                                className="w-5 h-5 rounded-full flex items-center justify-center"
                                                 style={{
-                                                    fontFamily:
-                                                        "DM Sans, sans-serif",
+                                                    backgroundColor: type.color,
                                                 }}
                                             >
-                                                {description.length}/1500
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            </FieldRow>
-
-                            {/* Location */}
-                            <FieldRow
-                                touched={touched.location}
-                                valid={location.length > 0}
-                            >
-                                <button
-                                    onClick={() => {
-                                        setTouched((t) => ({
-                                            ...t,
-                                            location: true,
-                                        }));
-                                        setShowLocationModal(true);
-                                    }}
-                                    className="w-full px-4 pt-3 pb-3 flex items-center gap-3 hover:bg-gray-50/50 transition-colors text-left cursor-pointer"
-                                >
-                                    <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
-                                        <LocationIcon />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div
-                                            className="text-sm font-semibold text-black mb-0.5"
-                                            style={{
-                                                fontFamily:
-                                                    "DM Sans, sans-serif",
-                                            }}
-                                        >
-                                            Location{" "}
-                                            <span className="text-red-400">
-                                                *
-                                            </span>
+                                                <svg
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="white"
+                                                    strokeWidth="3"
+                                                    strokeLinecap="round"
+                                                    className="w-3 h-3"
+                                                >
+                                                    <polyline points="20 6 9 17 4 12" />
+                                                </svg>
+                                            </div>
                                         </div>
-                                        <div
-                                            className={`text-sm ${location ? "text-gray-800" : "text-gray-400"}`}
-                                            style={{
-                                                fontFamily:
-                                                    "DM Sans, sans-serif",
-                                            }}
-                                        >
-                                            {location || "Select state"}
-                                        </div>
-                                    </div>
-                                    <ChevronRightIcon />
+                                    )}
                                 </button>
-                            </FieldRow>
-
-                            {/* Category */}
-                            <FieldRow
-                                touched={touched.category}
-                                valid={category.length > 0}
-                                className="rounded-b-2xl"
-                            >
-                                <button
-                                    onClick={() => {
-                                        setTouched((t) => ({
-                                            ...t,
-                                            category: true,
-                                        }));
-                                        setShowCategoryModal(true);
-                                    }}
-                                    className="w-full px-4 pt-3 pb-4 flex items-center gap-3 hover:bg-gray-50/50 transition-colors text-left cursor-pointer"
-                                >
-                                    <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
-                                        <CategoryIcon />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div
-                                            className="text-sm font-semibold text-black mb-0.5"
-                                            style={{
-                                                fontFamily:
-                                                    "DM Sans, sans-serif",
-                                            }}
-                                        >
-                                            Category{" "}
-                                            <span className="text-red-400">
-                                                *
-                                            </span>
-                                        </div>
-                                        <div
-                                            className={`text-sm ${category ? "text-gray-800" : "text-gray-400"}`}
-                                            style={{
-                                                fontFamily:
-                                                    "DM Sans, sans-serif",
-                                            }}
-                                        >
-                                            {selectedCategory
-                                                ? selectedCategory.label
-                                                : "Choose issue type"}
-                                        </div>
-                                    </div>
-                                    <ChevronRightIcon />
-                                </button>
-                            </FieldRow>
+                            ))}
                         </div>
 
-                        {/* Helper text */}
-                        <p
-                            className="text-xs text-center mt-2 px-1"
-                            style={{
-                                fontFamily: "DM Sans, sans-serif",
-                                color: step1Valid ? "#22c55e" : "#9ca3af",
-                            }}
-                        >
-                            {step1Valid
-                                ? "✓ All fields complete — you're good to go!"
-                                : "All fields are required to continue"}
-                        </p>
-
-                        {/* Next */}
                         <button
-                            onClick={() => {
-                                touchAllStep1();
-                                if (step1Valid) setStep(2);
-                            }}
-                            className={`w-full mt-4 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 ${
-                                step1Valid
-                                    ? "bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98] cursor-pointer"
-                                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                            }`}
+                            onClick={() => step1Valid && setStep(2)}
+                            disabled={!step1Valid}
+                            className={`w-full mt-6 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${step1Valid ? "bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98]" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
                             style={{
                                 fontFamily: "DM Sans, sans-serif",
                                 boxShadow: step1Valid
@@ -1274,7 +1027,7 @@ function CreateIssueForm({ currentUser, router }) {
                                     : undefined,
                             }}
                         >
-                            Next — Choose Response Type
+                            Continue
                             <svg
                                 viewBox="0 0 24 24"
                                 fill="none"
@@ -1286,86 +1039,119 @@ function CreateIssueForm({ currentUser, router }) {
                                 <polyline points="9 18 15 12 9 6" />
                             </svg>
                         </button>
-
-                        <div className="flex items-center justify-center gap-1.5 mt-3 mb-6">
-                            <LockIcon />
-                            <span
-                                className="text-xs text-gray-500"
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
-                            >
-                                Your post will be public &amp; trackable
-                            </span>
-                        </div>
                     </>
                 )}
 
-                {/* ══ STEP 2 ══════════════════════════════════════════════════ */}
-                {step === 2 && (
+                {/* ══ STEP 2 ════════════════════════════════════════════════════ */}
+                {step === 2 && selectedType && (
                     <>
-                        <div className="flex flex-col items-center pt-6 pb-5">
-                            <div className="w-24 h-24 bg-[#FFF7F2] rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
-                                <span className="text-4xl">🗳️</span>
+                        <div className="flex flex-col items-center pt-6 pb-4">
+                            <div
+                                className={`w-20 h-20 ${selectedType.bg} rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md`}
+                            >
+                                <span className="text-3xl">
+                                    {selectedType.emoji}
+                                </span>
                             </div>
                             <h2
-                                className="text-xl font-bold text-gray-900 text-center"
+                                className="text-lg font-bold text-gray-900 text-center"
                                 style={{
                                     fontFamily: "Plus Jakarta Sans, sans-serif",
                                 }}
                             >
-                                Pick a Response Style
+                                Drop your {selectedType.label}
                             </h2>
-                            <p
-                                className="text-gray-500 text-sm text-center mt-1 max-w-xs"
+                        </div>
+
+                        {/* Title */}
+                        <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
+                            <label
+                                className="block text-sm font-semibold text-gray-800 mb-2"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
-                                How should people vote on your issue?
-                            </p>
-                        </div>
-
-                        {/* Issue recap */}
-                        <div className="bg-white rounded-xl px-4 py-3 mb-4 border border-orange-100 flex items-center gap-2">
-                            <span className="text-orange-400 text-lg">📢</span>
-                            <p
-                                className="text-sm text-gray-700 font-medium truncate"
+                                {selectedType.titleLabel}{" "}
+                                <span className="text-red-400">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                placeholder={selectedType.titlePlaceholder}
+                                maxLength={MAX_TITLE}
+                                className="w-full p-3 bg-gray-50 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F97316]/20"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
+                            />
+                            <div
+                                className={`text-right text-xs mt-1 ${charCountColor(title.length, MAX_TITLE)}`}
                             >
-                                {title}
-                            </p>
+                                {title.length}/{MAX_TITLE}
+                            </div>
                         </div>
 
-                        {/* Response type cards */}
-                        <div className="flex flex-col gap-3">
-                            {RESPONSE_TYPES.map((type) => (
-                                <ResponseTypeCard
-                                    key={type.id}
-                                    type={type}
-                                    selected={responseType === type.id}
-                                    onSelect={setResponseType}
-                                />
-                            ))}
-                        </div>
-
-                        {/* Custom poll builder */}
-                        {responseType === "poll" && (
-                            <div className="mt-4 bg-white rounded-2xl border border-gray-100 p-4">
-                                <p
-                                    className="text-sm font-bold text-gray-800 mb-3"
+                        {/* Food Rating */}
+                        {postType === "food" && (
+                            <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
+                                <label
+                                    className="block text-sm font-semibold text-gray-800 mb-3"
                                     style={{
-                                        fontFamily:
-                                            "Plus Jakarta Sans, sans-serif",
+                                        fontFamily: "DM Sans, sans-serif",
                                     }}
                                 >
-                                    Your poll options{" "}
+                                    Rating{" "}
                                     <span className="text-red-400">*</span>
-                                </p>
-                                <div className="flex flex-col gap-2">
+                                </label>
+                                <div className="flex items-center gap-2 justify-center">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                            key={star}
+                                            onClick={() => setFoodRating(star)}
+                                            className="transition-transform hover:scale-110 active:scale-95 cursor-pointer"
+                                        >
+                                            <StarIcon
+                                                filled={star <= foodRating}
+                                            />
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="text-center text-xs text-gray-500 mt-2">
+                                    {foodRating === 0
+                                        ? "Tap to rate"
+                                        : foodRating === 1
+                                          ? "Terrible 💀"
+                                          : foodRating === 2
+                                            ? "Not great 😕"
+                                            : foodRating === 3
+                                              ? "Okay 😐"
+                                              : foodRating === 4
+                                                ? "Good 😋"
+                                                : "Amazing! 🤤"}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Poll Options */}
+                        {postType === "poll" && (
+                            <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
+                                <label
+                                    className="block text-sm font-semibold text-gray-800 mb-2"
+                                    style={{
+                                        fontFamily: "DM Sans, sans-serif",
+                                    }}
+                                >
+                                    Options{" "}
+                                    <span className="text-red-400">*</span>
+                                    <span className="text-xs font-normal text-gray-400 ml-1">
+                                        (min 2, max 4)
+                                    </span>
+                                </label>
+                                <div className="space-y-2">
                                     {pollOptions.map((opt, i) => (
                                         <div
                                             key={i}
                                             className="flex items-center gap-2"
                                         >
-                                            <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center text-xs font-bold shrink-0">
-                                                {i + 1}
+                                            <div className="w-6 h-6 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-bold shrink-0">
+                                                {String.fromCharCode(65 + i)}
                                             </div>
                                             <input
                                                 type="text"
@@ -1377,8 +1163,8 @@ function CreateIssueForm({ currentUser, router }) {
                                                     )
                                                 }
                                                 placeholder={`Option ${i + 1}`}
-                                                maxLength={60}
-                                                className="flex-1 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-orange-300 transition-colors"
+                                                maxLength={MAX_POLL_OPTION}
+                                                className="flex-1 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-purple-300"
                                                 style={{
                                                     fontFamily:
                                                         "DM Sans, sans-serif",
@@ -1397,34 +1183,121 @@ function CreateIssueForm({ currentUser, router }) {
                                         </div>
                                     ))}
                                 </div>
-                                {pollOptions.length < 6 && (
+                                {pollOptions.length < 4 && (
                                     <button
                                         onClick={addPollOption}
-                                        className="mt-3 w-full py-2 rounded-xl border-2 border-dashed border-orange-200 text-orange-400 text-sm flex items-center justify-center gap-1.5 hover:border-orange-400 hover:text-orange-500 transition-colors cursor-pointer"
+                                        className="mt-3 w-full py-2 rounded-xl border-2 border-dashed border-purple-200 text-purple-500 text-sm flex items-center justify-center gap-1.5 hover:border-purple-400 hover:text-purple-600 transition-colors cursor-pointer"
                                         style={{
                                             fontFamily: "DM Sans, sans-serif",
                                         }}
                                     >
-                                        <PlusIcon />
-                                        Add option ({pollOptions.length}/6)
+                                        <PlusIcon /> Add option (
+                                        {pollOptions.length}/4)
                                     </button>
-                                )}
-                                {pollOptions.filter((o) => o.trim()).length <
-                                    2 && (
-                                    <p
-                                        className="text-xs text-orange-400 mt-2"
-                                        style={{
-                                            fontFamily: "DM Sans, sans-serif",
-                                        }}
-                                    >
-                                        ⚠️ Fill in at least 2 options to submit
-                                    </p>
                                 )}
                             </div>
                         )}
 
-                        {/* Navigation Buttons */}
-                        <div className="flex gap-3 mt-5">
+                        {/* Description — 2000 char max */}
+                        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+                            <label
+                                className="block text-sm font-semibold text-gray-800 mb-2"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                {selectedType.descLabel}
+                                {postType === "issue" && (
+                                    <span className="text-red-400">*</span>
+                                )}
+                                {(postType === "gist" ||
+                                    postType === "poll") && (
+                                    <span className="text-xs font-normal text-gray-400">
+                                        {" "}
+                                        (optional)
+                                    </span>
+                                )}
+                            </label>
+                            <textarea
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder={selectedType.descPlaceholder}
+                                rows={postType === "gist" ? 8 : 5}
+                                maxLength={MAX_DESC}
+                                className="w-full p-3 bg-gray-50 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F97316]/20 resize-none"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            />
+                            <div
+                                className={`text-right text-xs mt-1 ${charCountColor(description.length, MAX_DESC)}`}
+                            >
+                                {description.length}/{MAX_DESC}
+                            </div>
+                        </div>
+
+                        {/* Toggles */}
+                        <div className="bg-white rounded-2xl border border-gray-100 p-4 mt-4 space-y-3">
+                            <label className="flex items-center justify-between cursor-pointer">
+                                <div className="flex items-center gap-2">
+                                    <AnonymousIcon />
+                                    <span
+                                        className="text-sm font-medium text-gray-700"
+                                        style={{
+                                            fontFamily: "DM Sans, sans-serif",
+                                        }}
+                                    >
+                                        Post anonymously 🕶️
+                                    </span>
+                                </div>
+                                <div
+                                    className={`w-11 h-6 rounded-full transition-colors ${isAnonymous ? "bg-[#F97316]" : "bg-gray-200"} relative cursor-pointer`}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={isAnonymous}
+                                        onChange={(e) => {
+                                            setIsAnonymous(e.target.checked);
+                                            if (e.target.checked)
+                                                setShowDetails(false);
+                                        }}
+                                        className="sr-only"
+                                    />
+                                    <div
+                                        className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${isAnonymous ? "translate-x-5" : "translate-x-0.5"}`}
+                                    />
+                                </div>
+                            </label>
+                            {!isAnonymous && (
+                                <label className="flex items-center justify-between cursor-pointer">
+                                    <div className="flex items-center gap-2">
+                                        <EyeIcon />
+                                        <span
+                                            className="text-sm font-medium text-gray-700"
+                                            style={{
+                                                fontFamily:
+                                                    "DM Sans, sans-serif",
+                                            }}
+                                        >
+                                            Show my details
+                                        </span>
+                                    </div>
+                                    <div
+                                        className={`w-11 h-6 rounded-full transition-colors ${showDetails ? "bg-[#F97316]" : "bg-gray-200"} relative cursor-pointer`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={showDetails}
+                                            onChange={(e) =>
+                                                setShowDetails(e.target.checked)
+                                            }
+                                            className="sr-only"
+                                        />
+                                        <div
+                                            className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${showDetails ? "translate-x-5" : "translate-x-0.5"}`}
+                                        />
+                                    </div>
+                                </label>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
                             <button
                                 onClick={() => setStep(1)}
                                 className="flex-1 py-4 rounded-2xl font-bold text-sm text-gray-500 hover:text-gray-700 border-2 border-gray-200 hover:border-gray-300 transition-all duration-200 cursor-pointer"
@@ -1433,17 +1306,177 @@ function CreateIssueForm({ currentUser, router }) {
                                 ← Back
                             </button>
                             <button
-                                onClick={() => {
-                                    if (step2Valid) setStep(3);
-                                }}
-                                className={`flex-2 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 ${
-                                    step2Valid
-                                        ? "bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98] cursor-pointer"
-                                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                }`}
+                                onClick={() => step2Valid() && setStep(3)}
+                                disabled={!step2Valid()}
+                                className={`flex-2 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${step2Valid() ? "bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98]" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
                                 style={{
                                     fontFamily: "DM Sans, sans-serif",
-                                    boxShadow: step2Valid
+                                    boxShadow: step2Valid()
+                                        ? "0 4px 20px rgba(232,97,26,0.35)"
+                                        : undefined,
+                                }}
+                            >
+                                Next — Response Type
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2.5"
+                                    strokeLinecap="round"
+                                    className="w-4 h-4"
+                                >
+                                    <polyline points="9 18 15 12 9 6" />
+                                </svg>
+                            </button>
+                        </div>
+                    </>
+                )}
+
+                {/* ══ STEP 3 ════════════════════════════════════════════════════ */}
+                {step === 3 && (
+                    <>
+                        <div className="flex flex-col items-center pt-6 pb-5">
+                            <div className="w-20 h-20 bg-[#FFF7F2] rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
+                                <span className="text-3xl">📊</span>
+                            </div>
+                            <h2
+                                className="text-lg font-bold text-gray-900 text-center"
+                                style={{
+                                    fontFamily: "Plus Jakarta Sans, sans-serif",
+                                }}
+                            >
+                                How should people respond?
+                            </h2>
+                            <p
+                                className="text-gray-500 text-sm text-center mt-1 max-w-xs"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                Choose the response format for your post
+                            </p>
+                        </div>
+
+                        <div className="space-y-3 mb-4">
+                            {RESPONSE_TYPES.map((type) => (
+                                <ResponseTypeCard
+                                    key={type.id}
+                                    type={type}
+                                    selected={responseType === type.id}
+                                    onSelect={setResponseType}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Custom Options — 2000 char max per option via MAX_CUSTOM_OPTION */}
+                        {responseType === "custom" && (
+                            <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-4">
+                                <label
+                                    className="block text-sm font-semibold text-gray-800 mb-2"
+                                    style={{
+                                        fontFamily: "DM Sans, sans-serif",
+                                    }}
+                                >
+                                    Custom Options{" "}
+                                    <span className="text-red-400">*</span>
+                                    <span className="text-xs font-normal text-gray-400 ml-1">
+                                        (min 2, max 6)
+                                    </span>
+                                </label>
+                                <div className="space-y-2">
+                                    {customOptions.map((opt, i) => (
+                                        <div
+                                            key={i}
+                                            className="flex items-center gap-2"
+                                        >
+                                            <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-bold shrink-0">
+                                                {String.fromCharCode(65 + i)}
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={opt}
+                                                onChange={(e) =>
+                                                    updateCustomOption(
+                                                        i,
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                placeholder={`Option ${i + 1}`}
+                                                maxLength={MAX_CUSTOM_OPTION}
+                                                className="flex-1 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-orange-300"
+                                                style={{
+                                                    fontFamily:
+                                                        "DM Sans, sans-serif",
+                                                }}
+                                            />
+                                            {customOptions.length > 2 && (
+                                                <button
+                                                    onClick={() =>
+                                                        removeCustomOption(i)
+                                                    }
+                                                    className="text-gray-300 hover:text-red-400 transition-colors cursor-pointer"
+                                                >
+                                                    <TrashIcon />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                {customOptions.length < 6 && (
+                                    <button
+                                        onClick={addCustomOption}
+                                        className="mt-3 w-full py-2 rounded-xl border-2 border-dashed border-orange-200 text-orange-500 text-sm flex items-center justify-center gap-1.5 hover:border-orange-400 hover:text-orange-600 transition-colors cursor-pointer"
+                                        style={{
+                                            fontFamily: "DM Sans, sans-serif",
+                                        }}
+                                    >
+                                        <PlusIcon /> Add option (
+                                        {customOptions.length}/6)
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {responseType && (
+                            <div className="bg-orange-50 rounded-xl p-4 mb-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-sm">👀</span>
+                                    <span
+                                        className="text-sm font-bold text-gray-800"
+                                        style={{
+                                            fontFamily:
+                                                "Plus Jakarta Sans, sans-serif",
+                                        }}
+                                    >
+                                        Preview
+                                    </span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {getVoteOptions().map((opt, i) => (
+                                        <span
+                                            key={i}
+                                            className="text-xs px-3 py-1.5 bg-white rounded-lg border border-orange-200 text-gray-700"
+                                        >
+                                            {opt}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex gap-3 mt-5">
+                            <button
+                                onClick={() => setStep(2)}
+                                className="flex-1 py-4 rounded-2xl font-bold text-sm text-gray-500 hover:text-gray-700 border-2 border-gray-200 hover:border-gray-300 transition-all duration-200 cursor-pointer"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                ← Back
+                            </button>
+                            <button
+                                onClick={() => step3Valid() && setStep(4)}
+                                disabled={!step3Valid()}
+                                className={`flex-2 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${step3Valid() ? "bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98]" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                style={{
+                                    fontFamily: "DM Sans, sans-serif",
+                                    boxShadow: step3Valid()
                                         ? "0 4px 20px rgba(232,97,26,0.35)"
                                         : undefined,
                                 }}
@@ -1461,28 +1494,18 @@ function CreateIssueForm({ currentUser, router }) {
                                 </svg>
                             </button>
                         </div>
-
-                        <div className="flex items-center justify-center gap-1.5 mt-3 mb-6">
-                            <LockIcon />
-                            <span
-                                className="text-xs text-gray-500"
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
-                            >
-                                Your post will be public &amp; trackable
-                            </span>
-                        </div>
                     </>
                 )}
 
-                {/* ══ STEP 3 ══════════════════════════════════════════════════ */}
-                {step === 3 && (
+                {/* ══ STEP 4 ════════════════════════════════════════════════════ */}
+                {step === 4 && (
                     <>
                         <div className="flex flex-col items-center pt-6 pb-5">
-                            <div className="w-24 h-24 bg-[#FFF7F2] rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
-                                <span className="text-4xl">📊</span>
+                            <div className="w-20 h-20 bg-[#FFF7F2] rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
+                                <span className="text-3xl">📊</span>
                             </div>
                             <h2
-                                className="text-xl font-bold text-gray-900 text-center"
+                                className="text-lg font-bold text-gray-900 text-center"
                                 style={{
                                     fontFamily: "Plus Jakarta Sans, sans-serif",
                                 }}
@@ -1493,16 +1516,15 @@ function CreateIssueForm({ currentUser, router }) {
                                 className="text-gray-500 text-sm text-center mt-1 max-w-xs"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
-                                Select which demographics to show in voting
-                                results
+                                Select which demographics to show in results
                             </p>
                         </div>
 
-                        {/* Issue recap */}
+                        {/* Post Recap */}
                         <div className="bg-white rounded-xl px-4 py-3 mb-4 border border-orange-100">
                             <div className="flex items-center gap-2 mb-2">
-                                <span className="text-orange-400 text-lg">
-                                    📢
+                                <span className="text-2xl">
+                                    {selectedType?.emoji}
                                 </span>
                                 <p
                                     className="text-sm text-gray-700 font-medium truncate"
@@ -1510,28 +1532,27 @@ function CreateIssueForm({ currentUser, router }) {
                                         fontFamily: "DM Sans, sans-serif",
                                     }}
                                 >
-                                    {title}
+                                    {title || "Untitled Post"}
                                 </p>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <span>{selectedType?.emoji}</span>
+                                <span>{selectedType?.label}</span>
+                                {postType === "food" && foodRating > 0 && (
+                                    <>
+                                        <span>•</span>
+                                        <span>{"⭐".repeat(foodRating)}</span>
+                                    </>
+                                )}
+                                <span>•</span>
+                                <span>{selectedResponseType?.label}</span>
+                                <span>•</span>
                                 <span>
-                                    {
-                                        RESPONSE_TYPES.find(
-                                            (t) => t.id === responseType,
-                                        )?.emoji
-                                    }
-                                </span>
-                                <span>
-                                    {
-                                        RESPONSE_TYPES.find(
-                                            (t) => t.id === responseType,
-                                        )?.label
-                                    }
+                                    {isAnonymous ? "Anonymous" : "Public"}
                                 </span>
                             </div>
                         </div>
 
-                        {/* Demographics selection */}
                         <div className="flex flex-col gap-3 mb-4">
                             {DEMOGRAPHIC_OPTIONS.map((option) => (
                                 <DemographicCard
@@ -1545,7 +1566,6 @@ function CreateIssueForm({ currentUser, router }) {
                             ))}
                         </div>
 
-                        {/* Selection summary */}
                         <div className="bg-orange-50 rounded-xl p-4 mb-4">
                             <div className="flex items-center gap-2 mb-2">
                                 <UsersIcon />
@@ -1564,19 +1584,11 @@ function CreateIssueForm({ currentUser, router }) {
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
                                 {selectedDemographics.length === 0
-                                    ? "Select at least one demographic to see how different groups voted on your issue"
-                                    : `You'll see voting breakdowns by: ${selectedDemographics
-                                          .map(
-                                              (id) =>
-                                                  DEMOGRAPHIC_OPTIONS.find(
-                                                      (o) => o.id === id,
-                                                  )?.label,
-                                          )
-                                          .join(", ")}`}
+                                    ? "Select at least one demographic to see how different groups engage with your post"
+                                    : `You'll see breakdowns by: ${selectedDemographics.map((id) => DEMOGRAPHIC_OPTIONS.find((o) => o.id === id)?.label).join(", ")}`}
                             </p>
                         </div>
 
-                        {/* Save error */}
                         {saveError && (
                             <div
                                 className="mb-4 px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-500"
@@ -1586,140 +1598,41 @@ function CreateIssueForm({ currentUser, router }) {
                             </div>
                         )}
 
-                        {/* Navigation Buttons */}
                         <div className="flex gap-3 mt-5">
                             <button
-                                onClick={() => setStep(2)}
+                                onClick={() => setStep(3)}
                                 disabled={saving}
-                                className="flex-1 py-4 rounded-2xl font-bold text-sm text-gray-500 hover:text-gray-700 border-2 border-gray-200 hover:border-gray-300 transition-all duration-200 cursor-pointer disabled:opacity-50"
+                                className="flex-1 py-4 rounded-2xl font-bold text-sm text-gray-500 hover:text-gray-700 border-2 border-gray-200 hover:border-gray-300 transition-all duration-200 disabled:opacity-50 cursor-pointer"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
                                 ← Back
                             </button>
                             <button
                                 onClick={handleSubmit}
-                                disabled={!step3Valid || saving}
-                                className={`flex-2 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 ${
-                                    step3Valid && !saving
-                                        ? "bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98] cursor-pointer"
-                                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                }`}
+                                disabled={!step4Valid || saving}
+                                className={`flex-2 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${step4Valid && !saving ? "bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98]" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
                                 style={{
                                     fontFamily: "DM Sans, sans-serif",
                                     boxShadow:
-                                        step3Valid && !saving
+                                        step4Valid && !saving
                                             ? "0 4px 20px rgba(232,97,26,0.35)"
                                             : undefined,
                                 }}
                             >
                                 {saving ? (
                                     <>
-                                        <SpinnerIcon /> Saving...
+                                        <SpinnerIcon /> Dropping...
                                     </>
                                 ) : (
                                     <>
-                                        <SendIcon /> Submit Issue
+                                        <CampIcon /> Drop to Camp 🏕️
                                     </>
                                 )}
                             </button>
                         </div>
-
-                        <div className="flex items-center justify-center gap-1.5 mt-3 mb-8">
-                            <LockIcon />
-                            <span
-                                className="text-xs text-gray-500"
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
-                            >
-                                Your post will be public &amp; trackable
-                            </span>
-                        </div>
                     </>
                 )}
             </div>
-
-            {/* ── CATEGORY MODAL ── */}
-            {showCategoryModal && (
-                <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
-                    <div
-                        className="absolute inset-0 bg-black/40 backdrop-blur-md"
-                        onClick={() => setShowCategoryModal(false)}
-                    />
-                    <div className="relative w-full md:max-w-md bg-white rounded-t-3xl md:rounded-2xl p-5 z-10">
-                        <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4 md:hidden" />
-                        <h3
-                            className="text-base font-bold text-gray-900 mb-4"
-                            style={{
-                                fontFamily: "Plus Jakarta Sans, sans-serif",
-                            }}
-                        >
-                            Choose Category
-                        </h3>
-                        <div className="grid grid-cols-2 gap-2">
-                            {categories.map((cat) => (
-                                <button
-                                    key={cat.value}
-                                    onClick={() => {
-                                        setCategory(cat.value);
-                                        setShowCategoryModal(false);
-                                    }}
-                                    className={`p-3 rounded-xl text-left text-sm font-medium transition-all border cursor-pointer ${
-                                        category === cat.value
-                                            ? "border-[#F97316] bg-[#FFF7F2] text-[#F97316]"
-                                            : "border-gray-100 bg-gray-50 text-black hover:border-[#F97316]/30"
-                                    }`}
-                                    style={{
-                                        fontFamily: "DM Sans, sans-serif",
-                                    }}
-                                >
-                                    {cat.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ── LOCATION MODAL ── */}
-            {showLocationModal && (
-                <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
-                    <div
-                        className="absolute inset-0 bg-black/40 backdrop-blur-md"
-                        onClick={() => setShowLocationModal(false)}
-                    />
-                    <div className="relative w-full md:max-w-md bg-white rounded-t-3xl md:rounded-2xl p-5 z-10 max-h-[70vh] overflow-y-auto">
-                        <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4 md:hidden" />
-                        <h3
-                            className="text-base font-bold text-gray-900 mb-4"
-                            style={{
-                                fontFamily: "Plus Jakarta Sans, sans-serif",
-                            }}
-                        >
-                            Select State
-                        </h3>
-                        <div className="grid grid-cols-2 gap-2">
-                            {states.map((state) => (
-                                <button
-                                    key={state}
-                                    onClick={() => {
-                                        setLocation(state);
-                                        setShowLocationModal(false);
-                                    }}
-                                    className={`p-2.5 rounded-xl text-left text-sm font-medium transition-all border cursor-pointer ${
-                                        location === state
-                                            ? "border-[#F97316] bg-[#FFF7F2] text-[#F97316]"
-                                            : "border-gray-100 bg-gray-50 text-gray-600 hover:border-[#F97316]/30"
-                                    }`}
-                                    style={{
-                                        fontFamily: "DM Sans, sans-serif",
-                                    }}
-                                >
-                                    {state}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

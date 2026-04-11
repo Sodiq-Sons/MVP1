@@ -17,6 +17,8 @@ import {
 import { db, auth } from "@/lib/firebase";
 import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
+import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
+import { awardPoints } from "@/lib/gamification";
 
 // ─── Category Meta ────────
 const CATEGORY_META = {
@@ -50,7 +52,8 @@ const CATEGORY_META = {
     other: { color: "text-gray-700", bg: "bg-gray-100", label: "Other" },
 };
 
-// ─── Demographic Config ───
+// ─── Updated Demographic Config ───
+// NOW INCLUDES: age (raw number), gender, stateOfOrigin, platoon
 const DEMOGRAPHIC_CONFIG = {
     age: {
         emoji: "🎂",
@@ -74,43 +77,19 @@ const DEMOGRAPHIC_CONFIG = {
         getGroup: (val) =>
             ["Male", "Female", "Other"].includes(val) ? val : null,
     },
-    maritalStatus: {
-        emoji: "💍",
-        label: "Marital Status",
-        firestoreField: "maritalStatus",
-        groups: ["Single", "Married", "Divorced", "Widowed", "Separated"],
-        getGroup: (val) =>
-            ["Single", "Married", "Divorced", "Widowed", "Separated"].includes(
-                val,
-            )
-                ? val
-                : null,
+    stateOfOrigin: {
+        emoji: "📍",
+        label: "State of Origin",
+        firestoreField: "stateOfOrigin",
+        groups: [], // Dynamic based on actual states
+        getGroup: (val) => (val && typeof val === "string" ? val : null),
     },
-    education: {
-        emoji: "🎓",
-        label: "Education Level",
-        firestoreField: "education",
-        groups: [
-            "No Formal Education",
-            "Primary Education",
-            "Secondary Education",
-            "NCE/OND",
-            "HND/Bachelor's Degree",
-            "Master's Degree",
-            "PhD/Doctorate",
-        ],
-        getGroup: (val) =>
-            [
-                "No Formal Education",
-                "Primary Education",
-                "Secondary Education",
-                "NCE/OND",
-                "HND/Bachelor's Degree",
-                "Master's Degree",
-                "PhD/Doctorate",
-            ].includes(val)
-                ? val
-                : null,
+    platoon: {
+        emoji: "👥",
+        label: "Platoon",
+        firestoreField: "platoon",
+        groups: [], // Dynamic based on actual platoons
+        getGroup: (val) => (val && typeof val === "string" ? val : null),
     },
 };
 
@@ -426,9 +405,10 @@ const SvgVote = () => (
         fill="none"
         stroke="currentColor"
         strokeWidth="2"
+        strokeLinecap="round"
         className="w-4 h-4"
     >
-        <path d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6-4.8-6 4.8 2.4-7.2-6-4.8h7.6z" />
+        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
     </svg>
 );
 const SvgDiscussion = () => (
@@ -437,6 +417,7 @@ const SvgDiscussion = () => (
         fill="none"
         stroke="currentColor"
         strokeWidth="2"
+        strokeLinecap="round"
         className="w-4 h-4"
     >
         <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
@@ -620,9 +601,13 @@ function DemographicChart({ demographic, data, voteOptions }) {
     const config = DEMOGRAPHIC_CONFIG[demographic];
     if (!config) return null;
 
-    const activeGroups = config.groups.filter((group) =>
+    // Get all unique groups that have data
+    const allGroups = Object.keys(data || {}).filter((group) =>
         voteOptions.some((opt) => (data?.[group]?.[opt] || 0) > 0),
     );
+
+    // If no groups have data, check if we should show dynamic groups
+    const activeGroups = allGroups.length > 0 ? allGroups : config.groups;
 
     if (activeGroups.length === 0) {
         return (
@@ -673,6 +658,8 @@ function DemographicChart({ demographic, data, voteOptions }) {
                         (sum, opt) => sum + (data?.[group]?.[opt] || 0),
                         0,
                     );
+
+                    if (groupTotal === 0) return null;
 
                     return (
                         <div key={group}>
@@ -727,7 +714,9 @@ function DemographicChart({ demographic, data, voteOptions }) {
 function ReplyForm({
     parentId,
     replyingTo,
+    replyingToUserId,
     issueId,
+    issueTitle,
     currentUser,
     authReady,
     onCancel,
@@ -741,6 +730,8 @@ function ReplyForm({
         setSaving(true);
         try {
             const issueRef = doc(db, "issues", issueId);
+            let newReplyRef;
+
             await runTransaction(db, async (transaction) => {
                 const issueSnap = await transaction.get(issueRef);
                 const currentCount = issueSnap.data()?.commentCount || 0;
@@ -750,7 +741,7 @@ function ReplyForm({
                     issueId,
                     "comments",
                 );
-                const newReplyRef = doc(commentsRef);
+                newReplyRef = doc(commentsRef);
                 transaction.set(newReplyRef, {
                     text: text.trim(),
                     userName: "Anonymous",
@@ -764,6 +755,21 @@ function ReplyForm({
                     commentCount: currentCount + 1,
                 });
             });
+
+            // Send notification to the user being replied to
+            if (replyingToUserId && replyingToUserId !== currentUser?.uid) {
+                await createNotification({
+                    type: NOTIFICATION_TYPES.REPLY,
+                    recipientId: replyingToUserId,
+                    actorId: currentUser?.uid || "anon",
+                    actorName: "Anonymous",
+                    issueId,
+                    issueTitle,
+                    commentId: newReplyRef.id,
+                    commentPreview: text.trim(),
+                });
+            }
+
             setText("");
             onSuccess();
         } catch (e) {
@@ -833,6 +839,8 @@ function CommentItem({
     allComments,
     depth = 0,
     issueId,
+    issueTitle,
+    issueOwnerId,
     currentUser,
     authReady,
 }) {
@@ -872,6 +880,24 @@ function CommentItem({
                     likes: newLiked ? current + 1 : Math.max(0, current - 1),
                 });
             });
+
+            // Send notification when liking a comment (only on like, not unlike)
+            if (
+                newLiked &&
+                comment.userId &&
+                comment.userId !== currentUser?.uid
+            ) {
+                await createNotification({
+                    type: NOTIFICATION_TYPES.LIKE_COMMENT,
+                    recipientId: comment.userId,
+                    actorId: currentUser?.uid || "anon",
+                    actorName: "Anonymous",
+                    issueId,
+                    issueTitle,
+                    commentId: comment.id,
+                    commentPreview: comment.text,
+                });
+            }
         } catch (err) {
             console.error("Like failed:", err);
             setLiked(liked);
@@ -962,7 +988,9 @@ function CommentItem({
                             <ReplyForm
                                 parentId={comment.id}
                                 replyingTo={comment.userName}
+                                replyingToUserId={comment.userId}
                                 issueId={issueId}
+                                issueTitle={issueTitle}
                                 currentUser={currentUser}
                                 authReady={authReady}
                                 onCancel={() => setReplying(false)}
@@ -984,6 +1012,8 @@ function CommentItem({
                             allComments={allComments}
                             depth={nextDepth}
                             issueId={issueId}
+                            issueTitle={issueTitle}
+                            issueOwnerId={issueOwnerId}
                             currentUser={currentUser}
                             authReady={authReady}
                         />
@@ -1133,7 +1163,7 @@ export default function IssueDetailPage({ params }) {
         return () => unsub();
     }, [id]);
 
-    // ── Demographics Fetch
+    // ── Demographics Fetch ────────────────────────────────────────────────────
     useEffect(() => {
         if (
             !id ||
@@ -1152,12 +1182,7 @@ export default function IssueDetailPage({ params }) {
                 const config = DEMOGRAPHIC_CONFIG[demo];
                 if (!config) return;
                 demoData[demo] = {};
-                config.groups.forEach((group) => {
-                    demoData[demo][group] = {};
-                    issue.voteOptions.forEach((option) => {
-                        demoData[demo][group][option] = 0;
-                    });
-                });
+                // Initialize with empty groups - will be populated dynamically
             });
 
             try {
@@ -1173,6 +1198,7 @@ export default function IssueDetailPage({ params }) {
                     if (!userId || !selectedOption) continue;
                     if (!issue.voteOptions.includes(selectedOption)) continue;
 
+                    // Fetch real user data from Firestore users collection
                     let userData = {};
                     try {
                         const userSnap = await getDoc(doc(db, "users", userId));
@@ -1201,9 +1227,17 @@ export default function IssueDetailPage({ params }) {
                             ? config.getGroup(rawValue)
                             : String(rawValue);
 
-                        if (!group || !demoData[demo][group]) {
+                        if (!group) {
                             console.log(`Invalid group ${group} for ${demo}`);
                             return;
+                        }
+
+                        // Initialize group if not exists
+                        if (!demoData[demo][group]) {
+                            demoData[demo][group] = {};
+                            issue.voteOptions.forEach((opt) => {
+                                demoData[demo][group][opt] = 0;
+                            });
                         }
 
                         demoData[demo][group][selectedOption] =
@@ -1212,7 +1246,7 @@ export default function IssueDetailPage({ params }) {
                 }
 
                 setDemographicData(demoData);
-                console.log("Demographics loaded:", demoData); // Debug log
+                console.log("Demographics loaded:", demoData);
             } catch (err) {
                 console.error("Demographics fetch error:", err);
             } finally {
@@ -1221,13 +1255,12 @@ export default function IssueDetailPage({ params }) {
         };
 
         fetchDemographicData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         id,
         issue?.demographics?.join(","),
         issue?.voteOptions?.join(","),
         currentUser,
-    ]); // FIXED: Added currentUser
+    ]);
 
     // ── Vote Handler ──────
     const handleVote = async (option) => {
@@ -1279,6 +1312,36 @@ export default function IssueDetailPage({ params }) {
                 tx.update(doc(db, "issues", id), { votes: cv, totalVotes: ct });
             });
 
+            // Points & notifications (only on new vote, not unvote)
+            if (!wasSameVote) {
+                // Voter gets points for engaging
+                await awardPoints(currentUser.uid, "VOTE_ON_ISSUE", {
+                    issueId: id,
+                    issueTitle: issue.title,
+                });
+
+                // Issue author gets points for receiving a vote
+                if (issue.author?.uid && issue.author.uid !== currentUser.uid) {
+                    await awardPoints(issue.author.uid, "RECEIVE_VOTE", {
+                        issueId: id,
+                        issueTitle: issue.title,
+                    });
+                }
+
+                // Notify issue owner
+                if (issue.author?.uid && issue.author.uid !== currentUser.uid) {
+                    await createNotification({
+                        type: NOTIFICATION_TYPES.VOTE,
+                        recipientId: issue.author.uid,
+                        actorId: currentUser.uid,
+                        actorName: "Anonymous",
+                        issueId: id,
+                        issueTitle: issue.title,
+                        meta: { option },
+                    });
+                }
+            }
+
             if (wasSameVote)
                 localStorage.removeItem(`vote_${id}_${currentUser.uid}`);
             else localStorage.setItem(`vote_${id}_${currentUser.uid}`, option);
@@ -1311,6 +1374,36 @@ export default function IssueDetailPage({ params }) {
                         : current + 1,
                 });
             });
+
+            // Points & notifications (only on upvote, not un-upvote)
+            if (!wasUpvoted) {
+                // Upvoter gets points for engaging
+                await awardPoints(currentUser.uid, "UPVOTE_ISSUE", {
+                    issueId: id,
+                    issueTitle: issue.title,
+                });
+
+                // Issue author gets points for receiving an upvote
+                if (issue.author?.uid && issue.author.uid !== currentUser.uid) {
+                    await awardPoints(issue.author.uid, "RECEIVE_UPVOTE", {
+                        issueId: id,
+                        issueTitle: issue.title,
+                    });
+                }
+
+                // Notify issue owner
+                if (issue.author?.uid && issue.author.uid !== currentUser.uid) {
+                    await createNotification({
+                        type: NOTIFICATION_TYPES.UPVOTE,
+                        recipientId: issue.author.uid,
+                        actorId: currentUser.uid,
+                        actorName: "Anonymous",
+                        issueId: id,
+                        issueTitle: issue.title,
+                    });
+                }
+            }
+
             if (wasUpvoted)
                 localStorage.removeItem(`upvote_${id}_${currentUser.uid}`);
             else localStorage.setItem(`upvote_${id}_${currentUser.uid}`, "1");
@@ -1348,12 +1441,12 @@ export default function IssueDetailPage({ params }) {
 
         try {
             const issueRef = doc(db, "issues", id);
+            let newCommentRef;
+
             await runTransaction(db, async (transaction) => {
                 const issueSnap = await transaction.get(issueRef);
                 const currentCount = issueSnap.data()?.commentCount || 0;
-                const newCommentRef = doc(
-                    collection(db, "issues", id, "comments"),
-                );
+                newCommentRef = doc(collection(db, "issues", id, "comments"));
                 transaction.set(newCommentRef, {
                     text: originalText.trim(),
                     userName: "Anonymous",
@@ -1367,6 +1460,32 @@ export default function IssueDetailPage({ params }) {
                     commentCount: currentCount + 1,
                 });
             });
+
+            // Commenter gets points for engaging
+            await awardPoints(currentUser.uid, "COMMENT_ON_ISSUE", {
+                issueId: id,
+                issueTitle: issue.title,
+            });
+
+            // Issue author gets points for receiving a comment
+            if (issue.author?.uid && issue.author.uid !== currentUser.uid) {
+                await awardPoints(issue.author.uid, "RECEIVE_COMMENT", {
+                    issueId: id,
+                    issueTitle: issue.title,
+                });
+
+                // Notify issue owner
+                await createNotification({
+                    type: NOTIFICATION_TYPES.COMMENT,
+                    recipientId: issue.author.uid,
+                    actorId: currentUser.uid,
+                    actorName: "Anonymous",
+                    issueId: id,
+                    issueTitle: issue.title,
+                    commentId: newCommentRef.id,
+                    commentPreview: originalText.trim(),
+                });
+            }
         } catch (err) {
             console.error(err);
             setComments((prev) => prev.filter((c) => c.id !== tempId));
@@ -1380,7 +1499,8 @@ export default function IssueDetailPage({ params }) {
     // ── Share ─────────────
     const handleShare = async () => {
         try {
-            await navigator.clipboard.writeText(window.location.href);
+            const shareText = `We want to get your opinion on "${issue?.title || "this post"}"\n\n${window.location.href}`;
+            await navigator.clipboard.writeText(shareText);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
@@ -1814,6 +1934,8 @@ export default function IssueDetailPage({ params }) {
                                             allComments={comments}
                                             depth={0}
                                             issueId={id}
+                                            issueTitle={issue.title}
+                                            issueOwnerId={issue.userId}
                                             currentUser={currentUser}
                                             authReady={authReady}
                                         />
