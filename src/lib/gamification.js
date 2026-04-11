@@ -1,4 +1,3 @@
-// lib/gamification.js
 import {
     doc,
     getDoc,
@@ -15,15 +14,15 @@ import {
 import { db } from "@/lib/firebase";
 import { createNotification, NOTIFICATION_TYPES } from "./notifications";
 
-// ─── Points Configuration ───────────────────────────────────────────────────
+// ─── Points Configuration
 export const POINTS_CONFIG = {
     // Action points
-    CREATE_ISSUE: 50,
-    RECEIVE_UPVOTE: 10,
-    RECEIVE_VOTE: 5,
-    RECEIVE_COMMENT: 5,
-    RECEIVE_REPLY: 3,
-    RECEIVE_LIKE: 2,
+    CREATE_ISSUE: 10,
+    RECEIVE_UPVOTE: 1,
+    RECEIVE_VOTE: 2,
+    RECEIVE_COMMENT: 3,
+    RECEIVE_REPLY: 1,
+    RECEIVE_LIKE: 1,
 
     // Engagement points
     UPVOTE_ISSUE: 1,
@@ -33,12 +32,12 @@ export const POINTS_CONFIG = {
     LIKE_COMMENT: 1,
 
     // Milestones
-    ISSUE_RESOLVED: 100,
-    ISSUE_TRENDING: 25,
-    ISSUE_VIRAL: 50,
+    ISSUE_RESOLVED: 10,
+    ISSUE_TRENDING: 5,
+    ISSUE_VIRAL: 7,
 };
 
-// ─── Levels Configuration ───────────────────────────────────────────────────
+// ─── Levels Configuration
 export const LEVELS = [
     { level: 1, name: "New Voice", minPoints: 0, maxPoints: 100 },
     { level: 2, name: "Active Citizen", minPoints: 100, maxPoints: 300 },
@@ -57,7 +56,7 @@ export const LEVELS = [
     },
 ];
 
-// ─── Badges Configuration ───────────────────────────────────────────────────
+// ─── Badges Configuration
 export const BADGES = {
     // Issue badges
     FIRST_ISSUE: {
@@ -184,7 +183,7 @@ export const BADGES = {
     },
 };
 
-// ─── Helper Functions ───────────────────────────────────────────────────────
+// ─── Helper Functions ────
 
 export function getLevelForPoints(points) {
     for (let i = LEVELS.length - 1; i >= 0; i--) {
@@ -203,7 +202,7 @@ export function getPointsToNextLevel(currentPoints) {
     return currentLevel.maxPoints - currentPoints;
 }
 
-// ─── Core Points Function ───────────────────────────────────────────────────
+// ─── Core Points Function
 
 export async function awardPoints(userId, action, metadata = {}) {
     if (!userId) return null;
@@ -273,7 +272,7 @@ export async function awardPoints(userId, action, metadata = {}) {
     }
 }
 
-// ─── Stats Management ───────────────────────────────────────────────────────
+// ─── Stats Management ────
 
 export async function updateUserStats(userId, action, metadata = {}) {
     const statsRef = doc(db, "users", userId, "stats", "overview");
@@ -339,7 +338,7 @@ export async function updateUserStats(userId, action, metadata = {}) {
     }
 }
 
-// ─── Badge Management ───────────────────────────────────────────────────────
+// ─── Badge Management ────
 
 export async function checkAndAwardBadges(userId) {
     try {
@@ -410,7 +409,7 @@ export async function checkAndAwardBadges(userId) {
     }
 }
 
-// ─── Issue Status Check ─────────────────────────────────────────────────────
+// ─── Issue Status Check ──
 
 export async function checkIssueMilestones(issueId, issueData) {
     const updates = {};
