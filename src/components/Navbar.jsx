@@ -212,7 +212,7 @@ export default function Navbar() {
                                     fontFamily: "Plus Jakarta Sans, sans-serif",
                                 }}
                             >
-                                We The People NG
+                                Naija Connect 🏕️
                             </div>
                             <div className="text-white/55 text-[10px] font-medium mt-0.5 tracking-wide truncate">
                                 Be the voice. Drive the change.
