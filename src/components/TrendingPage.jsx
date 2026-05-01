@@ -66,6 +66,19 @@ const CATEGORY_META = {
         bg: "bg-pink-50",
         label: "Gist",
     },
+    // "polls" kept for legacy docs; "poll" covers new posts from create-issue
+    polls: {
+        emoji: "🗳️",
+        color: "text-violet-700",
+        bg: "bg-violet-50",
+        label: "Poll",
+    },
+    poll: {
+        emoji: "🗳️",
+        color: "text-violet-700",
+        bg: "bg-violet-50",
+        label: "Poll",
+    },
     food: {
         emoji: "🍛",
         color: "text-amber-700",
@@ -80,21 +93,19 @@ const CATEGORY_META = {
     },
 };
 
-// ── Filter map — same as home page ───────────────────────────────────────────
+// ── Filter map ───────────────────────────────────────────────────────────────
 const FILTER_MAP = {
     gist: { field: "category", values: ["gist", "gossip", "discussion"] },
-    polls: { field: "responseType", values: ["multiple_choice", "yes_no"] },
+    polls: { field: "category", values: ["poll", "polls"] },
     food: { field: "category", values: ["food"] },
     issues: {
         field: "category",
         values: [
-            "infrastructure",
-            "education",
             "healthcare",
-            "water",
-            "security",
             "electricity",
-            "environment",
+            "issue",
+            "infrastructure",
+            "other",
         ],
     },
 };
@@ -107,7 +118,7 @@ const TIME_RANGE_SECONDS = {
 };
 
 function isWithinRange(createdAt, timeRange) {
-    if (!createdAt?.seconds) return true; // if no date, always show
+    if (!createdAt?.seconds) return true;
     const nowSeconds = Math.floor(Date.now() / 1000);
     const cutoff = nowSeconds - TIME_RANGE_SECONDS[timeRange];
     return createdAt.seconds >= cutoff;
@@ -163,17 +174,19 @@ const CommentIcon = () => (
         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
     </svg>
 );
-const LocationIcon = () => (
+const PlatoonIcon = ({ className = "w-3 h-3" }) => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
-        className="w-3 h-3"
+        className={className}
     >
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-        <circle cx="12" cy="10" r="3" />
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 00-3-3.87" />
+        <path d="M16 3.13a4 4 0 010 7.75" />
     </svg>
 );
 const SearchIcon = () => (
@@ -204,6 +217,18 @@ const UpvoteIcon = ({ active }) => (
         className="w-4 h-4"
     >
         <polyline points="18 15 12 9 6 15" />
+    </svg>
+);
+const DownvoteIcon = ({ active }) => (
+    <svg
+        viewBox="0 0 24 24"
+        fill={active ? "#DC2626" : "none"}
+        stroke="#DC2626"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        className="w-4 h-4"
+    >
+        <polyline points="6 9 12 15 18 9" />
     </svg>
 );
 
@@ -325,6 +350,9 @@ function TrendingCard({
     const [upvoted, setUpvoted] = useState(false);
     const [count, setCount] = useState(issue.upvotes || 0);
     const [loading, setLoading] = useState(false);
+    const [downvoted, setDownvoted] = useState(false);
+    const [downvoteCount, setDownvoteCount] = useState(issue.downvotes || 0);
+    const [downvoteLoading, setDownvoteLoading] = useState(false);
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
     const [realtimeCommentCount, setRealtimeCommentCount] = useState(0);
 
@@ -339,17 +367,33 @@ function TrendingCard({
         return () => unsubscribe();
     }, [issue.id]);
 
+    // Restore upvote state from localStorage
     useEffect(() => {
         if (!currentUser || !issue.id || isAnonymous) return;
-        const saved = localStorage.getItem(
-            `upvote_${issue.id}_${currentUser.uid}`,
-        );
-        if (saved === "1") setUpvoted(true);
+        if (
+            localStorage.getItem(`upvote_${issue.id}_${currentUser.uid}`) ===
+            "1"
+        )
+            setUpvoted(true);
+    }, [currentUser, issue.id, isAnonymous]);
+
+    // Restore downvote state from localStorage
+    useEffect(() => {
+        if (!currentUser || !issue.id || isAnonymous) return;
+        if (
+            localStorage.getItem(`downvote_${issue.id}_${currentUser.uid}`) ===
+            "1"
+        )
+            setDownvoted(true);
     }, [currentUser, issue.id, isAnonymous]);
 
     useEffect(() => {
         setCount(issue.upvotes || 0);
     }, [issue.upvotes]);
+
+    useEffect(() => {
+        setDownvoteCount(issue.downvotes || 0);
+    }, [issue.downvotes]);
 
     const handleUpvote = async (e) => {
         e.preventDefault();
@@ -358,7 +402,10 @@ function TrendingCard({
             setShowLoginPrompt(true);
             return;
         }
-        if (!authReady || loading) return;
+        if (!authReady || loading || downvoteLoading) return;
+        // Mutual exclusivity: cannot support if already opposing
+        if (downvoted) return;
+
         const wasUpvoted = upvoted;
         const newCount = wasUpvoted ? Math.max(0, count - 1) : count + 1;
         setUpvoted(!wasUpvoted);
@@ -426,6 +473,68 @@ function TrendingCard({
         }
     };
 
+    const handleDownvote = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (isAnonymous || !currentUser || currentUser.isAnonymous) {
+            setShowLoginPrompt(true);
+            return;
+        }
+        if (!authReady || downvoteLoading || loading) return;
+        // Mutual exclusivity: cannot oppose if already supporting
+        if (upvoted) return;
+
+        const wasDownvoted = downvoted;
+        const newCount = wasDownvoted
+            ? Math.max(0, downvoteCount - 1)
+            : downvoteCount + 1;
+        setDownvoted(!wasDownvoted);
+        setDownvoteCount(newCount);
+        setDownvoteLoading(true);
+        try {
+            const docRef = doc(db, "issues", issue.id);
+            await runTransaction(db, async (tx) => {
+                const snap = await tx.get(docRef);
+                if (!snap.exists()) throw new Error("not found");
+                const current = snap.data().downvotes || 0;
+                tx.update(docRef, {
+                    downvotes: wasDownvoted
+                        ? Math.max(0, current - 1)
+                        : current + 1,
+                });
+            });
+            if (wasDownvoted) {
+                localStorage.removeItem(
+                    `downvote_${issue.id}_${currentUser.uid}`,
+                );
+            } else {
+                localStorage.setItem(
+                    `downvote_${issue.id}_${currentUser.uid}`,
+                    "1",
+                );
+            }
+        } catch (err) {
+            console.error("Oppose failed:", err);
+            setDownvoted(wasDownvoted);
+            setDownvoteCount(issue.downvotes || 0);
+        } finally {
+            setDownvoteLoading(false);
+        }
+    };
+
+    function normalisePlatoon(raw) {
+        if (!raw) return null;
+        const s = raw.toString().trim();
+        if (!s) return null;
+        if (s.toLowerCase().startsWith("platoon")) return s;
+        return `Platoon ${s}`;
+    }
+
+    // Resolve author display name
+    const authorName = issue.author?.isAnonymous
+        ? "👤 Anonymous"
+        : issue.author?.name || issue.author?.displayName || null;
+
     const avatarCount = getAvatarCount(count);
 
     return (
@@ -437,6 +546,17 @@ function TrendingCard({
                     >
                         {rank}
                     </div>
+
+                    {/* Author name */}
+                    {authorName && (
+                        <p
+                            className="text-xs text-gray-400 mb-1.5"
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                        >
+                            {authorName}
+                        </p>
+                    )}
+
                     <div className="flex items-center justify-between mb-2.5">
                         <span
                             className={`text-xs font-semibold px-2.5 py-1 rounded-full ${issue.categoryBg} ${issue.categoryColor} flex items-center gap-1.5`}
@@ -468,20 +588,71 @@ function TrendingCard({
                                 {issue.description}
                             </p>
                         </div>
+
+                        {/* Vote buttons: Oppose (left) + Support (right) */}
                         <div
-                            className="shrink-0"
+                            className="shrink-0 flex gap-1.5"
                             onClick={(e) => e.preventDefault()}
                         >
+                            {/* Oppose button */}
+                            <button
+                                onClick={handleDownvote}
+                                disabled={downvoteLoading || upvoted}
+                                title={
+                                    upvoted
+                                        ? "Remove your support first"
+                                        : "Oppose this post"
+                                }
+                                className={`flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
+                                    downvoted
+                                        ? "border-red-500 bg-red-50"
+                                        : isAnonymous || upvoted
+                                          ? "border-gray-200 bg-gray-50"
+                                          : "border-red-200 bg-white hover:border-red-400 hover:bg-red-50"
+                                }`}
+                            >
+                                <span className="mt-2">
+                                    <DownvoteIcon active={downvoted} />
+                                </span>
+                                <span
+                                    className={`text-sm font-bold ${
+                                        downvoted
+                                            ? "text-red-600"
+                                            : "text-red-400"
+                                    }`}
+                                >
+                                    {formatNum(downvoteCount)}
+                                </span>
+                            </button>
+
+                            {/* Support button */}
                             <button
                                 onClick={handleUpvote}
-                                disabled={loading}
-                                className={`flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-60 ${upvoted ? "border-green-500 bg-green-50" : isAnonymous ? "border-gray-200 bg-gray-50 hover:border-gray-300" : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50"}`}
+                                disabled={loading || downvoted}
+                                title={
+                                    downvoted
+                                        ? "Remove your opposition first"
+                                        : "Support this post"
+                                }
+                                className={`flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
+                                    upvoted
+                                        ? "border-green-500 bg-green-50"
+                                        : isAnonymous || downvoted
+                                          ? "border-gray-200 bg-gray-50"
+                                          : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50"
+                                }`}
                             >
                                 <span className="mt-2">
                                     <UpvoteIcon active={upvoted} />
                                 </span>
                                 <span
-                                    className={`text-sm font-bold ${upvoted ? "text-green-600" : isAnonymous ? "text-gray-400" : "text-green-600"}`}
+                                    className={`text-sm font-bold ${
+                                        upvoted
+                                            ? "text-green-600"
+                                            : isAnonymous
+                                              ? "text-gray-400"
+                                              : "text-green-600"
+                                    }`}
                                 >
                                     {formatNum(count)}
                                 </span>
@@ -490,9 +661,9 @@ function TrendingCard({
                     </div>
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
                         <div className="flex items-center gap-2 flex-wrap">
-                            <span className="flex items-center gap-1 text-xs text-gray-400">
-                                <LocationIcon />
-                                {issue.location}
+                            <span className="flex items-center gap-1 text-xs text-black">
+                                <PlatoonIcon />
+                                {normalisePlatoon(issue.author?.platoon)}
                             </span>
                             <StatusBadge status={issue.status} />
                         </div>
@@ -583,9 +754,12 @@ export default function TrendingPage() {
                         responseType: d.responseType ?? "yes_no",
                         totalVotes: d.totalVotes ?? 0,
                         upvotes: d.upvotes ?? 0,
+                        downvotes: d.downvotes ?? 0,
                         commentCount: d.commentCount ?? 0,
                         createdAt: d.createdAt ?? null,
                         status: d.status ?? null,
+                        demographics: d.demographics ?? [],
+                        author: d.author ?? null,
                         timeAgo: seconds ? timeAgo(seconds) : "Just now",
                         categoryEmoji: meta.emoji,
                         categoryColor: meta.color,
@@ -609,21 +783,18 @@ export default function TrendingPage() {
         window.location.href = "/login";
     };
 
-    // ── Same filter pills as home page ────────────────────────────────────────
     const filters = [
         { key: "all", label: "All" },
         { key: "gist", label: "💬 Gist" },
         { key: "polls", label: "🗳️ Polls" },
         { key: "food", label: "🍛 Food" },
         { key: "issues", label: "🚨 Issues" },
+        { key: "opposed", label: "👎 Opposed" },
     ];
 
-    // ── Filter + time range + sort ────────────────────────────────────────────
     const filtered = issues
         .filter((issue) => {
-            // 1. Time range
             if (!isWithinRange(issue.createdAt, timeRange)) return false;
-            // 2. Search
             if (search) {
                 const q = search.toLowerCase();
                 if (
@@ -632,29 +803,48 @@ export default function TrendingPage() {
                 )
                     return false;
             }
-            // 3. Category filter
-            if (activeFilter === "all" || activeFilter === "trending")
-                return true;
+            if (activeFilter === "opposed") return (issue.downvotes || 0) > 0;
+            if (activeFilter === "all") return true;
             const rule = FILTER_MAP[activeFilter];
             if (!rule) return true;
             const issueVal = (issue[rule.field] ?? "").toLowerCase();
             return rule.values.includes(issueVal);
         })
-        .sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0)); // always sort by upvotes on this page
+        .sort((a, b) => {
+            if (activeFilter === "opposed")
+                return (b.downvotes || 0) - (a.downvotes || 0);
+            return (b.upvotes || 0) - (a.upvotes || 0);
+        });
 
-    // ── Stats ─────────────────────────────────────────────────────────────────
-    const resolvedCount = filtered.filter(
-        (i) => i.status === "resolved",
-    ).length;
-    const mostActiveState = filtered.length
-        ? (Object.entries(
-              filtered.reduce((acc, i) => {
-                  const state = i.location.split(",")[0].trim();
-                  acc[state] = (acc[state] ?? 0) + 1;
-                  return acc;
-              }, {}),
-          ).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—")
-        : "—";
+    const mostActivePlatoon = (() => {
+        if (!filtered.length) return "—";
+        const platoonCounts = filtered.reduce((acc, issue) => {
+            let platoonNum = null;
+            if (issue.demographics?.includes("platoon")) {
+                if (issue.author?.platoon) {
+                    platoonNum = issue.author.platoon;
+                } else if (issue.author?.stateCode) {
+                    const lastDigit = issue.author.stateCode
+                        .toString()
+                        .slice(-1);
+                    platoonNum = parseInt(lastDigit) || 1;
+                } else if (issue.author?.uid) {
+                    const seconds =
+                        issue.createdAt?.seconds || Date.now() / 1000;
+                    platoonNum = (Math.floor(seconds) % 10) + 1;
+                }
+            }
+            if (platoonNum) {
+                const key = `Platoon ${platoonNum}`;
+                acc[key] = (acc[key] || 0) + 1;
+            }
+            return acc;
+        }, {});
+        const sorted = Object.entries(platoonCounts).sort(
+            (a, b) => b[1] - a[1],
+        );
+        return sorted[0]?.[0] ?? "No platoon data";
+    })();
 
     const timeRangeLabel = {
         "24h": "Last 24 hours",
@@ -680,13 +870,13 @@ export default function TrendingPage() {
                             Explore
                         </h1>
                         <p className="text-white/70 text-xs mt-0.5">
-                            Trending issues across Nigeria
+                            Trending Posts across Nigeria
                         </p>
                     </div>
                     <div className="flex items-center gap-1.5 bg-white/20 rounded-xl px-3 py-1.5">
                         <TrophyIcon />
                         <span className="text-white text-xs font-semibold">
-                            {issues.length} issues
+                            {issues.length} posts
                         </span>
                     </div>
                 </div>
@@ -702,13 +892,12 @@ export default function TrendingPage() {
                                 fontFamily: "Plus Jakarta Sans, sans-serif",
                             }}
                         >
-                            Explore Issues
+                            Explore Posts
                         </h1>
                         <p className="text-gray-500 text-sm mt-0.5">
-                            Browse and discover trending issues across Nigeria
+                            Browse and discover trending posts across Camp
                         </p>
                     </div>
-                    {/* Time range — desktop */}
                     <div className="flex items-center gap-2 bg-white rounded-xl p-1 border border-gray-100 shadow-sm">
                         {["24h", "7d", "30d"].map((t) => (
                             <button
@@ -736,16 +925,16 @@ export default function TrendingPage() {
                             color: "text-gray-800",
                         },
                         {
-                            label: "Resolved",
-                            value: loading ? "…" : resolvedCount.toString(),
-                            icon: "✅",
-                            color: "text-green-600",
-                        },
-                        {
                             label: "Most Active",
-                            value: loading ? "…" : mostActiveState,
+                            value: loading ? "…" : mostActivePlatoon,
                             icon: "🔥",
                             color: "text-[#F97316]",
+                        },
+                        {
+                            label: "Time Range",
+                            value: loading ? "…" : timeRange,
+                            icon: "⏱️",
+                            color: "text-blue-600",
                         },
                     ].map((s) => (
                         <div
@@ -778,24 +967,25 @@ export default function TrendingPage() {
                     <input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search trending issues..."
+                        placeholder="Search trending posts..."
                         className="w-full bg-white rounded-xl pl-9 pr-4 py-3 text-sm text-gray-700 placeholder-gray-400 border border-gray-100 shadow-card focus:outline-none focus:ring-2 focus:ring-[#F97316]/20 focus:border-[#F97316]/40 transition-all"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     />
                 </div>
             </div>
 
-            {/* ── Filter Pills — same as home ── */}
+            {/* ── Filter Pills ── */}
             <div className="px-4 md:px-6 mb-3">
-                <div
-                    className="flex gap-2 overflow-x-auto pb-1"
-                    style={{ scrollbarWidth: "none" }}
-                >
+                <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar snap-x">
                     {filters.map((f) => (
                         <button
                             key={f.key}
                             onClick={() => setActiveFilter(f.key)}
-                            className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${activeFilter === f.key ? "bg-[#F97316] text-white shadow-sm" : "bg-white text-black border border-gray-200 hover:border-[#F97316]/40 hover:text-[#F97316]"}`}
+                            className={`shrink-0 snap-start px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${
+                                activeFilter === f.key
+                                    ? "bg-[#F97316] text-white shadow-sm"
+                                    : "bg-white text-black border border-gray-200 hover:border-[#F97316]/40 hover:text-[#F97316]"
+                            }`}
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
                             {f.label}
@@ -827,7 +1017,9 @@ export default function TrendingPage() {
                         className="text-sm font-bold"
                         style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                     >
-                        Trending by Upvotes · {timeRangeLabel}
+                        {activeFilter === "opposed"
+                            ? "Most Opposed · " + timeRangeLabel
+                            : "Trending by Upvotes · " + timeRangeLabel}
                     </span>
                 </div>
                 <div className="flex-1 h-px bg-gray-200" />
@@ -835,6 +1027,15 @@ export default function TrendingPage() {
                     {filtered.length} issues
                 </span>
             </div>
+
+            {activeFilter === "opposed" && (
+                <p
+                    className="px-4 md:px-6 mb-3 text-xs text-gray-400"
+                    style={{ fontFamily: "DM Sans, sans-serif" }}
+                >
+                    Posts with the most opposition
+                </p>
+            )}
 
             {error && (
                 <div

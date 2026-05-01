@@ -35,22 +35,26 @@ export const POINTS_CONFIG = {
     ISSUE_RESOLVED: 10,
     ISSUE_TRENDING: 5,
     ISSUE_VIRAL: 7,
+
+    // Referral points
+    REFERRAL_BONUS: 5, // Points for invitee
+    REFERRAL_COMPLETION: 15, // Points for inviter
 };
 
 // ─── Levels Configuration
 export const LEVELS = [
     { level: 1, name: "New Voice", minPoints: 0, maxPoints: 100 },
-    { level: 2, name: "Active Citizen", minPoints: 100, maxPoints: 300 },
-    { level: 3, name: "Community Voice", minPoints: 300, maxPoints: 600 },
+    { level: 2, name: "Active Camper", minPoints: 100, maxPoints: 300 },
+    { level: 3, name: "Camp Voice", minPoints: 300, maxPoints: 600 },
     { level: 4, name: "Local Leader", minPoints: 600, maxPoints: 1000 },
     { level: 5, name: "Change Maker", minPoints: 1000, maxPoints: 1500 },
-    { level: 6, name: "Community Champion", minPoints: 1500, maxPoints: 2500 },
+    { level: 6, name: "Camp Champion", minPoints: 1500, maxPoints: 2500 },
     { level: 7, name: "City Influencer", minPoints: 2500, maxPoints: 4000 },
     { level: 8, name: "State Ambassador", minPoints: 4000, maxPoints: 6000 },
     { level: 9, name: "National Voice", minPoints: 6000, maxPoints: 10000 },
     {
         level: 10,
-        name: "Legendary Citizen",
+        name: "Legendary Camper",
         minPoints: 10000,
         maxPoints: Infinity,
     },
@@ -58,37 +62,34 @@ export const LEVELS = [
 
 // ─── Badges Configuration
 export const BADGES = {
-    // Issue badges
     FIRST_ISSUE: {
         id: "first_issue",
         emoji: "📝",
         label: "First Steps",
-        description: "Posted your first issue",
+        description: "Dropped first post",
         condition: (stats) => stats.issuesCount >= 1,
     },
     PRO_REPORTER: {
         id: "pro_reporter",
         emoji: "📋",
         label: "Pro Reporter",
-        description: "Posted 5 issues",
+        description: "Dropped 5 posts",
         condition: (stats) => stats.issuesCount >= 5,
     },
     COMMUNITY_WATCH: {
         id: "community_watch",
         emoji: "👁️",
         label: "Community Watch",
-        description: "Posted 10 issues",
+        description: "Dropped 10 posts",
         condition: (stats) => stats.issuesCount >= 10,
     },
     LOCAL_HERO: {
         id: "local_hero",
         emoji: "🏆",
         label: "Local Hero",
-        description: "Posted 25 issues",
+        description: "Dropped 25 posts",
         condition: (stats) => stats.issuesCount >= 25,
     },
-
-    // Engagement badges
     VOICE_HEARD: {
         id: "voice_heard",
         emoji: "📢",
@@ -110,24 +111,20 @@ export const BADGES = {
         description: "Received 100 upvotes total",
         condition: (stats) => stats.upvotesReceived >= 100,
     },
-
-    // Discussion badges
     CONVERSATION_STARTER: {
         id: "conversation_starter",
         emoji: "💬",
         label: "Conversation Starter",
-        description: "Received 5 comments on your issues",
+        description: "Received 5 comments on your post",
         condition: (stats) => stats.commentsReceived >= 5,
     },
     DISCUSSION_LEADER: {
         id: "discussion_leader",
         emoji: "🗣️",
         label: "Discussion Leader",
-        description: "Received 20 comments on your issues",
+        description: "Received 20 comments on your post",
         condition: (stats) => stats.commentsReceived >= 20,
     },
-
-    // Voting badges
     POLL_MASTER: {
         id: "poll_master",
         emoji: "📊",
@@ -142,13 +139,11 @@ export const BADGES = {
         description: "Created an issue with 50+ votes",
         condition: (stats) => stats.maxVotesOnIssue >= 50,
     },
-
-    // Engagement badges
     ENGAGED_CITIZEN: {
         id: "engaged_citizen",
         emoji: "🤝",
         label: "Engaged Citizen",
-        description: "Upvoted 10 issues",
+        description: "Upvoted 10 posts",
         condition: (stats) => stats.upvotesGiven >= 10,
     },
     ACTIVE_VOTER: {
@@ -165,8 +160,20 @@ export const BADGES = {
         description: "Posted 10 comments",
         condition: (stats) => stats.commentsPosted >= 10,
     },
-
-    // Streak/milestone badges
+    COMMUNITY_BUILDER: {
+        id: "community_builder",
+        emoji: "🌱",
+        label: "Community Builder",
+        description: "Invited 1 friend who completed signup",
+        condition: (stats) => stats.completedReferrals >= 1,
+    },
+    GROWTH_HACKER: {
+        id: "growth_hacker",
+        emoji: "📈",
+        label: "Growth Hacker",
+        description: "Invited 5 friends who completed signup",
+        condition: (stats) => stats.completedReferrals >= 5,
+    },
     RESOLUTION_CHAMPION: {
         id: "resolution_champion",
         emoji: "✨",
@@ -207,7 +214,19 @@ export function getPointsToNextLevel(currentPoints) {
 export async function awardPoints(userId, action, metadata = {}) {
     if (!userId) return null;
 
-    const points = POINTS_CONFIG[action];
+    // FIX (Bug 3): Previously, the function did `let points = POINTS_CONFIG[action]`
+    // then checked `if (!points && action !== "REFERRAL_BONUS" && action !== "REFERRAL_COMPLETION")`
+    // but never actually resolved the points value for those two action strings —
+    // POINTS_CONFIG["REFERRAL_BONUS"] and POINTS_CONFIG["REFERRAL_COMPLETION"] are
+    // defined, so the simple lookup below works for all actions including referrals.
+    // The special-case guard is no longer needed.
+    let points = POINTS_CONFIG[action] ?? null;
+
+    // Allow callers to override with an explicit points value in metadata
+    if (metadata.points) {
+        points = metadata.points;
+    }
+
     if (!points) return null;
 
     try {
@@ -220,12 +239,10 @@ export async function awardPoints(userId, action, metadata = {}) {
         const currentPoints = currentData.impactScore || 0;
         const newPoints = currentPoints + points;
 
-        // Check for level up
         const oldLevel = getLevelForPoints(currentPoints);
         const newLevel = getLevelForPoints(newPoints);
         const leveledUp = newLevel.level > oldLevel.level;
 
-        // Update user document
         await updateDoc(userRef, {
             impactScore: increment(points),
             ...(leveledUp && {
@@ -235,7 +252,6 @@ export async function awardPoints(userId, action, metadata = {}) {
             updatedAt: serverTimestamp(),
         });
 
-        // Create level up notification if applicable
         if (leveledUp) {
             await createNotification({
                 type: NOTIFICATION_TYPES.MILESTONE,
@@ -254,10 +270,37 @@ export async function awardPoints(userId, action, metadata = {}) {
             });
         }
 
-        // Update stats document
-        await updateUserStats(userId, action, metadata);
+        if (action === "REFERRAL_BONUS") {
+            await createNotification({
+                type: NOTIFICATION_TYPES.MILESTONE,
+                recipientId: userId,
+                actorId: "system",
+                actorName: "Camp Voice",
+                issueId: null,
+                issueTitle: "Welcome Bonus!",
+                meta: {
+                    type: "referral_bonus",
+                    points,
+                    message: `You earned ${points} points for joining via referral!`,
+                },
+            });
+        } else if (action === "REFERRAL_COMPLETION") {
+            await createNotification({
+                type: NOTIFICATION_TYPES.MILESTONE,
+                recipientId: userId,
+                actorId: "system",
+                actorName: "Camp Voice",
+                issueId: null,
+                issueTitle: "Referral Bonus!",
+                meta: {
+                    type: "referral_completion",
+                    points,
+                    message: `Your friend posted their first issue! You earned ${points} points!`,
+                },
+            });
+        }
 
-        // Check for new badges
+        await updateUserStats(userId, action, metadata);
         await checkAndAwardBadges(userId);
 
         return {
@@ -280,7 +323,6 @@ export async function updateUserStats(userId, action, metadata = {}) {
 
     const updates = {};
 
-    // Map actions to stat fields
     switch (action) {
         case "CREATE_ISSUE":
             updates.issuesCount = increment(1);
@@ -321,20 +363,33 @@ export async function updateUserStats(userId, action, metadata = {}) {
         case "ISSUE_TRENDING":
             updates.trendingIssues = increment(1);
             break;
+        // FIX (Bug 4): ISSUE_VIRAL was missing entirely, so going viral never
+        // updated the viralIssues stat, which blocked the TRENDING_CREATOR badge.
+        case "ISSUE_VIRAL":
+            updates.viralIssues = increment(1);
+            break;
+        case "REFERRAL_BONUS":
+        case "REFERRAL_COMPLETION":
+            // Handled by the referral system directly
+            break;
+        default:
+            break;
     }
 
-    if (statsSnap.exists()) {
-        await updateDoc(statsRef, {
-            ...updates,
-            updatedAt: serverTimestamp(),
-        });
-    } else {
-        await setDoc(statsRef, {
-            ...updates,
-            userId,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-        });
+    if (Object.keys(updates).length > 0) {
+        if (statsSnap.exists()) {
+            await updateDoc(statsRef, {
+                ...updates,
+                updatedAt: serverTimestamp(),
+            });
+        } else {
+            await setDoc(statsRef, {
+                ...updates,
+                userId,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            });
+        }
     }
 }
 
@@ -342,29 +397,41 @@ export async function updateUserStats(userId, action, metadata = {}) {
 
 export async function checkAndAwardBadges(userId) {
     try {
-        // Get current stats
         const statsRef = doc(db, "users", userId, "stats", "overview");
         const statsSnap = await getDoc(statsRef);
         const stats = statsSnap.exists() ? statsSnap.data() : {};
 
-        // Get current badges
+        const referralStatsRef = doc(
+            db,
+            "referrals",
+            userId,
+            "stats",
+            "overview",
+        );
+        const referralStatsSnap = await getDoc(referralStatsRef);
+        const referralStats = referralStatsSnap.exists()
+            ? referralStatsSnap.data()
+            : {};
+
+        const combinedStats = {
+            ...stats,
+            completedReferrals: referralStats.completedReferrals || 0,
+        };
+
         const badgesQuery = query(collection(db, "users", userId, "badges"));
         const badgesSnap = await getDocs(badgesQuery);
         const currentBadgeIds = new Set(
             badgesSnap.docs.map((d) => d.data().badgeId),
         );
 
-        // Check each badge
         const newBadges = [];
-        for (const [key, badge] of Object.entries(BADGES)) {
+        for (const [, badge] of Object.entries(BADGES)) {
             if (currentBadgeIds.has(badge.id)) continue;
-
-            if (badge.condition(stats)) {
+            if (badge.condition(combinedStats)) {
                 newBadges.push(badge);
             }
         }
 
-        // Award new badges
         if (newBadges.length > 0) {
             const batch = writeBatch(db);
 
@@ -378,7 +445,6 @@ export async function checkAndAwardBadges(userId) {
                     earnedAt: serverTimestamp(),
                 });
 
-                // Create notification for badge
                 await createNotification({
                     type: NOTIFICATION_TYPES.MILESTONE,
                     recipientId: userId,
@@ -395,11 +461,12 @@ export async function checkAndAwardBadges(userId) {
 
             await batch.commit();
 
-            // Update badge count in stats
-            await updateDoc(statsRef, {
-                badgesCount: increment(newBadges.length),
-                updatedAt: serverTimestamp(),
-            });
+            if (statsSnap.exists()) {
+                await updateDoc(statsRef, {
+                    badgesCount: increment(newBadges.length),
+                    updatedAt: serverTimestamp(),
+                });
+            }
         }
 
         return newBadges;
@@ -414,10 +481,8 @@ export async function checkAndAwardBadges(userId) {
 export async function checkIssueMilestones(issueId, issueData) {
     const updates = {};
 
-    // Check for trending (e.g., 10 upvotes in 24 hours)
     if (issueData.upvotes >= 10 && issueData.status !== "trending") {
         updates.status = "trending";
-        // Award trending badge to creator
         if (issueData.author?.uid) {
             await awardPoints(issueData.author.uid, "ISSUE_TRENDING", {
                 issueId,
@@ -426,7 +491,6 @@ export async function checkIssueMilestones(issueId, issueData) {
         }
     }
 
-    // Check for viral (e.g., 50 upvotes)
     if (issueData.upvotes >= 50 && !issueData.viralAt) {
         updates.viralAt = serverTimestamp();
         if (issueData.author?.uid) {

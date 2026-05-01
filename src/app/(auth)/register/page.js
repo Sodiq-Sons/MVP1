@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
     createUserWithEmailAndPassword,
     updateProfile,
@@ -9,7 +9,13 @@ import {
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
+import {
+    initializeUserReferralSystem,
+    registerReferral,
+    validateReferralCode,
+} from "@/lib/referrals";
 import Link from "next/link";
+import { toast } from "sonner";
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -219,10 +225,31 @@ function FieldRow({ touched, valid, children, className = "" }) {
     );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Loading fallback shown while useSearchParams resolves ───────────────────
 
-export default function SignupPage() {
+function SignupLoadingFallback() {
+    return (
+        <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
+            <div className="text-center">
+                <SpinnerIcon />
+                <p className="text-gray-500 mt-2">Loading...</p>
+            </div>
+        </div>
+    );
+}
+
+// ─── Inner component — uses useSearchParams, must be inside Suspense ─────────
+//
+// FIX: Next.js App Router requires that any component calling useSearchParams()
+// is wrapped in a <Suspense> boundary, or the entire route will fail to render
+// (showing a 404 or blank page) when the URL contains query params like ?ref=...
+// The fix is to split the page into this inner component (which reads params)
+// and a default export that wraps it in <Suspense>.
+
+function SignupForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const referralCodeParam = searchParams.get("ref");
 
     // ── Auth State ────────────────────────────────────────────────────────────
     const [checkingAuth, setCheckingAuth] = useState(true);
@@ -238,7 +265,7 @@ export default function SignupPage() {
         return () => unsubscribe();
     }, [router]);
 
-    // ── Form State ──────────────────────────────────────────────────────────────
+    // ── Form State ────────────────────────────────────────────────────────────
     const [fullName, setFullName] = useState("");
     const [platoon, setPlatoon] = useState("");
     const [gender, setGender] = useState("");
@@ -246,6 +273,9 @@ export default function SignupPage() {
     const [stateOfOrigin, setStateOfOrigin] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [referralCode, setReferralCode] = useState(referralCodeParam || "");
+    const [referrerInfo, setReferrerInfo] = useState(null);
+
     const [touched, setTouched] = useState({
         fullName: false,
         platoon: false,
@@ -263,7 +293,23 @@ export default function SignupPage() {
     const [showPlatoonModal, setShowPlatoonModal] = useState(false);
     const [showStateModal, setShowStateModal] = useState(false);
 
-    // ── Validation ──────────────────────────────────────────────────────────────
+    // Validate referral code on mount
+    useEffect(() => {
+        const validateCode = async () => {
+            if (referralCode && referralCode.length > 0) {
+                const validation = await validateReferralCode(referralCode);
+                if (validation.valid) {
+                    setReferrerInfo(validation);
+                } else {
+                    setReferralCode("");
+                    setReferrerInfo(null);
+                }
+            }
+        };
+        validateCode();
+    }, [referralCode]);
+
+    // ── Validation ────────────────────────────────────────────────────────────
     const isValidPassword = (pwd) => pwd.length >= 6;
     const isValidAge = (a) => {
         const n = parseInt(a, 10);
@@ -290,7 +336,7 @@ export default function SignupPage() {
             confirmPassword: true,
         });
 
-    // ── Create Account ──────────────────────────────────────────────────────────
+    // ── Create Account ────────────────────────────────────────────────────────
     const handleSubmit = async () => {
         touchAll();
         if (!formValid || saving) return;
@@ -298,7 +344,6 @@ export default function SignupPage() {
         setSaving(true);
         setError("");
 
-        // Generate camp email from name
         const campEmail = `${fullName.toLowerCase().replace(/\s+/g, ".")}@camp.local`;
 
         try {
@@ -309,11 +354,8 @@ export default function SignupPage() {
             );
             const user = userCredential.user;
 
-            await updateProfile(user, {
-                displayName: fullName.trim(),
-            });
+            await updateProfile(user, { displayName: fullName.trim() });
 
-            // Store in Firestore with demographic data
             await setDoc(doc(db, "users", user.uid), {
                 fullName: fullName.trim(),
                 email: campEmail,
@@ -326,13 +368,34 @@ export default function SignupPage() {
                 role: "camper",
                 badge: "🏕️ Official Camp Explorer",
                 isActive: true,
+                impactScore: 0,
+                level: 1,
+                levelName: "New Voice",
             });
+
+            await initializeUserReferralSystem(user.uid, campEmail);
+
+            if (referralCode && referralCode.length > 0) {
+                const referralResult = await registerReferral(
+                    referralCode,
+                    user.uid,
+                    campEmail,
+                );
+                if (referralResult) {
+                    toast.success(
+                        `Welcome! 🎉 You earned 5 points for joining via ${referrerInfo?.referrerName}'s referral`,
+                    );
+                } else {
+                    toast.info("Welcome to camp! 🏕️");
+                }
+            } else {
+                toast.success("Welcome to camp! 🏕️");
+            }
 
             router.push("/");
         } catch (err) {
             console.error("Signup error:", err);
             let errorMessage = "Something went wrong. Please try again.";
-
             switch (err.code) {
                 case "auth/email-already-in-use":
                     errorMessage =
@@ -349,25 +412,14 @@ export default function SignupPage() {
                 default:
                     errorMessage = err.message || "Failed to create account.";
             }
-
             setError(errorMessage);
             setSaving(false);
         }
     };
 
-    // ── Loading State ───────────────────────────────────────────────────────────
     if (checkingAuth) {
-        return (
-            <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
-                <div className="text-center">
-                    <SpinnerIcon />
-                    <p className="text-gray-500 mt-2">Loading...</p>
-                </div>
-            </div>
-        );
+        return <SignupLoadingFallback />;
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
 
     return (
         <div className="min-h-screen bg-[#FDF6EF] pb-24 md:pb-8">
@@ -407,9 +459,7 @@ export default function SignupPage() {
                     </div>
                     <h2
                         className="text-xl font-bold text-gray-900 text-center"
-                        style={{
-                            fontFamily: "Plus Jakarta Sans, sans-serif",
-                        }}
+                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                     >
                         Welcome to Camp!
                     </h2>
@@ -421,6 +471,30 @@ export default function SignupPage() {
                         up!
                     </p>
                 </div>
+
+                {/* Referral Bonus Banner */}
+                {referrerInfo && (
+                    <div
+                        className="mb-4 px-4 py-3 bg-green-50 border border-green-100 rounded-xl text-sm flex items-start gap-3"
+                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                    >
+                        <div className="text-xl shrink-0">🎁</div>
+                        <div>
+                            <div className="font-semibold text-green-900">
+                                Referral Bonus Available!
+                            </div>
+                            <div className="text-green-700 text-xs mt-0.5">
+                                Invited by{" "}
+                                <span className="font-bold">
+                                    {referrerInfo.referrerName}
+                                </span>
+                                . You&apos;ll earn{" "}
+                                <span className="font-bold">5 points</span> for
+                                signing up!
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Error Banner */}
                 {error && (
@@ -522,9 +596,7 @@ export default function SignupPage() {
                         <div className="px-4 pt-3 pb-3">
                             <label
                                 className="block text-sm font-semibold text-black mb-2"
-                                style={{
-                                    fontFamily: "DM Sans, sans-serif",
-                                }}
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
                                 Gender <span className="text-red-400">*</span>
                             </label>
@@ -577,10 +649,7 @@ export default function SignupPage() {
                                     value={age}
                                     onChange={(e) => setAge(e.target.value)}
                                     onBlur={() =>
-                                        setTouched((t) => ({
-                                            ...t,
-                                            age: true,
-                                        }))
+                                        setTouched((t) => ({ ...t, age: true }))
                                     }
                                     placeholder="e.g. 25"
                                     min="13"
@@ -911,5 +980,13 @@ export default function SignupPage() {
                 </div>
             )}
         </div>
+    );
+}
+
+export default function SignupPage() {
+    return (
+        <Suspense fallback={<SignupLoadingFallback />}>
+            <SignupForm />
+        </Suspense>
     );
 }

@@ -24,6 +24,8 @@ export const NOTIFICATION_TYPES = {
     RESOLVED: "resolved",
     MENTION: "mention",
     ISSUE_CREATED: "issue_created",
+    REFERRAL_SIGNUP: "referral_signup",
+    REFERRAL_COMPLETE: "referral_complete",
 };
 
 function getInitials(name) {
@@ -56,7 +58,7 @@ function getUserColor(uid) {
     return colors[Math.abs(hash) % colors.length];
 }
 
-// ✅ THE KEY FIX - always serialize meta to a string
+// Serialize meta to string for consistent storage
 function serializeMeta(meta) {
     if (!meta) return null;
     if (typeof meta === "string") return meta;
@@ -65,15 +67,17 @@ function serializeMeta(meta) {
 }
 
 const MESSAGES = {
-    upvote: "upvoted your issue",
-    comment: "commented on your issue",
+    upvote: "upvoted your post",
+    comment: "commented on your post",
     reply: "replied to your comment",
     like_comment: "liked your comment",
     vote: "voted on your poll",
-    milestone: "your issue reached a milestone",
-    resolved: "marked your issue as resolved",
+    milestone: "your post reached a milestone",
+    resolved: "marked your post as resolved",
     mention: "mentioned you",
     issue_created: "your post is now live",
+    referral_signup: "joined through your referral link",
+    referral_complete: "completed their first post - you earned 15 points!",
 };
 
 export async function createNotification({
@@ -105,7 +109,7 @@ export async function createNotification({
             commentId,
             commentPreview: commentPreview?.substring(0, 100) || null,
             message: MESSAGES[type] || "interacted with your post",
-            meta: serializeMeta(meta), // ✅ always a string or null
+            meta: serializeMeta(meta),
             read: false,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
@@ -142,7 +146,7 @@ export async function createNotificationsBatch(notifications) {
             commentId: notif.commentId || null,
             commentPreview: notif.commentPreview?.substring(0, 100) || null,
             message: MESSAGES[notif.type] || "interacted with your post",
-            meta: serializeMeta(notif.meta), // ✅ always a string or null
+            meta: serializeMeta(notif.meta),
             read: false,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),

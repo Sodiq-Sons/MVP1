@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-// ✅ Safely parse meta - handles both legacy object meta and new string meta
+// Safely parse meta - handles both legacy object meta and new string meta
 function parseMeta(meta) {
     if (!meta) return null;
     if (typeof meta === "string") {
@@ -26,7 +26,7 @@ function parseMeta(meta) {
     return meta;
 }
 
-// ✅ Safely render meta as a display string
+// Safely render meta as a display string
 export function formatMetaDisplay(meta) {
     if (!meta) return null;
     const parsed =
@@ -45,6 +45,10 @@ export function formatMetaDisplay(meta) {
         return `🎉 Level up! You reached Level ${parsed.newLevel}: ${parsed.newLevelName}`;
     if (parsed?.type === "badge_earned")
         return `🏅 Badge earned: ${parsed.badge?.label || "New Badge"}`;
+    if (parsed?.type === "referral_complete")
+        return `🎁 Referral completed! You earned ${parsed.points} points!`;
+    if (parsed?.type === "referral_signup")
+        return `✨ Friend joined! You earned ${parsed.points} points!`;
     return null; // don't render unknown object shapes
 }
 
@@ -77,7 +81,7 @@ export function useNotifications(userId) {
                     return {
                         id: d.id,
                         ...data,
-                        // ✅ Normalize all fields to safe primitives
+                        // Normalize all fields to safe primitives
                         actor:
                             typeof data.actorName === "string"
                                 ? data.actorName

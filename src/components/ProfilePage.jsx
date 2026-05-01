@@ -259,22 +259,22 @@ const BADGES_CONFIG = {
     first_issue: {
         emoji: "📝",
         label: "First Steps",
-        description: "Posted your first issue",
+        description: "Dropped your first post",
     },
     pro_reporter: {
         emoji: "📋",
         label: "Pro Reporter",
-        description: "Posted 5 issues",
+        description: "Dropped 5 posts",
     },
     community_watch: {
         emoji: "👁️",
         label: "Community Watch",
-        description: "Posted 10 issues",
+        description: "Dropped 10 posts",
     },
     local_hero: {
         emoji: "🏆",
         label: "Local Hero",
-        description: "Posted 25 issues",
+        description: "Dropped 25 posts",
     },
     voice_heard: {
         emoji: "📢",
@@ -294,12 +294,12 @@ const BADGES_CONFIG = {
     conversation_starter: {
         emoji: "💬",
         label: "Conversation Starter",
-        description: "Received 5 comments on your issues",
+        description: "Received 5 comments on your posts",
     },
     discussion_leader: {
         emoji: "🗣️",
         label: "Discussion Leader",
-        description: "Received 20 comments on your issues",
+        description: "Received 20 comments on your posts",
     },
     poll_master: {
         emoji: "📊",
@@ -314,7 +314,7 @@ const BADGES_CONFIG = {
     engaged_citizen: {
         emoji: "🤝",
         label: "Engaged Citizen",
-        description: "Upvoted 10 issues",
+        description: "Upvoted 10 posts",
     },
     active_voter: {
         emoji: "✅",
@@ -407,7 +407,7 @@ function getLevelData(points) {
 function LevelProgress({ stats }) {
     if (!stats) return null;
     return (
-        <div className="bg-gradient-to-br from-[#EA580C] to-[#F97316] rounded-2xl p-4 text-white relative overflow-hidden">
+        <div className="bg-linear-to-br from-[#EA580C] to-[#F97316] rounded-2xl p-4 text-white relative overflow-hidden">
             <div
                 className="absolute inset-0 opacity-10"
                 style={{
@@ -1007,7 +1007,7 @@ export default function ProfilePage() {
                             <ShareIcon />
                         </button>
                         <Link
-                            href="/profile/settings"
+                            href="/profile/edit"
                             className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center"
                         >
                             <SettingsIcon />
@@ -1135,7 +1135,7 @@ export default function ProfilePage() {
                             <StatCard
                                 icon={<span className="text-lg">📋</span>}
                                 value={formatNum(stats.issuesCount)}
-                                label="Issues"
+                                label="Posts"
                                 color="orange"
                             />
                             <StatCard
@@ -1288,7 +1288,7 @@ export default function ProfilePage() {
                                     badges.map((b) => (
                                         <div
                                             key={b.id}
-                                            className="p-3.5 rounded-xl text-center transition-all bg-gradient-to-br from-gray-50 to-white border border-gray-100 hover:border-[#F97316]/30 hover:shadow-sm"
+                                            className="p-3.5 rounded-xl text-center transition-all bg-linear-to-br from-gray-50 to-white border border-gray-100 hover:border-[#F97316]/30 hover:shadow-sm"
                                         >
                                             <div className="text-3xl mb-2">
                                                 {b.emoji}
@@ -1389,10 +1389,10 @@ export default function ProfilePage() {
                 </button>
 
                 <p
-                    className="text-center text-[10px] text-gray-300 pb-2"
+                    className="text-center text-[10px] text-black pb-2"
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
-                    We The People NG · v1.0.0 · Made with ❤️ for Nigeria
+                    Camp Connect · v1.0.0 · Made with ❤️ for Nigerian Campers
                 </p>
             </div>
         </div>

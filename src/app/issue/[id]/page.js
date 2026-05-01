@@ -1,4 +1,3 @@
-// app/issue/[id]/page.js
 "use client";
 
 import { useState, useEffect, use, useMemo } from "react";
@@ -52,12 +51,11 @@ const CATEGORY_META = {
     other: { color: "text-gray-700", bg: "bg-gray-100", label: "Other" },
 };
 
-// ─── Updated Demographic Config ───
-// NOW INCLUDES: age (raw number), gender, stateOfOrigin, platoon
+// ─── Demographic Config ───
 const DEMOGRAPHIC_CONFIG = {
     age: {
         emoji: "🎂",
-        label: "Age Groups",
+        label: "Age group",
         firestoreField: "age",
         groups: ["Teens (13-19)", "Youth (20-35)", "Adult (35+)"],
         getGroup: (rawAge) => {
@@ -79,28 +77,28 @@ const DEMOGRAPHIC_CONFIG = {
     },
     stateOfOrigin: {
         emoji: "📍",
-        label: "State of Origin",
+        label: "State",
         firestoreField: "stateOfOrigin",
-        groups: [], // Dynamic based on actual states
+        groups: [],
         getGroup: (val) => (val && typeof val === "string" ? val : null),
     },
     platoon: {
         emoji: "👥",
         label: "Platoon",
         firestoreField: "platoon",
-        groups: [], // Dynamic based on actual platoons
+        groups: [],
         getGroup: (val) => (val && typeof val === "string" ? val : null),
     },
 };
 
-// ─── Chart Colors ─────────
-const CHART_COLORS = [
+// ─── Demo Segment Colors ──
+const DEMO_COLORS = [
     "#F97316",
-    "#3B82F6",
-    "#10B981",
-    "#8B5CF6",
-    "#EC4899",
-    "#F59E0B",
+    "#1D9E75",
+    "#7F77DD",
+    "#D85A30",
+    "#185FA5",
+    "#BA7517",
 ];
 
 // ─── Helpers ──────────────
@@ -140,7 +138,6 @@ const AVATAR_COLORS = [
     "bg-amber-400",
     "bg-indigo-400",
 ];
-
 const BAR_COLORS = [
     "bg-green-500",
     "bg-red-500",
@@ -256,6 +253,19 @@ const SvgUpvote = ({ active }) => (
         <polyline points="18 15 12 9 6 15" />
     </svg>
 );
+const SvgDownvote = ({ active }) => (
+    <svg
+        viewBox="0 0 24 24"
+        fill={active ? "#DC2626" : "none"}
+        stroke="#DC2626"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="w-4 h-4"
+    >
+        <polyline points="6 9 12 15 18 9" />
+    </svg>
+);
 const SvgReply = () => (
     <svg
         viewBox="0 0 24 24"
@@ -347,20 +357,6 @@ const SvgDots = () => (
         <circle cx="19" cy="12" r="1.5" />
     </svg>
 );
-const SvgChart = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        className="w-4 h-4"
-    >
-        <path d="M18 20V10" />
-        <path d="M12 20V4" />
-        <path d="M6 20v-6" />
-    </svg>
-);
 const SvgDocument = () => (
     <svg
         viewBox="0 0 24 24"
@@ -421,6 +417,20 @@ const SvgDiscussion = () => (
         className="w-4 h-4"
     >
         <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+    </svg>
+);
+const SvgUser = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="w-3.5 h-3.5"
+    >
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
     </svg>
 );
 
@@ -596,115 +606,301 @@ function Avatar({ name, size = "md", isBot = false }) {
     );
 }
 
-// ─── Demographic Chart Card ───────────────────────────────────────────────────
-function DemographicChart({ demographic, data, voteOptions }) {
-    const config = DEMOGRAPHIC_CONFIG[demographic];
-    if (!config) return null;
-
-    // Get all unique groups that have data
-    const allGroups = Object.keys(data || {}).filter((group) =>
-        voteOptions.some((opt) => (data?.[group]?.[opt] || 0) > 0),
+// ─── Demographic Insights ─
+function DemographicInsights({
+    issue,
+    demographicData,
+    demographicsLoading,
+    totalVotes,
+}) {
+    const voteOptions = issue.voteOptions || [];
+    const demographics = (issue.demographics || []).filter(
+        (d) => DEMOGRAPHIC_CONFIG[d],
     );
+    const [activeTab, setActiveTab] = useState(demographics[0] ?? null);
 
-    // If no groups have data, check if we should show dynamic groups
-    const activeGroups = allGroups.length > 0 ? allGroups : config.groups;
+    const overallPcts = voteOptions.map((opt) => ({
+        opt,
+        count: issue.votes?.[opt] || 0,
+        pct:
+            totalVotes > 0
+                ? Math.round(((issue.votes?.[opt] || 0) / totalVotes) * 100)
+                : 0,
+    }));
 
-    if (activeGroups.length === 0) {
-        return (
-            <div className="rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-4">
-                <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm">{config.emoji}</span>
-                    <span className="text-xs font-bold text-gray-700">
-                        {config.label}
-                    </span>
-                </div>
-                <p className="text-[11px] text-gray-400 pl-6">
-                    No demographic data yet
-                </p>
-            </div>
-        );
+    const leadingOpt = overallPcts.sort((a, b) => b.pct - a.pct)[0]?.opt;
+    let topGroupName = null;
+    let topGroupPct = 0;
+    let strongestDemoLabel = null;
+
+    if (leadingOpt && activeTab) {
+        const tabData = demographicData[activeTab] || {};
+        Object.entries(tabData).forEach(([group, counts]) => {
+            const groupTotal = Object.values(counts).reduce((s, v) => s + v, 0);
+            const pct =
+                groupTotal > 0
+                    ? Math.round(((counts[leadingOpt] || 0) / groupTotal) * 100)
+                    : 0;
+            if (pct > topGroupPct) {
+                topGroupPct = pct;
+                topGroupName = group;
+                strongestDemoLabel = DEMOGRAPHIC_CONFIG[activeTab]?.label;
+            }
+        });
     }
 
+    if (demographics.length === 0) return null;
+
+    const activeConfig = DEMOGRAPHIC_CONFIG[activeTab];
+    const activeData = demographicData[activeTab] || {};
+    const activeGroups = Object.keys(activeData).filter((g) =>
+        voteOptions.some((opt) => (activeData[g]?.[opt] || 0) > 0),
+    );
+
     return (
-        <div className="rounded-xl border border-gray-100 bg-white overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <span className="text-sm">{config.emoji}</span>
-                    <span className="text-xs font-bold text-gray-800">
-                        {config.label}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-[#F97316] px-4 pt-4 pb-4">
+                <div className="flex items-center justify-between mb-3">
+                    <h2
+                        className="text-sm font-bold text-white flex items-center gap-2"
+                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            className="w-4 h-4"
+                        >
+                            <path d="M18 20V10" />
+                            <path d="M12 20V4" />
+                            <path d="M6 20v-6" />
+                        </svg>
+                        How people voted
+                    </h2>
+                    <span className="text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">
+                        {totalVotes} votes
                     </span>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap justify-end">
-                    {voteOptions.map((opt, i) => (
-                        <div key={opt} className="flex items-center gap-1">
+                <div className="space-y-2">
+                    {voteOptions.map((opt) => {
+                        const count = issue.votes?.[opt] || 0;
+                        const pct =
+                            totalVotes > 0
+                                ? Math.round((count / totalVotes) * 100)
+                                : 0;
+                        return (
                             <div
-                                className="w-2 h-2 rounded-full shrink-0"
-                                style={{
-                                    backgroundColor:
-                                        CHART_COLORS[i % CHART_COLORS.length],
-                                }}
-                            />
-                            <span className="text-[10px] text-gray-500 font-medium max-w-14 truncate">
-                                {opt}
-                            </span>
-                        </div>
-                    ))}
+                                key={opt}
+                                className="flex items-center gap-2.5"
+                            >
+                                <span className="text-xs text-white/80 w-22.5 shrink-0 leading-tight truncate">
+                                    {opt}
+                                </span>
+                                <div className="flex-1 h-7 bg-white/15 rounded-lg overflow-hidden">
+                                    <div
+                                        className="h-full bg-white/30 rounded-lg flex items-center px-2.5 transition-all duration-700"
+                                        style={{
+                                            width: `${Math.max(pct, 4)}%`,
+                                        }}
+                                    >
+                                        {pct >= 12 && (
+                                            <span className="text-xs font-semibold text-white">
+                                                {pct}%
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                <span className="text-xs font-bold text-white w-5 text-right shrink-0">
+                                    {formatNumber(count)}
+                                </span>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 
-            <div className="px-4 py-3 space-y-3">
-                {activeGroups.map((group) => {
-                    const groupTotal = voteOptions.reduce(
-                        (sum, opt) => sum + (data?.[group]?.[opt] || 0),
-                        0,
-                    );
+            {topGroupName && (
+                <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
+                    <div className="px-4 py-3">
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+                            Leading choice
+                        </p>
+                        <p
+                            className="text-sm font-bold text-gray-900 truncate"
+                            style={{
+                                fontFamily: "Plus Jakarta Sans, sans-serif",
+                            }}
+                        >
+                            {leadingOpt}
+                        </p>
+                        <p className="text-[11px] text-[#F97316] font-semibold mt-0.5">
+                            {overallPcts[0]?.pct ?? 0}% of all votes
+                        </p>
+                    </div>
+                    <div className="px-4 py-3">
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+                            Strongest support
+                        </p>
+                        <p
+                            className="text-sm font-bold text-gray-900 truncate"
+                            style={{
+                                fontFamily: "Plus Jakarta Sans, sans-serif",
+                            }}
+                        >
+                            {topGroupName}
+                        </p>
+                        <p className="text-[11px] text-[#F97316] font-semibold mt-0.5">
+                            {topGroupPct}% chose yes · {strongestDemoLabel}
+                        </p>
+                    </div>
+                </div>
+            )}
 
-                    if (groupTotal === 0) return null;
-
+            <div className="flex border-b border-gray-100 overflow-x-auto scrollbar-hide">
+                {demographics.map((demo) => {
+                    const cfg = DEMOGRAPHIC_CONFIG[demo];
                     return (
-                        <div key={group}>
-                            <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-[11px] font-semibold text-gray-600 truncate max-w-35">
-                                    {group}
-                                </span>
-                                <span className="text-[10px] text-gray-400 shrink-0 ml-2">
-                                    {groupTotal} vote
-                                    {groupTotal !== 1 ? "s" : ""}
-                                </span>
-                            </div>
-                            <div className="h-6 w-full bg-gray-100 rounded-lg overflow-hidden flex">
-                                {voteOptions.map((opt, i) => {
-                                    const count = data?.[group]?.[opt] || 0;
-                                    const pct =
-                                        groupTotal > 0
-                                            ? (count / groupTotal) * 100
-                                            : 0;
-                                    if (pct === 0) return null;
-                                    return (
-                                        <div
-                                            key={opt}
-                                            title={`${opt}: ${count} (${pct.toFixed(1)}%)`}
-                                            className="h-full relative flex items-center justify-center transition-all duration-500"
-                                            style={{
-                                                width: `${pct}%`,
-                                                backgroundColor:
-                                                    CHART_COLORS[
-                                                        i % CHART_COLORS.length
-                                                    ],
-                                            }}
-                                        >
-                                            {pct >= 14 && (
-                                                <span className="text-white text-[9px] font-bold pointer-events-none select-none">
-                                                    {Math.round(pct)}%
-                                                </span>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
+                        <button
+                            key={demo}
+                            onClick={() => setActiveTab(demo)}
+                            className={`px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-all cursor-pointer ${
+                                activeTab === demo
+                                    ? "border-[#F97316] text-[#F97316]"
+                                    : "border-transparent text-gray-400 hover:text-gray-600"
+                            }`}
+                        >
+                            {cfg.label}
+                        </button>
                     );
                 })}
+            </div>
+
+            <div className="px-4 py-4 space-y-4">
+                {demographicsLoading ? (
+                    <div className="flex items-center justify-center py-8 gap-2 text-gray-400">
+                        <SvgSpinner />
+                        <span className="text-sm">Loading insights...</span>
+                    </div>
+                ) : totalVotes === 0 ? (
+                    <div className="py-8 text-center">
+                        <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="#F97316"
+                                strokeWidth="1.5"
+                                className="w-6 h-6"
+                            >
+                                <path d="M18 20V10" />
+                                <path d="M12 20V4" />
+                                <path d="M6 20v-6" />
+                            </svg>
+                        </div>
+                        <p className="text-sm font-semibold text-gray-500">
+                            No votes yet
+                        </p>
+                        <p className="text-xs text-gray-300 mt-1">
+                            Demographic breakdown appears once people vote
+                        </p>
+                    </div>
+                ) : activeGroups.length === 0 ? (
+                    <div className="py-6 text-center">
+                        <p className="text-sm text-gray-400">
+                            No data for this demographic yet
+                        </p>
+                    </div>
+                ) : (
+                    activeGroups.map((group) => {
+                        const groupCounts = activeData[group] || {};
+                        const groupTotal = voteOptions.reduce(
+                            (s, o) => s + (groupCounts[o] || 0),
+                            0,
+                        );
+                        if (groupTotal === 0) return null;
+                        return (
+                            <div key={group}>
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs font-bold text-gray-800">
+                                        {group}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                                        {groupTotal} vote
+                                        {groupTotal !== 1 ? "s" : ""}
+                                    </span>
+                                </div>
+                                <div className="h-8 w-full flex rounded-xl overflow-hidden">
+                                    {voteOptions.map((opt, i) => {
+                                        const count = groupCounts[opt] || 0;
+                                        const pct =
+                                            groupTotal > 0
+                                                ? (count / groupTotal) * 100
+                                                : 0;
+                                        if (pct === 0) return null;
+                                        return (
+                                            <div
+                                                key={opt}
+                                                title={`${opt}: ${count} (${Math.round(pct)}%)`}
+                                                className="h-full flex items-center justify-center relative group"
+                                                style={{
+                                                    width: `${pct}%`,
+                                                    backgroundColor:
+                                                        DEMO_COLORS[
+                                                            i %
+                                                                DEMO_COLORS.length
+                                                        ],
+                                                }}
+                                            >
+                                                {pct >= 14 && (
+                                                    <span className="text-white text-[10px] font-bold pointer-events-none select-none">
+                                                        {Math.round(pct)}%
+                                                    </span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                                    {voteOptions.map((opt, i) => {
+                                        const count = groupCounts[opt] || 0;
+                                        if (count === 0) return null;
+                                        const pct =
+                                            groupTotal > 0
+                                                ? Math.round(
+                                                      (count / groupTotal) *
+                                                          100,
+                                                  )
+                                                : 0;
+                                        return (
+                                            <div
+                                                key={opt}
+                                                className="flex items-center gap-1"
+                                            >
+                                                <div
+                                                    className="w-2 h-2 rounded-sm shrink-0"
+                                                    style={{
+                                                        backgroundColor:
+                                                            DEMO_COLORS[
+                                                                i %
+                                                                    DEMO_COLORS.length
+                                                            ],
+                                                    }}
+                                                />
+                                                <span className="text-[10px] text-gray-500 max-w-22.5 truncate">
+                                                    {opt}
+                                                </span>
+                                                <span className="text-[10px] font-semibold text-gray-700">
+                                                    {pct}%
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
             </div>
         </div>
     );
@@ -731,7 +927,6 @@ function ReplyForm({
         try {
             const issueRef = doc(db, "issues", issueId);
             let newReplyRef;
-
             await runTransaction(db, async (transaction) => {
                 const issueSnap = await transaction.get(issueRef);
                 const currentCount = issueSnap.data()?.commentCount || 0;
@@ -755,8 +950,6 @@ function ReplyForm({
                     commentCount: currentCount + 1,
                 });
             });
-
-            // Send notification to the user being replied to
             if (replyingToUserId && replyingToUserId !== currentUser?.uid) {
                 await createNotification({
                     type: NOTIFICATION_TYPES.REPLY,
@@ -769,7 +962,6 @@ function ReplyForm({
                     commentPreview: text.trim(),
                 });
             }
-
             setText("");
             onSuccess();
         } catch (e) {
@@ -843,6 +1035,7 @@ function CommentItem({
     issueOwnerId,
     currentUser,
     authReady,
+    isAnonymous,
 }) {
     const [replying, setReplying] = useState(false);
     const [liked, setLiked] = useState(false);
@@ -880,8 +1073,6 @@ function CommentItem({
                     likes: newLiked ? current + 1 : Math.max(0, current - 1),
                 });
             });
-
-            // Send notification when liking a comment (only on like, not unlike)
             if (
                 newLiked &&
                 comment.userId &&
@@ -959,7 +1150,7 @@ function CommentItem({
                                 </span>
                             )}
                         </button>
-                        {authReady && (
+                        {authReady && !isAnonymous && (
                             <button
                                 onClick={() => setReplying((r) => !r)}
                                 className="flex items-center gap-1 text-gray-400 hover:text-[#F97316] transition-colors cursor-pointer text-xs font-semibold"
@@ -1016,6 +1207,7 @@ function CommentItem({
                             issueOwnerId={issueOwnerId}
                             currentUser={currentUser}
                             authReady={authReady}
+                            isAnonymous={isAnonymous}
                         />
                     ))}
                 </div>
@@ -1040,7 +1232,7 @@ function LoadingScreen() {
                         className="text-lg font-bold text-gray-900 mb-1"
                         style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                     >
-                        Loading Issue
+                        Loading Post
                     </h2>
                     <p
                         className="text-sm text-gray-400"
@@ -1051,6 +1243,55 @@ function LoadingScreen() {
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
                     <div className="bg-[#F97316] h-full rounded-full animate-pulse w-2/3" />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Login Prompt Modal ───
+function LoginPromptModal({ isOpen, onClose, onLogin }) {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                onClick={onClose}
+            />
+            <div className="relative bg-white rounded-2xl p-6 mx-4 max-w-sm w-full z-10 shadow-2xl">
+                <div className="text-center">
+                    <div className="w-16 h-16 bg-[#FFF7F2] rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span className="text-3xl">🔒</span>
+                    </div>
+                    <h3
+                        className="text-lg font-bold text-gray-900 mb-2"
+                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
+                    >
+                        Login Required
+                    </h3>
+                    <p
+                        className="text-sm text-gray-500 mb-6"
+                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                    >
+                        Please sign in to upvote, vote, and join the
+                        conversation.
+                    </p>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 py-3 rounded-xl font-semibold text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={onLogin}
+                            className="flex-1 py-3 rounded-xl font-bold text-sm bg-[#F97316] text-white hover:bg-[#C2410C] transition-colors cursor-pointer"
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                        >
+                            Sign In
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1074,27 +1315,33 @@ export default function IssueDetailPage({ params }) {
     const [upvoted, setUpvoted] = useState(false);
     const [upvoteCount, setUpvoteCount] = useState(0);
     const [upvoteLoading, setUpvoteLoading] = useState(false);
+    // ── Oppose/downvote state ──
+    const [downvoted, setDownvoted] = useState(false);
+    const [downvoteCount, setDownvoteCount] = useState(0);
+    const [downvoteLoading, setDownvoteLoading] = useState(false);
     const [comments, setComments] = useState([]);
     const [commentText, setCommentText] = useState("");
     const [submittingComment, setSubmittingComment] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [shareCopied, setShareCopied] = useState(false);
     const [commentsLoading, setCommentsLoading] = useState(false);
     const [commentsError, setCommentsError] = useState(null);
     const [demographicData, setDemographicData] = useState({});
     const [demographicsLoading, setDemographicsLoading] = useState(false);
+    const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+    const [isAnonymous, setIsAnonymous] = useState(true);
 
-    // ── Auth ──────────────
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, (user) => {
             if (user) {
                 setCurrentUser(user);
+                setIsAnonymous(user.isAnonymous);
                 setAuthReady(true);
             } else signInAnonymously(auth).catch(console.error);
         });
         return unsub;
     }, []);
 
-    // ── Issue Snapshot ────
     useEffect(() => {
         if (!id) return;
         const ref = doc(db, "issues", id);
@@ -1119,6 +1366,7 @@ export default function IssueDetailPage({ params }) {
                 setVoteCounts(d.votes || {});
                 setTotalVotes(d.totalVotes || 0);
                 setUpvoteCount(d.upvotes || 0);
+                setDownvoteCount(d.downvotes || 0);
                 setLoading(false);
             },
             (err) => {
@@ -1130,16 +1378,17 @@ export default function IssueDetailPage({ params }) {
         return unsub;
     }, [id]);
 
-    // ── Restore local vote/upvote ─────────────────────────────────────────────
+    // Restore vote/upvote/downvote state from localStorage
     useEffect(() => {
         if (!id || !currentUser) return;
         const v = localStorage.getItem(`vote_${id}_${currentUser.uid}`);
         if (v) setUserVote(v);
         if (localStorage.getItem(`upvote_${id}_${currentUser.uid}`) === "1")
             setUpvoted(true);
+        if (localStorage.getItem(`downvote_${id}_${currentUser.uid}`) === "1")
+            setDownvoted(true);
     }, [id, currentUser]);
 
-    // ── Comments Snapshot ─
     useEffect(() => {
         if (!id) return;
         setCommentsLoading(true);
@@ -1163,7 +1412,6 @@ export default function IssueDetailPage({ params }) {
         return () => unsub();
     }, [id]);
 
-    // ── Demographics Fetch ────────────────────────────────────────────────────
     useEffect(() => {
         if (
             !id ||
@@ -1172,88 +1420,62 @@ export default function IssueDetailPage({ params }) {
             !currentUser
         )
             return;
-
         const fetchDemographicData = async () => {
             setDemographicsLoading(true);
-
-            // Build empty structure
             const demoData = {};
             issue.demographics.forEach((demo) => {
                 const config = DEMOGRAPHIC_CONFIG[demo];
-                if (!config) return;
-                demoData[demo] = {};
-                // Initialize with empty groups - will be populated dynamically
+                if (config) demoData[demo] = {};
             });
-
             try {
                 const votesSnap = await getDocs(
                     collection(db, "issues", id, "votes"),
                 );
-
                 for (const voteDoc of votesSnap.docs) {
                     const voteData = voteDoc.data();
                     const userId = voteData.userId;
                     const selectedOption = voteData.option;
-
-                    if (!userId || !selectedOption) continue;
-                    if (!issue.voteOptions.includes(selectedOption)) continue;
-
-                    // Fetch real user data from Firestore users collection
+                    if (
+                        !userId ||
+                        !selectedOption ||
+                        !issue.voteOptions.includes(selectedOption)
+                    )
+                        continue;
                     let userData = {};
                     try {
                         const userSnap = await getDoc(doc(db, "users", userId));
-                        if (!userSnap.exists()) {
-                            console.log(`User ${userId} not found`);
-                            continue;
-                        }
+                        if (!userSnap.exists()) continue;
                         userData = userSnap.data();
                     } catch (err) {
-                        console.error(`Error fetching user ${userId}:`, err);
                         continue;
                     }
-
                     issue.demographics.forEach((demo) => {
                         const config = DEMOGRAPHIC_CONFIG[demo];
                         if (!config) return;
-
                         const rawValue =
                             userData[config.firestoreField ?? demo];
-                        if (rawValue === undefined || rawValue === null) {
-                            console.log(`Missing ${demo} for user ${userId}`);
-                            return;
-                        }
-
+                        if (rawValue === undefined || rawValue === null) return;
                         const group = config.getGroup
                             ? config.getGroup(rawValue)
                             : String(rawValue);
-
-                        if (!group) {
-                            console.log(`Invalid group ${group} for ${demo}`);
-                            return;
-                        }
-
-                        // Initialize group if not exists
+                        if (!group) return;
                         if (!demoData[demo][group]) {
                             demoData[demo][group] = {};
                             issue.voteOptions.forEach((opt) => {
                                 demoData[demo][group][opt] = 0;
                             });
                         }
-
                         demoData[demo][group][selectedOption] =
                             (demoData[demo][group][selectedOption] || 0) + 1;
                     });
                 }
-
                 setDemographicData(demoData);
-                console.log("Demographics loaded:", demoData);
             } catch (err) {
                 console.error("Demographics fetch error:", err);
             } finally {
                 setDemographicsLoading(false);
             }
         };
-
         fetchDemographicData();
     }, [
         id,
@@ -1262,15 +1484,16 @@ export default function IssueDetailPage({ params }) {
         currentUser,
     ]);
 
-    // ── Vote Handler ──────
     const handleVote = async (option) => {
+        if (isAnonymous || !currentUser || currentUser.isAnonymous) {
+            setShowLoginPrompt(true);
+            return;
+        }
         if (!authReady || !currentUser || voteLoading) return;
         if (!issue.voteOptions?.includes(option)) return;
-
         const prev = userVote;
         const wasSameVote = prev === option;
         setVoteLoading(true);
-
         const newCounts = { ...voteCounts };
         if (wasSameVote) {
             newCounts[option] = Math.max(0, (newCounts[option] || 0) - 1);
@@ -1283,7 +1506,6 @@ export default function IssueDetailPage({ params }) {
             setTotalVotes((p) => (prev ? p : p + 1));
         }
         setVoteCounts(newCounts);
-
         try {
             await runTransaction(db, async (tx) => {
                 const snap = await tx.get(doc(db, "issues", id));
@@ -1291,7 +1513,6 @@ export default function IssueDetailPage({ params }) {
                 const d = snap.data();
                 const cv = { ...(d.votes || {}) };
                 let ct = d.totalVotes || 0;
-
                 if (wasSameVote) {
                     cv[option] = Math.max(0, (cv[option] || 0) - 1);
                     ct = Math.max(0, ct - 1);
@@ -1311,25 +1532,16 @@ export default function IssueDetailPage({ params }) {
                 }
                 tx.update(doc(db, "issues", id), { votes: cv, totalVotes: ct });
             });
-
-            // Points & notifications (only on new vote, not unvote)
             if (!wasSameVote) {
-                // Voter gets points for engaging
                 await awardPoints(currentUser.uid, "VOTE_ON_ISSUE", {
                     issueId: id,
                     issueTitle: issue.title,
                 });
-
-                // Issue author gets points for receiving a vote
                 if (issue.author?.uid && issue.author.uid !== currentUser.uid) {
                     await awardPoints(issue.author.uid, "RECEIVE_VOTE", {
                         issueId: id,
                         issueTitle: issue.title,
                     });
-                }
-
-                // Notify issue owner
-                if (issue.author?.uid && issue.author.uid !== currentUser.uid) {
                     await createNotification({
                         type: NOTIFICATION_TYPES.VOTE,
                         recipientId: issue.author.uid,
@@ -1341,7 +1553,6 @@ export default function IssueDetailPage({ params }) {
                     });
                 }
             }
-
             if (wasSameVote)
                 localStorage.removeItem(`vote_${id}_${currentUser.uid}`);
             else localStorage.setItem(`vote_${id}_${currentUser.uid}`, option);
@@ -1355,10 +1566,16 @@ export default function IssueDetailPage({ params }) {
         }
     };
 
-    // ── Upvote Handler ────
     const handleUpvote = async (e) => {
         e.preventDefault();
-        if (!authReady || !currentUser || upvoteLoading) return;
+        if (isAnonymous || !currentUser || currentUser.isAnonymous) {
+            setShowLoginPrompt(true);
+            return;
+        }
+        if (!authReady || !currentUser || upvoteLoading || downvoteLoading)
+            return;
+        // Mutual exclusivity
+        if (downvoted) return;
         const wasUpvoted = upvoted;
         setUpvoted(!wasUpvoted);
         setUpvoteCount((c) => (wasUpvoted ? Math.max(0, c - 1) : c + 1));
@@ -1374,25 +1591,16 @@ export default function IssueDetailPage({ params }) {
                         : current + 1,
                 });
             });
-
-            // Points & notifications (only on upvote, not un-upvote)
             if (!wasUpvoted) {
-                // Upvoter gets points for engaging
                 await awardPoints(currentUser.uid, "UPVOTE_ISSUE", {
                     issueId: id,
                     issueTitle: issue.title,
                 });
-
-                // Issue author gets points for receiving an upvote
                 if (issue.author?.uid && issue.author.uid !== currentUser.uid) {
                     await awardPoints(issue.author.uid, "RECEIVE_UPVOTE", {
                         issueId: id,
                         issueTitle: issue.title,
                     });
-                }
-
-                // Notify issue owner
-                if (issue.author?.uid && issue.author.uid !== currentUser.uid) {
                     await createNotification({
                         type: NOTIFICATION_TYPES.UPVOTE,
                         recipientId: issue.author.uid,
@@ -1403,7 +1611,6 @@ export default function IssueDetailPage({ params }) {
                     });
                 }
             }
-
             if (wasUpvoted)
                 localStorage.removeItem(`upvote_${id}_${currentUser.uid}`);
             else localStorage.setItem(`upvote_${id}_${currentUser.uid}`, "1");
@@ -1416,11 +1623,50 @@ export default function IssueDetailPage({ params }) {
         }
     };
 
-    // ── Comment Submit ────
+    const handleDownvote = async (e) => {
+        e.preventDefault();
+        if (isAnonymous || !currentUser || currentUser.isAnonymous) {
+            setShowLoginPrompt(true);
+            return;
+        }
+        if (!authReady || !currentUser || downvoteLoading || upvoteLoading)
+            return;
+        // Mutual exclusivity
+        if (upvoted) return;
+        const wasDownvoted = downvoted;
+        setDownvoted(!wasDownvoted);
+        setDownvoteCount((c) => (wasDownvoted ? Math.max(0, c - 1) : c + 1));
+        setDownvoteLoading(true);
+        try {
+            await runTransaction(db, async (tx) => {
+                const snap = await tx.get(doc(db, "issues", id));
+                if (!snap.exists()) throw new Error("not found");
+                const current = snap.data().downvotes || 0;
+                tx.update(doc(db, "issues", id), {
+                    downvotes: wasDownvoted
+                        ? Math.max(0, current - 1)
+                        : current + 1,
+                });
+            });
+            if (wasDownvoted)
+                localStorage.removeItem(`downvote_${id}_${currentUser.uid}`);
+            else localStorage.setItem(`downvote_${id}_${currentUser.uid}`, "1");
+        } catch (err) {
+            console.error("Downvote failed:", err);
+            setDownvoted(wasDownvoted);
+            setDownvoteCount(downvoteCount);
+        } finally {
+            setDownvoteLoading(false);
+        }
+    };
+
     const handleSubmitComment = async (e) => {
         e.preventDefault();
+        if (isAnonymous || !currentUser || currentUser.isAnonymous) {
+            setShowLoginPrompt(true);
+            return;
+        }
         if (!commentText.trim() || !authReady || submittingComment) return;
-
         const tempId = `temp-${Date.now()}`;
         const tempComment = {
             id: tempId,
@@ -1433,16 +1679,13 @@ export default function IssueDetailPage({ params }) {
             likes: 0,
             _pending: true,
         };
-
         setComments((prev) => [...prev, tempComment]);
         const originalText = commentText;
         setCommentText("");
         setSubmittingComment(true);
-
         try {
             const issueRef = doc(db, "issues", id);
             let newCommentRef;
-
             await runTransaction(db, async (transaction) => {
                 const issueSnap = await transaction.get(issueRef);
                 const currentCount = issueSnap.data()?.commentCount || 0;
@@ -1460,21 +1703,15 @@ export default function IssueDetailPage({ params }) {
                     commentCount: currentCount + 1,
                 });
             });
-
-            // Commenter gets points for engaging
             await awardPoints(currentUser.uid, "COMMENT_ON_ISSUE", {
                 issueId: id,
                 issueTitle: issue.title,
             });
-
-            // Issue author gets points for receiving a comment
             if (issue.author?.uid && issue.author.uid !== currentUser.uid) {
                 await awardPoints(issue.author.uid, "RECEIVE_COMMENT", {
                     issueId: id,
                     issueTitle: issue.title,
                 });
-
-                // Notify issue owner
                 await createNotification({
                     type: NOTIFICATION_TYPES.COMMENT,
                     recipientId: issue.author.uid,
@@ -1496,24 +1733,31 @@ export default function IssueDetailPage({ params }) {
         }
     };
 
-    // ── Share ─────────────
-    const handleShare = async () => {
+    const triggerShare = async (setCopiedFn) => {
+        const url = window.location.href;
+        const title = issue?.title || "Issue";
+        const text = `We want to get your opinion on "${title}"`;
         try {
-            const shareText = `We want to get your opinion on "${issue?.title || "this post"}"\n\n${window.location.href}`;
-            await navigator.clipboard.writeText(shareText);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+            if (navigator.share) {
+                await navigator.share({ title, text, url });
+            } else {
+                await navigator.clipboard.writeText(`${text}\n\n${url}`);
+                setCopiedFn(true);
+                setTimeout(() => setCopiedFn(false), 2000);
+            }
         } catch {
-            /* ignore */
+            /* user cancelled or denied */
         }
     };
+
+    const handleShare = () => triggerShare(setCopied);
+    const handleCardShare = () => triggerShare(setShareCopied);
 
     const topLevel = useMemo(
         () => [...comments.filter((c) => !c.parentId)].reverse(),
         [comments],
     );
 
-    // ── Guards ────────────
     if (loading) return <LoadingScreen />;
     if (error || !issue) {
         return (
@@ -1526,10 +1770,10 @@ export default function IssueDetailPage({ params }) {
                         className="text-xl font-bold text-gray-900 mb-2"
                         style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                     >
-                        Issue Not Found
+                        Post Not Found
                     </h1>
                     <p className="text-gray-500 mb-6 text-sm">
-                        {error || "This issue may have been removed."}
+                        {error || "This post may have been removed."}
                     </p>
                     <Link
                         href="/"
@@ -1546,6 +1790,11 @@ export default function IssueDetailPage({ params }) {
     const voteOptions = issue.voteOptions || [];
     const hasVoted = userVote !== null;
     const avatarCount = getAvatarCount(totalVotes);
+
+    // ── Resolve author display name ──
+    const authorName = issue.author?.isAnonymous
+        ? "👤 Anonymous"
+        : issue.author?.name || issue.author?.displayName || null;
 
     return (
         <div className="min-h-screen bg-[#FDF6EF] pb-24">
@@ -1566,7 +1815,7 @@ export default function IssueDetailPage({ params }) {
                                     fontFamily: "Plus Jakarta Sans, sans-serif",
                                 }}
                             >
-                                Issue Details
+                                Post Details
                             </h1>
                             <p
                                 className="text-orange-100 text-xs"
@@ -1589,6 +1838,20 @@ export default function IssueDetailPage({ params }) {
                 {/* ── Issue Card ── */}
                 <div className="bg-white rounded-2xl border border-[#FED7AA] overflow-hidden shadow-sm">
                     <div className="px-4 pt-4 pb-3 border-b border-gray-50">
+                        {/* ── Author name ── */}
+                        {authorName && (
+                            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2.5">
+                                <SvgUser />
+                                <span
+                                    style={{
+                                        fontFamily: "DM Sans, sans-serif",
+                                    }}
+                                >
+                                    {authorName}
+                                </span>
+                            </div>
+                        )}
+
                         <div className="flex items-center justify-between mb-3">
                             <span
                                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${meta.bg} ${meta.color}`}
@@ -1617,7 +1880,6 @@ export default function IssueDetailPage({ params }) {
                             </span>
                         </div>
                     </div>
-
                     <div className="px-4 py-4">
                         <p
                             className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap"
@@ -1627,8 +1889,9 @@ export default function IssueDetailPage({ params }) {
                         </p>
                     </div>
 
-                    <div className="px-4 py-3 bg-gray-50/80 flex items-center justify-between">
-                        <div className="flex items-center gap-5">
+                    {/* ── Stats row ── */}
+                    <div className="px-4 py-3 bg-gray-50/80 flex flex-wrap items-center justify-between gap-y-2">
+                        <div className="flex items-center gap-4 flex-wrap">
                             <div className="text-center">
                                 <div
                                     className="text-lg font-bold text-green-600"
@@ -1640,7 +1903,21 @@ export default function IssueDetailPage({ params }) {
                                     {formatNumber(upvoteCount)}
                                 </div>
                                 <div className="text-[10px] text-gray-400 uppercase tracking-wide">
-                                    Upvotes
+                                    Support
+                                </div>
+                            </div>
+                            <div className="text-center">
+                                <div
+                                    className="text-lg font-bold text-red-500"
+                                    style={{
+                                        fontFamily:
+                                            "Plus Jakarta Sans, sans-serif",
+                                    }}
+                                >
+                                    {formatNumber(downvoteCount)}
+                                </div>
+                                <div className="text-[10px] text-gray-400 uppercase tracking-wide">
+                                    Oppose
                                 </div>
                             </div>
                             <div className="text-center">
@@ -1675,8 +1952,9 @@ export default function IssueDetailPage({ params }) {
                                 </div>
                             </div>
                         </div>
+
                         {avatarCount > 0 && (
-                            <div className="flex items-center gap-2">
+                            <div className="hidden sm:flex items-center gap-2">
                                 <div className="flex -space-x-2">
                                     {AVATAR_LETTERS.slice(0, avatarCount).map(
                                         (l, i) => (
@@ -1696,25 +1974,120 @@ export default function IssueDetailPage({ params }) {
                         )}
                     </div>
 
-                    <div className="px-4 py-3 border-t border-gray-50 flex items-center justify-between">
-                        <p className="text-xs text-gray-400">
-                            Support this issue
+                    {/* ── Action row: Share · Oppose · Support ── */}
+                    <div className="px-4 py-3 border-t border-gray-50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                        <p className="hidden sm:block text-xs text-gray-400 shrink-0">
+                            React to this post
                         </p>
-                        <button
-                            onClick={handleUpvote}
-                            disabled={!authReady || upvoteLoading}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 font-semibold text-sm transition-all cursor-pointer disabled:opacity-50 ${upvoted ? "border-green-500 bg-green-50 text-green-700" : "border-green-200 bg-white text-green-600 hover:border-green-400 hover:bg-green-50"}`}
-                        >
-                            {upvoteLoading ? (
-                                <SvgSpinner />
-                            ) : (
-                                <SvgUpvote active={upvoted} />
-                            )}
-                            {upvoted ? "Upvoted" : "Upvote"}
-                            <span className="font-bold">
-                                {formatNumber(upvoteCount)}
-                            </span>
-                        </button>
+
+                        <div className="flex flex-col xs:flex-row sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                            {/* Share */}
+                            <button
+                                onClick={handleCardShare}
+                                className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 font-semibold text-sm transition-all cursor-pointer flex-1 sm:flex-none ${
+                                    shareCopied
+                                        ? "border-blue-400 bg-blue-50 text-blue-600"
+                                        : "border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                                }`}
+                            >
+                                {shareCopied ? (
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2.5"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        className="w-4 h-4 shrink-0"
+                                    >
+                                        <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                ) : (
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        className="w-4 h-4 shrink-0"
+                                    >
+                                        <circle cx="18" cy="5" r="3" />
+                                        <circle cx="6" cy="12" r="3" />
+                                        <circle cx="18" cy="19" r="3" />
+                                        <line
+                                            x1="8.59"
+                                            y1="13.51"
+                                            x2="15.42"
+                                            y2="17.49"
+                                        />
+                                        <line
+                                            x1="15.41"
+                                            y1="6.51"
+                                            x2="8.59"
+                                            y2="10.49"
+                                        />
+                                    </svg>
+                                )}
+                                {shareCopied ? "Copied!" : "Share"}
+                            </button>
+
+                            {/* Oppose button */}
+                            <button
+                                onClick={handleDownvote}
+                                disabled={
+                                    !authReady || downvoteLoading || upvoted
+                                }
+                                title={
+                                    upvoted
+                                        ? "Remove your support first"
+                                        : "Oppose this post"
+                                }
+                                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl border-2 font-semibold text-sm transition-all cursor-pointer disabled:opacity-50 flex-1 sm:flex-none ${
+                                    downvoted
+                                        ? "border-red-500 bg-red-50 text-red-700"
+                                        : "border-red-200 bg-white text-red-500 hover:border-red-400 hover:bg-red-50"
+                                }`}
+                            >
+                                {downvoteLoading ? (
+                                    <SvgSpinner />
+                                ) : (
+                                    <SvgDownvote active={downvoted} />
+                                )}
+                                {downvoted ? "Opposed" : "Oppose"}
+                                <span className="font-bold">
+                                    {formatNumber(downvoteCount)}
+                                </span>
+                            </button>
+
+                            {/* Support/Upvote button */}
+                            <button
+                                onClick={handleUpvote}
+                                disabled={
+                                    !authReady || upvoteLoading || downvoted
+                                }
+                                title={
+                                    downvoted
+                                        ? "Remove your opposition first"
+                                        : "Support this post"
+                                }
+                                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl border-2 font-semibold text-sm transition-all cursor-pointer disabled:opacity-50 flex-1 sm:flex-none ${
+                                    upvoted
+                                        ? "border-green-500 bg-green-50 text-green-700"
+                                        : "border-green-200 bg-white text-green-600 hover:border-green-400 hover:bg-green-50"
+                                }`}
+                            >
+                                {upvoteLoading ? (
+                                    <SvgSpinner />
+                                ) : (
+                                    <SvgUpvote active={upvoted} />
+                                )}
+                                {upvoted ? "Upvoted" : "Upvote"}
+                                <span className="font-bold">
+                                    {formatNumber(upvoteCount)}
+                                </span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1743,7 +2116,11 @@ export default function IssueDetailPage({ params }) {
                                     key={option}
                                     onClick={() => handleVote(option)}
                                     disabled={!authReady || voteLoading}
-                                    className={`w-full relative overflow-hidden rounded-xl border-2 transition-all duration-200 text-left disabled:opacity-60 cursor-pointer ${sel ? "border-[#F97316] bg-orange-50" : "border-gray-100 hover:border-orange-200"}`}
+                                    className={`w-full relative overflow-hidden rounded-xl border-2 transition-all duration-200 text-left disabled:opacity-60 cursor-pointer ${
+                                        sel
+                                            ? "border-[#F97316] bg-orange-50"
+                                            : "border-gray-100 hover:border-orange-200"
+                                    }`}
                                 >
                                     <div
                                         className={`absolute left-0 top-0 bottom-0 opacity-10 transition-all duration-700 ${BAR_COLORS[idx % BAR_COLORS.length]}`}
@@ -1752,12 +2129,20 @@ export default function IssueDetailPage({ params }) {
                                     <div className="relative px-4 py-3 flex items-center justify-between gap-3">
                                         <div className="flex items-center gap-3">
                                             <div
-                                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${sel ? "border-[#F97316] bg-[#F97316]" : "border-gray-300"}`}
+                                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                                    sel
+                                                        ? "border-[#F97316] bg-[#F97316]"
+                                                        : "border-gray-300"
+                                                }`}
                                             >
                                                 {sel && <SvgCheckFill />}
                                             </div>
                                             <span
-                                                className={`font-semibold text-sm ${sel ? "text-[#F97316]" : "text-gray-700"}`}
+                                                className={`font-semibold text-sm ${
+                                                    sel
+                                                        ? "text-[#F97316]"
+                                                        : "text-gray-700"
+                                                }`}
                                             >
                                                 {option}
                                             </span>
@@ -1784,54 +2169,12 @@ export default function IssueDetailPage({ params }) {
 
                 {/* ── Demographic Insights ── */}
                 {issue.demographics?.length > 0 && (
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                        <div className="px-4 pt-4 pb-3 border-b border-gray-50 flex items-center justify-between">
-                            <h2
-                                className="text-sm font-bold text-gray-900 flex items-center gap-2"
-                                style={{
-                                    fontFamily: "Plus Jakarta Sans, sans-serif",
-                                }}
-                            >
-                                <SvgChart />
-                                Demographic Insights
-                            </h2>
-                            <span className="text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
-                                {totalVotes} total votes
-                            </span>
-                        </div>
-
-                        <div className="px-4 py-4 space-y-3">
-                            {demographicsLoading ? (
-                                <div className="flex items-center justify-center py-6 gap-2 text-gray-400">
-                                    <SvgSpinner />
-                                    <span className="text-sm">
-                                        Loading insights...
-                                    </span>
-                                </div>
-                            ) : totalVotes === 0 ? (
-                                <div className="py-6 text-center">
-                                    <p className="text-sm text-gray-400 font-medium">
-                                        No votes yet
-                                    </p>
-                                    <p className="text-xs text-gray-300 mt-1">
-                                        Demographic breakdown will appear once
-                                        people vote
-                                    </p>
-                                </div>
-                            ) : (
-                                issue.demographics
-                                    .filter((demo) => DEMOGRAPHIC_CONFIG[demo])
-                                    .map((demo) => (
-                                        <DemographicChart
-                                            key={demo}
-                                            demographic={demo}
-                                            data={demographicData[demo]}
-                                            voteOptions={voteOptions}
-                                        />
-                                    ))
-                            )}
-                        </div>
-                    </div>
+                    <DemographicInsights
+                        issue={issue}
+                        demographicData={demographicData}
+                        demographicsLoading={demographicsLoading}
+                        totalVotes={totalVotes}
+                    />
                 )}
 
                 {/* ── Discussion ── */}
@@ -1938,6 +2281,7 @@ export default function IssueDetailPage({ params }) {
                                             issueOwnerId={issue.userId}
                                             currentUser={currentUser}
                                             authReady={authReady}
+                                            isAnonymous={isAnonymous}
                                         />
                                     </div>
                                 ))
@@ -1966,16 +2310,24 @@ export default function IssueDetailPage({ params }) {
                         href="/"
                         className="flex-1 bg-white border border-gray-200 text-gray-700 py-3 rounded-xl font-semibold text-sm text-center hover:border-[#F97316]/40 hover:text-[#F97316] transition-all"
                     >
-                        Browse Issues
+                        Browse Posts
                     </Link>
                     <Link
                         href="/create-issue"
                         className="flex-1 bg-[#F97316] text-white py-3 rounded-xl font-semibold text-sm text-center hover:bg-[#C2410C] transition-all shadow-sm"
                     >
-                        Report New Issue
+                        Post to Camp
                     </Link>
                 </div>
             </div>
+
+            <LoginPromptModal
+                isOpen={showLoginPrompt}
+                onClose={() => setShowLoginPrompt(false)}
+                onLogin={() => {
+                    window.location.href = "/login";
+                }}
+            />
         </div>
     );
 }

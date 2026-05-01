@@ -1,8 +1,8 @@
-// app/page.tsx
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { subscribeToOnlineCount, updateOnlineCount } from "@/lib/presence";
 import {
     collection,
     onSnapshot,
@@ -16,7 +16,6 @@ import { db, auth } from "@/lib/firebase";
 import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
 
-// ── Category display map ──────────────────────────────────────────────────────
 const CATEGORY_META = {
     infrastructure: {
         emoji: "🏗️",
@@ -72,11 +71,23 @@ const CATEGORY_META = {
         bg: "bg-violet-50",
         label: "Poll",
     },
+    poll: {
+        emoji: "🗳️",
+        color: "text-violet-700",
+        bg: "bg-violet-50",
+        label: "Poll",
+    },
     food: {
         emoji: "🍛",
         color: "text-amber-700",
         bg: "bg-amber-50",
         label: "Food",
+    },
+    issue: {
+        emoji: "🚨",
+        color: "text-red-700",
+        bg: "bg-red-50",
+        label: "Issue",
     },
     other: {
         emoji: "📌",
@@ -86,14 +97,14 @@ const CATEGORY_META = {
     },
 };
 
-// ── Filter map
 const FILTER_MAP = {
     gist: { field: "category", values: ["gist", "gossip", "discussion"] },
-    polls: { field: "responseType", values: ["multiple_choice", "yes_no"] },
+    polls: { field: "category", values: ["poll", "polls"] },
     food: { field: "category", values: ["food"] },
     issues: {
         field: "category",
         values: [
+            "issue",
             "infrastructure",
             "education",
             "healthcare",
@@ -105,7 +116,6 @@ const FILTER_MAP = {
     },
 };
 
-// ── Helpers
 function timeAgo(seconds) {
     const diff = Math.floor(Date.now() / 1000) - seconds;
     if (diff < 60) return "Just now";
@@ -125,6 +135,15 @@ function getAvatarCount(upvotes) {
     return Math.min(upvotes, 4);
 }
 
+// Normalise whatever is stored → always renders as "Platoon 3"
+function normalisePlatoon(raw) {
+    if (!raw) return null;
+    const s = raw.toString().trim();
+    if (!s) return null;
+    if (s.toLowerCase().startsWith("platoon")) return s;
+    return `Platoon ${s}`;
+}
+
 const AVATAR_LETTERS = ["A", "B", "C", "D"];
 const avatarColors = [
     "bg-orange-400",
@@ -137,7 +156,6 @@ const avatarColors = [
     "bg-indigo-400",
 ];
 
-// ── Icons ─────
 const SearchIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -151,7 +169,8 @@ const SearchIcon = () => (
         <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
 );
-const FilterIcon = () => (
+
+const SortIcon = () => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
@@ -160,12 +179,13 @@ const FilterIcon = () => (
         strokeLinecap="round"
         className="w-4 h-4"
     >
-        <line x1="4" y1="6" x2="20" y2="6" />
-        <line x1="8" y1="12" x2="16" y2="12" />
-        <line x1="11" y1="18" x2="13" y2="18" />
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="6" y1="12" x2="18" y2="12" />
+        <line x1="10" y1="18" x2="14" y2="18" />
     </svg>
 );
-const LocationIcon = ({ className = "w-3 h-3" }) => (
+
+const PlatoonIcon = ({ className = "w-3 h-3" }) => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
@@ -174,10 +194,13 @@ const LocationIcon = ({ className = "w-3 h-3" }) => (
         strokeLinecap="round"
         className={className}
     >
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-        <circle cx="12" cy="10" r="3" />
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 00-3-3.87" />
+        <path d="M16 3.13a4 4 0 010 7.75" />
     </svg>
 );
+
 const UpvoteIcon = ({ active }) => (
     <svg
         viewBox="0 0 24 24"
@@ -190,6 +213,20 @@ const UpvoteIcon = ({ active }) => (
         <polyline points="18 15 12 9 6 15" />
     </svg>
 );
+
+const DownvoteIcon = ({ active }) => (
+    <svg
+        viewBox="0 0 24 24"
+        fill={active ? "#DC2626" : "none"}
+        stroke="#DC2626"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        className="w-4 h-4"
+    >
+        <polyline points="6 9 12 15 18 9" />
+    </svg>
+);
+
 const CommentIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -202,6 +239,7 @@ const CommentIcon = () => (
         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
     </svg>
 );
+
 const UserIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -216,7 +254,6 @@ const UserIcon = () => (
     </svg>
 );
 
-// ── Status Badge ──────────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
     if (!status) return null;
     const map = {
@@ -249,7 +286,6 @@ function StatusBadge({ status }) {
     );
 }
 
-// ── Skeleton ──
 function SkeletonCard() {
     return (
         <div className="bg-white rounded-2xl p-4 border border-[#FED7AA] animate-pulse">
@@ -269,7 +305,6 @@ function SkeletonCard() {
     );
 }
 
-// ── Login Prompt Modal ────────────────────────────────────────────────────────
 function LoginPromptModal({ isOpen, onClose, onLogin }) {
     if (!isOpen) return null;
     return (
@@ -318,7 +353,6 @@ function LoginPromptModal({ isOpen, onClose, onLogin }) {
     );
 }
 
-// ── Issue Card
 function IssueCard({
     issue,
     currentUser,
@@ -330,32 +364,50 @@ function IssueCard({
     const [upvoted, setUpvoted] = useState(false);
     const [count, setCount] = useState(issue.upvotes || 0);
     const [loading, setLoading] = useState(false);
+    const [downvoted, setDownvoted] = useState(false);
+    const [downvoteCount, setDownvoteCount] = useState(issue.downvotes || 0);
+    const [downvoteLoading, setDownvoteLoading] = useState(false);
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-    const meta = CATEGORY_META[issue.category] ?? CATEGORY_META.other;
     const [realtimeCommentCount, setRealtimeCommentCount] = useState(0);
+
+    const meta = CATEGORY_META[issue.category] ?? CATEGORY_META.other;
+    const platoonLabel = normalisePlatoon(issue.author?.platoon);
+
+    // Resolve author display name
+    const authorName = issue.author?.isAnonymous
+        ? "👤 Anonymous"
+        : issue.author?.name || issue.author?.displayName || null;
 
     useEffect(() => {
         if (!issue.id) return;
         const unsubscribe = onSnapshot(
             query(collection(db, "issues", issue.id, "comments")),
-            (snap) => {
-                setRealtimeCommentCount(snap.docs.length);
-            },
+            (snap) => setRealtimeCommentCount(snap.docs.length),
         );
         return () => unsubscribe();
     }, [issue.id]);
 
     useEffect(() => {
         if (!currentUser || !issue.id || isAnonymous) return;
-        const saved = localStorage.getItem(
-            `upvote_${issue.id}_${currentUser.uid}`,
-        );
-        if (saved === "1") setUpvoted(true);
+        if (
+            localStorage.getItem(`upvote_${issue.id}_${currentUser.uid}`) ===
+            "1"
+        )
+            setUpvoted(true);
+        if (
+            localStorage.getItem(`downvote_${issue.id}_${currentUser.uid}`) ===
+            "1"
+        )
+            setDownvoted(true);
     }, [currentUser, issue.id, isAnonymous]);
 
     useEffect(() => {
         setCount(issue.upvotes || 0);
     }, [issue.upvotes]);
+
+    useEffect(() => {
+        setDownvoteCount(issue.downvotes || 0);
+    }, [issue.downvotes]);
 
     const handleUpvote = async (e) => {
         e.preventDefault();
@@ -364,7 +416,10 @@ function IssueCard({
             setShowLoginPrompt(true);
             return;
         }
-        if (!authReady || loading) return;
+        if (!authReady || loading || downvoteLoading) return;
+        // Mutual exclusivity: cannot support if already opposing
+        if (downvoted) return;
+
         const wasUpvoted = upvoted;
         const newCount = wasUpvoted ? Math.max(0, count - 1) : count + 1;
         setUpvoted(!wasUpvoted);
@@ -432,12 +487,61 @@ function IssueCard({
         }
     };
 
+    const handleDownvote = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (isAnonymous || !currentUser || currentUser.isAnonymous) {
+            setShowLoginPrompt(true);
+            return;
+        }
+        if (!authReady || downvoteLoading || loading) return;
+        // Mutual exclusivity: cannot oppose if already supporting
+        if (upvoted) return;
+
+        const wasDownvoted = downvoted;
+        const newCount = wasDownvoted
+            ? Math.max(0, downvoteCount - 1)
+            : downvoteCount + 1;
+        setDownvoted(!wasDownvoted);
+        setDownvoteCount(newCount);
+        setDownvoteLoading(true);
+        try {
+            const docRef = doc(db, "issues", issue.id);
+            await runTransaction(db, async (tx) => {
+                const snap = await tx.get(docRef);
+                if (!snap.exists()) throw new Error("not found");
+                const current = snap.data().downvotes || 0;
+                tx.update(docRef, {
+                    downvotes: wasDownvoted
+                        ? Math.max(0, current - 1)
+                        : current + 1,
+                });
+            });
+            if (wasDownvoted) {
+                localStorage.removeItem(
+                    `downvote_${issue.id}_${currentUser.uid}`,
+                );
+            } else {
+                localStorage.setItem(
+                    `downvote_${issue.id}_${currentUser.uid}`,
+                    "1",
+                );
+            }
+        } catch (err) {
+            console.error("Oppose failed:", err);
+            setDownvoted(wasDownvoted);
+            setDownvoteCount(issue.downvotes || 0);
+        } finally {
+            setDownvoteLoading(false);
+        }
+    };
+
     const avatarCount = getAvatarCount(count);
 
     return (
         <>
             <Link href={`/issue/${issue.id}`} className="block">
-                <div className="issue-card bg-white rounded-2xl p-4 shadow-card border border-[#FED7AA] hover:shadow-lg hover:border-orange-300 transition-all cursor-pointer relative">
+                <div className="bg-white rounded-2xl p-4 shadow-card border border-[#FED7AA] hover:shadow-lg hover:border-orange-300 transition-all cursor-pointer relative">
                     {rank && (
                         <div
                             className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white ${rank === 1 ? "bg-linear-to-br from-yellow-400 to-yellow-600 text-white" : rank === 2 ? "bg-linear-to-br from-gray-300 to-gray-500 text-white" : rank === 3 ? "bg-linear-to-br from-orange-400 to-orange-600 text-white" : "bg-gray-100 text-gray-600"}`}
@@ -445,6 +549,17 @@ function IssueCard({
                             {rank}
                         </div>
                     )}
+
+                    {/* Author name */}
+                    {authorName && (
+                        <p
+                            className="text-xs text-gray-400 mb-1.5"
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                        >
+                            {authorName}
+                        </p>
+                    )}
+
                     <div className="flex items-center justify-between mb-2.5">
                         <span
                             className={`text-xs font-semibold px-2.5 py-1 rounded-full ${meta.bg} ${meta.color} flex items-center gap-1.5`}
@@ -477,20 +592,71 @@ function IssueCard({
                                 {issue.description}
                             </p>
                         </div>
+
+                        {/* Vote buttons: Oppose (left) + Support (right) */}
                         <div
-                            className="shrink-0"
+                            className="shrink-0 flex gap-1.5"
                             onClick={(e) => e.preventDefault()}
                         >
+                            {/* Oppose button */}
+                            <button
+                                onClick={handleDownvote}
+                                disabled={downvoteLoading || upvoted}
+                                title={
+                                    upvoted
+                                        ? "Remove your support first"
+                                        : "Oppose this post"
+                                }
+                                className={`flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
+                                    downvoted
+                                        ? "border-red-500 bg-red-50"
+                                        : isAnonymous || upvoted
+                                          ? "border-gray-200 bg-gray-50"
+                                          : "border-red-200 bg-white hover:border-red-400 hover:bg-red-50"
+                                }`}
+                            >
+                                <span className="mt-2">
+                                    <DownvoteIcon active={downvoted} />
+                                </span>
+                                <span
+                                    className={`text-sm font-bold ${
+                                        downvoted
+                                            ? "text-red-600"
+                                            : "text-red-400"
+                                    }`}
+                                >
+                                    {formatUpvotes(downvoteCount)}
+                                </span>
+                            </button>
+
+                            {/* Support button */}
                             <button
                                 onClick={handleUpvote}
-                                disabled={loading}
-                                className={`upvote-btn flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-60 ${upvoted ? "border-green-500 bg-green-50" : isAnonymous ? "border-gray-200 bg-gray-50 hover:border-gray-300" : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50"}`}
+                                disabled={loading || downvoted}
+                                title={
+                                    downvoted
+                                        ? "Remove your opposition first"
+                                        : "Support this post"
+                                }
+                                className={`flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
+                                    upvoted
+                                        ? "border-green-500 bg-green-50"
+                                        : isAnonymous || downvoted
+                                          ? "border-gray-200 bg-gray-50"
+                                          : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50"
+                                }`}
                             >
                                 <span className="mt-2">
                                     <UpvoteIcon active={upvoted} />
                                 </span>
                                 <span
-                                    className={`text-sm font-bold ${upvoted ? "text-green-600" : isAnonymous ? "text-gray-400" : "text-green-600"}`}
+                                    className={`text-sm font-bold ${
+                                        upvoted
+                                            ? "text-green-600"
+                                            : isAnonymous
+                                              ? "text-gray-400"
+                                              : "text-green-600"
+                                    }`}
                                 >
                                     {formatUpvotes(count)}
                                 </span>
@@ -499,10 +665,16 @@ function IssueCard({
                     </div>
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
                         <div className="flex items-center gap-2 flex-wrap">
-                            <span className="flex items-center gap-1 text-xs text-gray-400">
-                                <LocationIcon />
-                                {issue.location}
+                            <span
+                                className="flex items-center gap-1 text-xs text-black"
+                                style={{
+                                    fontFamily: "DM Sans, sans-serif",
+                                }}
+                            >
+                                <PlatoonIcon />
+                                {platoonLabel}
                             </span>
+
                             <StatusBadge status={issue.status} />
                         </div>
                         <button
@@ -551,7 +723,6 @@ function IssueCard({
     );
 }
 
-// ── Main Component ────────────────────────────────────────────────────────────
 export default function HomePage() {
     const [issues, setIssues] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -561,7 +732,9 @@ export default function HomePage() {
     const [currentUser, setCurrentUser] = useState(null);
     const [authReady, setAuthReady] = useState(false);
     const [isAnonymous, setIsAnonymous] = useState(true);
+    const [onlineCampers, setOnlineCampers] = useState(0);
     const [userProfile, setUserProfile] = useState(null);
+    const [sortBy, setSortBy] = useState("newest");
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -570,10 +743,30 @@ export default function HomePage() {
                 setIsAnonymous(user.isAnonymous);
                 setAuthReady(true);
                 if (!user.isAnonymous) {
+                    let userName = user.displayName || "User";
+                    let userPlatoon = null;
+                    try {
+                        const userSnap = await getDoc(
+                            doc(db, "users", user.uid),
+                        );
+                        if (userSnap.exists()) {
+                            const userData = userSnap.data();
+                            userPlatoon = userData?.platoon ?? null;
+                            if (userData?.fullName)
+                                userName = userData.fullName;
+                        }
+                    } catch (profileErr) {
+                        console.warn(
+                            "Could not fetch user profile for platoon:",
+                            profileErr,
+                        );
+                    }
+
                     setUserProfile({
-                        name: user.displayName || "User",
+                        name: userName,
                         email: user.email,
                         photoURL: user.photoURL,
+                        platoon: userPlatoon,
                     });
                 }
             } else {
@@ -589,6 +782,17 @@ export default function HomePage() {
     }, []);
 
     useEffect(() => {
+        if (!authReady || !currentUser) return;
+        const unsubscribe = subscribeToOnlineCount(setOnlineCampers);
+        const interval = setInterval(updateOnlineCount, 60000);
+        updateOnlineCount();
+        return () => {
+            unsubscribe();
+            clearInterval(interval);
+        };
+    }, [authReady, currentUser]);
+
+    useEffect(() => {
         const q = query(collection(db, "issues"), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(
             q,
@@ -600,17 +804,18 @@ export default function HomePage() {
                         id: docSnap.id,
                         title: d.title ?? "Untitled Issue",
                         description: d.description ?? "",
-                        location: d.location ?? "Nigeria",
                         category: d.category ?? "other",
                         responseType: d.responseType ?? "yes_no",
                         voteOptions: d.voteOptions ?? [],
                         votes: d.votes ?? {},
                         totalVotes: d.totalVotes ?? 0,
                         upvotes: d.upvotes ?? 0,
+                        downvotes: d.downvotes ?? 0,
                         commentCount: d.commentCount ?? 0,
                         createdAt: d.createdAt ?? null,
                         timeAgo: seconds ? timeAgo(seconds) : "Just now",
                         status: d.status ?? null,
+                        author: d.author ?? {},
                     };
                 });
                 setIssues(fetched);
@@ -636,18 +841,31 @@ export default function HomePage() {
         { key: "polls", label: "🗳️ Polls" },
         { key: "food", label: "🍛 Food" },
         { key: "issues", label: "🚨 Issues" },
+        { key: "opposed", label: "👎 Opposed" },
     ];
+
+    const sortLabels = { newest: "Newest", top: "Top", comments: "Comments" };
+    const cycleSort = () =>
+        setSortBy((prev) =>
+            prev === "newest" ? "top" : prev === "top" ? "comments" : "newest",
+        );
 
     const filteredIssues = issues
         .filter((issue) => {
             if (search) {
                 const q = search.toLowerCase();
+                const platoon =
+                    normalisePlatoon(issue.author?.platoon)?.toLowerCase() ??
+                    "";
                 if (
                     !issue.title.toLowerCase().includes(q) &&
-                    !issue.description.toLowerCase().includes(q)
+                    !issue.description.toLowerCase().includes(q) &&
+                    !platoon.includes(q)
                 )
                     return false;
             }
+            // "opposed" filter: only posts with at least 1 downvote
+            if (activeFilter === "opposed") return (issue.downvotes || 0) > 0;
             if (activeFilter === "all" || activeFilter === "trending")
                 return true;
             const rule = FILTER_MAP[activeFilter];
@@ -658,34 +876,55 @@ export default function HomePage() {
         .sort((a, b) => {
             if (activeFilter === "trending")
                 return (b.upvotes || 0) - (a.upvotes || 0);
-            return 0;
+            if (activeFilter === "opposed")
+                return (b.downvotes || 0) - (a.downvotes || 0);
+            if (sortBy === "top") return (b.upvotes || 0) - (a.upvotes || 0);
+            if (sortBy === "comments")
+                return (b.commentCount || 0) - (a.commentCount || 0);
+            return (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0);
         });
 
     const displayName = isAnonymous ? "Guest" : userProfile?.name || "User";
-    const displayLocation = isAnonymous ? "" : userProfile?.state || "Nigeria";
+    const displayPlatoon = isAnonymous ? "" : userProfile?.platoon || "";
 
     return (
         <div
             className="min-h-screen pb-24 md:pb-0"
             style={{ background: "#FDF6EF" }}
         >
-            {/* ── Mobile Header ── */}
+            {/* Mobile Header */}
             <header className="md:hidden sticky top-0 z-40 bg-[#F97316] px-4 pt-6 pb-4">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
-                            <span className="text-base">✊</span>
+                    <div className="flex space-x-2 min-w-0 relative z-10 overflow-hidden">
+                        <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center shrink-0 relative z-10">
+                            <span className="text-white text-[17px] leading-none select-none">
+                                ✊
+                            </span>
                         </div>
-                        <span
-                            className="text-white font-bold text-base"
-                            style={{
-                                fontFamily: "Plus Jakarta Sans, sans-serif",
-                            }}
-                        >
-                            We The People NG
-                        </span>
+
+                        <div>
+                            <div
+                                className="text-white font-bold text-[13.5px] leading-tight truncate block space-y-1"
+                                style={{
+                                    fontFamily: "Plus Jakarta Sans, sans-serif",
+                                }}
+                            >
+                                Camp Connect 🏕️
+                            </div>
+                            <div className="text-white/55 text-[10px] font-medium mt-0.5 tracking-wide truncate">
+                                Be the voice. Drive the change.
+                            </div>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2">
+
+                    <div className="gap-2 flex">
+                        <div className="flex items-center gap-1.5 bg-white/20 rounded-full px-3 py-1.5">
+                            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                            <span className="text-white text-xs font-semibold">
+                                {onlineCampers} online
+                            </span>
+                        </div>
+
                         {isAnonymous ? (
                             <Link
                                 href="/login"
@@ -705,17 +944,17 @@ export default function HomePage() {
                 </div>
             </header>
 
-            {/* ── Desktop Header ── */}
+            {/* Desktop Header */}
             <div className="hidden md:flex items-center justify-between px-6 pt-8 pb-0">
                 <div>
                     <h1
                         className="text-2xl font-bold text-gray-900"
                         style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                     >
-                        Community Feed
+                        Post Feed
                     </h1>
                     <p className="text-gray-500 text-sm mt-0.5">
-                        Issues from across Nigeria
+                        Posts from across Camps
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -743,7 +982,9 @@ export default function HomePage() {
                                     {displayName}
                                 </div>
                                 <div className="text-xs text-gray-400 mt-0.5">
-                                    {displayLocation || "Nigeria"}
+                                    {displayPlatoon
+                                        ? displayPlatoon
+                                        : "No Platoon"}
                                 </div>
                             </div>
                         </div>
@@ -751,7 +992,7 @@ export default function HomePage() {
                 </div>
             </div>
 
-            {/* ── Mobile Greeting ── */}
+            {/* Mobile Greeting */}
             <div className="md:hidden px-4 pt-5 pb-2">
                 <h1
                     className="text-2xl font-bold text-gray-900"
@@ -767,7 +1008,7 @@ export default function HomePage() {
                 </p>
             </div>
 
-            {/* ── Desktop Greeting ── */}
+            {/* Desktop Greeting */}
             <div className="hidden md:block px-6 mt-4">
                 <div className="bg-white rounded-2xl p-4 shadow-card border border-gray-50 flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-linear-to-br from-orange-300 to-orange-500 flex items-center justify-center text-white text-xl font-bold">
@@ -799,7 +1040,21 @@ export default function HomePage() {
                             >
                                 {issues.length}
                             </div>
-                            <div className="text-xs text-gray-400">Issues</div>
+                            <div className="text-xs text-gray-400">Posts</div>
+                        </div>
+                        <div>
+                            <div
+                                className="text-lg font-bold text-green-600 flex items-center gap-1 justify-center"
+                                style={{
+                                    fontFamily: "Plus Jakarta Sans, sans-serif",
+                                }}
+                            >
+                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                {onlineCampers}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                                Campers Online
+                            </div>
                         </div>
                         <div>
                             <div
@@ -821,7 +1076,7 @@ export default function HomePage() {
                 </div>
             </div>
 
-            {/* ── Search + Filter ── */}
+            {/* Search + Sort */}
             <div className="px-4 md:px-6 mt-4 flex gap-2">
                 <div className="flex-1 relative">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2">
@@ -831,24 +1086,31 @@ export default function HomePage() {
                         type="text"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search issues, communities..."
+                        placeholder="Search posts, platoon no..."
                         className="w-full bg-white rounded-xl pl-9 pr-4 py-3 text-sm text-black placeholder-gray-400 border border-gray-100 shadow-card focus:outline-none focus:ring-2 focus:ring-[#F97316]/20 focus:border-[#F97316]/40 transition-all"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     />
                 </div>
-                <button className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shadow-card border border-gray-100 hover:bg-gray-50 transition-colors text-black shrink-0 self-center cursor-pointer">
-                    <FilterIcon />
+                <button
+                    onClick={cycleSort}
+                    className="h-11 bg-white rounded-xl flex items-center gap-1.5 px-3 shadow-card border border-gray-100 hover:bg-gray-50 transition-colors text-black shrink-0 self-center cursor-pointer"
+                    style={{ fontFamily: "DM Sans, sans-serif" }}
+                >
+                    <SortIcon />
+                    <span className="text-xs font-semibold">
+                        {sortLabels[sortBy]}
+                    </span>
                 </button>
             </div>
 
-            {/* ── Filter Pills ── */}
+            {/* Filter Pills */}
             <div className="px-4 md:px-6 mt-3">
-                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide snap-x">
                     {filters.map((f) => (
                         <button
                             key={f.key}
                             onClick={() => setActiveFilter(f.key)}
-                            className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${activeFilter === f.key ? "bg-[#F97316] text-white shadow-sm" : "bg-white text-black border border-gray-200 hover:border-[#F97316]/40 hover:text-[#F97316]"}`}
+                            className={`shrink-0 snap-start px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${activeFilter === f.key ? "bg-[#F97316] text-white shadow-sm" : "bg-white text-black border border-gray-200 hover:border-[#F97316]/40 hover:text-[#F97316]"}`}
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
                             {f.label}
@@ -865,6 +1127,26 @@ export default function HomePage() {
                     Sorted by most upvotes
                 </p>
             )}
+            {activeFilter === "opposed" && (
+                <p
+                    className="px-4 md:px-6 mt-2 text-xs text-gray-400"
+                    style={{ fontFamily: "DM Sans, sans-serif" }}
+                >
+                    Posts with the most opposition
+                </p>
+            )}
+            {sortBy !== "newest" &&
+                activeFilter !== "trending" &&
+                activeFilter !== "opposed" && (
+                    <p
+                        className="px-4 md:px-6 mt-2 text-xs text-gray-400"
+                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                    >
+                        {sortBy === "top"
+                            ? "Sorted by most upvotes"
+                            : "Sorted by most comments"}
+                    </p>
+                )}
 
             {error && (
                 <div
@@ -875,7 +1157,7 @@ export default function HomePage() {
                 </div>
             )}
 
-            {/* ── Issues List ── */}
+            {/* Issues List */}
             <div className="px-4 md:px-6 my-4 space-y-3 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
                 {loading ? (
                     Array.from({ length: 4 }).map((_, i) => (
@@ -903,19 +1185,19 @@ export default function HomePage() {
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
                             {issues.length === 0
-                                ? "No issues posted yet"
-                                : "No issues found"}
+                                ? "No posts yet"
+                                : "No posts found"}
                         </p>
                         <p className="text-gray-400 text-sm mt-1">
                             {issues.length === 0
-                                ? "Be the first to report one!"
+                                ? "Be the first to post!"
                                 : "Try a different filter or search"}
                         </p>
                     </div>
                 )}
             </div>
 
-            {/* ── Floating Post Button (mobile) ── */}
+            {/* Floating Post Button (mobile) */}
             <Link
                 href="/create-issue"
                 className="md:hidden fixed bottom-20 right-4 flex items-center gap-2 bg-[#EA580C] text-white px-5 py-3.5 rounded-2xl font-bold text-sm shadow-lg hover:bg-[#C2410C] transition-colors"

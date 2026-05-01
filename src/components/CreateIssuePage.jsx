@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
 import { awardPoints } from "@/lib/gamification";
 
-// ─── Post Types────────
+// ─── Post Types ───────────────────────────────────────────────────────────────
 const POST_TYPES = [
     {
         id: "gist",
@@ -74,7 +74,7 @@ const POST_TYPES = [
     },
 ];
 
-// ─── Response Types────
+// ─── Response Types ───────────────────────────────────────────────────────────
 const RESPONSE_TYPES = [
     {
         id: "agreement",
@@ -136,10 +136,9 @@ const DEMOGRAPHIC_OPTIONS = [
 
 const MAX_DESC = 2000;
 const MAX_TITLE = 100;
-const MAX_POLL_OPTION = 60;
 const MAX_CUSTOM_OPTION = 60;
 
-// ─── Icons────────────
+// ─── Icons ────────────────────────────────────────────────────────────────────
 const BackIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -337,7 +336,7 @@ function charCountColor(current, max) {
     return "text-gray-400";
 }
 
-// ─── Step Indicator────
+// ─── Step Indicator ───────────────────────────────────────────────────────────
 function StepIndicator({ step, totalSteps }) {
     return (
         <div className="flex items-center justify-center gap-2 py-3">
@@ -580,12 +579,11 @@ function LoginPrompt({ onLogin }) {
     );
 }
 
-// ─── Main Component────
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function CreatePostPage() {
     const router = useRouter();
     const [currentUser, setCurrentUser] = useState(null);
     const [authReady, setAuthReady] = useState(false);
-    const [isAnonymous, setIsAnonymous] = useState(true);
     const [authError, setAuthError] = useState(null);
     const [isInitializing, setIsInitializing] = useState(true);
 
@@ -617,7 +615,6 @@ export default function CreatePostPage() {
                         timeoutRef.current = null;
                     }
                     setCurrentUser(user);
-                    setIsAnonymous(user.isAnonymous);
                     setAuthReady(true);
                     setIsInitializing(false);
                 } else {
@@ -687,6 +684,7 @@ export default function CreatePostPage() {
     return <CreatePostForm currentUser={currentUser} router={router} />;
 }
 
+// ─── Create Post Form ─────────────────────────────────────────────────────────
 function CreatePostForm({ currentUser, router }) {
     const [postType, setPostType] = useState("");
     const [title, setTitle] = useState("");
@@ -797,6 +795,30 @@ function CreatePostForm({ currentUser, router }) {
         setSaveError("");
 
         try {
+            // ── Fetch user's platoon from their Firestore profile
+
+            let userPlatoon = null;
+            let userName = currentUser.displayName || "Corper";
+            try {
+                const userSnap = await getDoc(
+                    doc(db, "users", currentUser.uid),
+                );
+                if (userSnap.exists()) {
+                    const userData = userSnap.data();
+                    // Store exactly as saved in register e.g. "Platoon 3"
+                    // normalisePlatoon() in the feed card handles display uniformly
+                    userPlatoon = userData?.platoon ?? null;
+                    if (userData?.fullName) userName = userData.fullName;
+                    else if (userData?.displayName)
+                        userName = userData.displayName;
+                }
+            } catch (profileErr) {
+                console.warn(
+                    "Could not fetch user profile for platoon:",
+                    profileErr,
+                );
+            }
+
             let finalDescription = description;
             let finalTitle = title;
 
@@ -812,13 +834,13 @@ function CreatePostForm({ currentUser, router }) {
                 category: postType,
                 title: finalTitle.trim(),
                 description: finalDescription.trim(),
+                // ── author now includes platoon ──
                 author: {
                     uid: currentUser.uid,
-                    name: isAnonymous
-                        ? null
-                        : currentUser.displayName || "Corper",
+                    name: isAnonymous ? null : userName,
                     isAnonymous,
                     showDetails: !isAnonymous && showDetails,
+                    platoon: userPlatoon, // ← platoon saved here
                 },
                 reactions: {},
                 commentCount: 0,
@@ -1138,7 +1160,7 @@ function CreatePostForm({ currentUser, router }) {
                                         fontFamily: "DM Sans, sans-serif",
                                     }}
                                 >
-                                    Options{" "}
+                                    Poll Options{" "}
                                     <span className="text-red-400">*</span>
                                     <span className="text-xs font-normal text-gray-400 ml-1">
                                         (min 2, max 4)
@@ -1163,7 +1185,7 @@ function CreatePostForm({ currentUser, router }) {
                                                     )
                                                 }
                                                 placeholder={`Option ${i + 1}`}
-                                                maxLength={MAX_POLL_OPTION}
+                                                maxLength={60}
                                                 className="flex-1 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-purple-300"
                                                 style={{
                                                     fontFamily:
@@ -1198,7 +1220,7 @@ function CreatePostForm({ currentUser, router }) {
                             </div>
                         )}
 
-                        {/* Description — 2000 char max */}
+                        {/* Description */}
                         <div className="bg-white rounded-2xl border border-gray-100 p-4">
                             <label
                                 className="block text-sm font-semibold text-gray-800 mb-2"
@@ -1366,7 +1388,6 @@ function CreatePostForm({ currentUser, router }) {
                             ))}
                         </div>
 
-                        {/* Custom Options — 2000 char max per option via MAX_CUSTOM_OPTION */}
                         {responseType === "custom" && (
                             <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-4">
                                 <label

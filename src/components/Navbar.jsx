@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useSidebar } from "./SidebarContext";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
 // ── Icons ──────────────────────────────────────────────────────────────────
@@ -35,7 +35,6 @@ const TrendingIcon = ({ active }) => (
         strokeLinejoin="round"
         className="w-4.5 h-4.5 shrink-0"
     >
-        {/* Trending arrow */}
         <polyline points="3 17 9 11 13 15 21 7" />
         <polyline points="14 7 21 7 21 14" />
     </svg>
@@ -95,7 +94,6 @@ const ProfileIcon = ({ active }) => (
     </svg>
 );
 
-// Clean chevron — rotates based on direction
 const ChevronIcon = ({ direction }) => (
     <svg
         viewBox="0 0 24 24"
@@ -114,6 +112,22 @@ const ChevronIcon = ({ direction }) => (
     </svg>
 );
 
+const LogoutIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="w-4 h-4"
+    >
+        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 01-2-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+);
+
 // ── Config ─────────────────────────────────────────────────────────────────
 
 const navItems = [
@@ -128,10 +142,20 @@ const navItems = [
 
 export default function Navbar() {
     const pathname = usePathname();
+    const router = useRouter();
     const isCreateIssue = pathname === "/create-issue";
 
     const { collapsed, toggle } = useSidebar();
     const [userData, setUserData] = useState(null);
+
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+            router.push("/login"); // Adjust to your login route
+        } catch (error) {
+            console.error("Error logging out:", error);
+        }
+    };
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -189,7 +213,6 @@ export default function Navbar() {
                         minHeight: 68,
                     }}
                 >
-                    {/* Subtle radial glow */}
                     <div
                         className="absolute inset-0 pointer-events-none"
                         style={{
@@ -212,7 +235,7 @@ export default function Navbar() {
                                     fontFamily: "Plus Jakarta Sans, sans-serif",
                                 }}
                             >
-                                Naija Connect 🏕️
+                                Camp Connect 🏕️
                             </div>
                             <div className="text-white/55 text-[10px] font-medium mt-0.5 tracking-wide truncate">
                                 Be the voice. Drive the change.
@@ -249,7 +272,6 @@ export default function Navbar() {
                               ? pathname === "/"
                               : pathname.startsWith(href);
 
-                        /* Post to Camp CTA */
                         if (isPost) {
                             return (
                                 <Link
@@ -285,7 +307,6 @@ export default function Navbar() {
                             );
                         }
 
-                        /* Regular item */
                         return (
                             <Link
                                 key={href}
@@ -327,7 +348,6 @@ export default function Navbar() {
                                     </>
                                 )}
 
-                                {/* Collapsed active dot */}
                                 {collapsed && active && (
                                     <div className="absolute right-2 w-1 h-4 bg-[#F97316] rounded-full" />
                                 )}
@@ -336,40 +356,63 @@ export default function Navbar() {
                     })}
                 </nav>
 
-                {/* ── User row ── */}
+                {/* ── User & Logout Section ── */}
                 <div
-                    className="shrink-0 border-t border-gray-100 flex items-center gap-2.5"
+                    className="shrink-0 border-t border-gray-100 flex flex-col transition-all"
                     style={{
-                        padding: collapsed ? "12px 0" : "12px 14px",
-                        justifyContent: collapsed ? "center" : "flex-start",
+                        padding: collapsed ? "12px 0" : "16px 14px",
                     }}
                 >
                     <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
+                        className="flex items-center gap-2.5 mb-3"
                         style={{
-                            background:
-                                "linear-gradient(135deg, #fb923c 0%, #c2410c 100%)",
+                            justifyContent: collapsed ? "center" : "flex-start",
                         }}
                     >
-                        {userData?.name?.charAt(0)?.toUpperCase() || "U"}
-                    </div>
-                    {!collapsed && (
-                        <div className="flex-1 min-w-0">
-                            <div className="text-[12px] font-semibold text-gray-800 truncate leading-none">
-                                {userData?.name || "Loading..."}
-                            </div>
-
-                            <div className="text-[10px] text-gray-400 mt-0.5 truncate">
-                                {userData?.location || ""}
-                            </div>
-                        </div>
-                    )}
-                    {!collapsed && (
                         <div
-                            className="w-2 h-2 bg-emerald-400 rounded-full shrink-0"
-                            title="Online"
-                        />
-                    )}
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
+                            style={{
+                                background:
+                                    "linear-gradient(135deg, #fb923c 0%, #c2410c 100%)",
+                            }}
+                        >
+                            {userData?.name?.charAt(0)?.toUpperCase() || "U"}
+                        </div>
+                        {!collapsed && (
+                            <div className="flex-1 min-w-0">
+                                <div className="text-[12px] font-semibold text-gray-800 truncate leading-none">
+                                    {userData?.name || "Loading..."}
+                                </div>
+                                <div className="text-[10px] text-gray-400 mt-1 truncate">
+                                    {userData?.location || ""}
+                                </div>
+                            </div>
+                        )}
+                        {!collapsed && (
+                            <div
+                                className="w-2 h-2 bg-emerald-400 rounded-full shrink-0"
+                                title="Online"
+                            />
+                        )}
+                    </div>
+
+                    {/* Logout Button */}
+                    <button
+                        onClick={handleLogout}
+                        className={`flex items-center justify-center cursor-pointer transition-all duration-200 group ${
+                            collapsed
+                                ? "text-gray-400 hover:text-red-500"
+                                : "gap-2.5 px-3 py-2 rounded-xl text-gray-500 hover:bg-red-50 hover:text-red-600"
+                        }`}
+                        title={collapsed ? "Logout" : undefined}
+                    >
+                        <LogoutIcon />
+                        {!collapsed && (
+                            <span className="text-[12px] font-medium cursor-pointer">
+                                Sign Out
+                            </span>
+                        )}
+                    </button>
                 </div>
             </aside>
 
@@ -406,7 +449,7 @@ export default function Navbar() {
                                     aria-label="Post to Camp"
                                 >
                                     <div
-                                        className="bg-[#F97316] rounded-4.5 flex items-center justify-center active:scale-95 transition-transform rounded-full"
+                                        className="bg-[#F97316] flex items-center justify-center active:scale-95 transition-transform rounded-full"
                                         style={{
                                             width: 50,
                                             height: 50,

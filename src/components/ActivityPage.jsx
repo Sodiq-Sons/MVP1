@@ -393,7 +393,7 @@ function UserProfileCard({ user, userStats }) {
                     </p>
                     {userStats && (
                         <p className="text-[11px] text-[#F97316] font-semibold mt-0.5">
-                            {userStats.issuesPosted} issues posted •{" "}
+                            {userStats.issuesPosted} posts dropped •{" "}
                             {userStats.totalUpvotes} upvotes
                         </p>
                     )}
@@ -422,7 +422,7 @@ function LoginPrompt({ onLogin }) {
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
                     Please log in to view your activity feed and see updates on
-                    your issues.
+                    your posts.
                 </p>
                 <button
                     onClick={onLogin}
@@ -533,9 +533,7 @@ export default function ActivityPage() {
         { key: "upvote", label: "Upvotes", emoji: "⬆️" },
         { key: "comment", label: "Comments", emoji: "💬" },
         { key: "reply", label: "Replies", emoji: "↩️" },
-        { key: "like_comment", label: "Likes", emoji: "❤️" },
         { key: "vote", label: "Votes", emoji: "🗳️" },
-        { key: "resolved", label: "Resolved", emoji: "✅" },
         { key: "milestone", label: "Milestones", emoji: "🏆" },
     ];
 
@@ -553,7 +551,7 @@ export default function ActivityPage() {
                 .filter((n) => n.type === "upvote")
                 .length.toString(),
             icon: "⬆️",
-            trend: "On your issues",
+            trend: "On your posts",
         },
         {
             label: "Comments",
@@ -618,7 +616,7 @@ export default function ActivityPage() {
                         Activity
                     </h1>
                     <p className="text-gray-500 text-sm mt-0.5">
-                        Track updates on your issues and community activity
+                        Track updates on your posts and community activity
                     </p>
                 </div>
                 <div className="flex items-center gap-2">

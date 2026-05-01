@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
+import { getReferralStats } from "@/lib/referrals";
 import { toast } from "sonner";
 
 // ── Icons ────────────────────────────────────────────────────────────────────
@@ -97,26 +98,60 @@ const TwitterIcon = () => (
 // ── Main Component ───────────────────────────────────────────────────────────
 export default function InvitePage() {
     const router = useRouter();
-    const [referralCode, setReferralCode] = useState("WTP2026");
+    const [referralCode, setReferralCode] = useState("LOADING");
     const [referralCount, setReferralCount] = useState(0);
     const [referralPoints, setReferralPoints] = useState(0);
+    const [referralLink, setReferralLink] = useState("");
+    const [isClient, setIsClient] = useState(false);
+    const [statsLoading, setStatsLoading] = useState(true);
 
+    // FIX (Bug 5): Previously referralCount and referralPoints were initialized
+    // to 0 and never updated — getReferralStats was never called so the hero
+    // card always showed "0 Friends Joined / 0 Points Earned" for every user.
     useEffect(() => {
-        // Generate referral code from user ID if available
+        setIsClient(true);
+
         if (auth.currentUser) {
             const code = auth.currentUser.uid.slice(0, 8).toUpperCase();
             setReferralCode(code);
+
+            // Fetch the user's actual referral stats from Firestore
+            getReferralStats(auth.currentUser.uid)
+                .then((stats) => {
+                    if (stats) {
+                        setReferralCount(stats.completedReferralsCount || 0);
+                        setReferralPoints(stats.pointsEarned || 0);
+                    }
+                })
+                .catch((err) => {
+                    console.error("Failed to load referral stats:", err);
+                })
+                .finally(() => {
+                    setStatsLoading(false);
+                });
+        } else {
+            setReferralCode("WTP2026");
+            setStatsLoading(false);
         }
     }, []);
 
-    const referralLink = `${typeof window !== "undefined" ? window.location.origin : ""}/signup?ref=${referralCode}`;
+    useEffect(() => {
+        if (isClient && referralCode && referralCode !== "LOADING") {
+            const link = `${window.location.origin}/register?ref=${referralCode}`;
+            setReferralLink(link);
+        }
+    }, [isClient, referralCode]);
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(referralLink);
-        toast.success("Link copied to clipboard!");
+        if (referralLink) {
+            navigator.clipboard.writeText(referralLink);
+            toast.success("Link copied to clipboard!");
+        }
     };
 
     const handleShare = async () => {
+        if (!referralLink) return;
+
         const shareData = {
             title: "Join We The People NG",
             text:
@@ -142,6 +177,7 @@ export default function InvitePage() {
             icon: <WhatsAppIcon />,
             color: "bg-green-500",
             action: () => {
+                if (!referralLink) return;
                 const text = encodeURIComponent(
                     `Join We The People NG! Report issues in your community: ${referralLink}`,
                 );
@@ -153,6 +189,7 @@ export default function InvitePage() {
             icon: <TwitterIcon />,
             color: "bg-black",
             action: () => {
+                if (!referralLink) return;
                 const text = encodeURIComponent(
                     "Join me on We The People NG — making Nigeria better, one issue at a time 🇳🇬",
                 );
@@ -214,13 +251,17 @@ export default function InvitePage() {
                             Invite & Earn
                         </h2>
                         <p className="text-sm text-white/80 mb-4">
-                            Get 50 points for every friend who joins and posts
+                            Get 15 points for every friend who joins and posts
                             their first issue
                         </p>
                         <div className="flex justify-center gap-6 text-center">
                             <div>
                                 <div className="text-2xl font-bold">
-                                    {referralCount}
+                                    {statsLoading ? (
+                                        <span className="opacity-50">—</span>
+                                    ) : (
+                                        referralCount
+                                    )}
                                 </div>
                                 <div className="text-xs text-white/60">
                                     Friends Joined
@@ -228,7 +269,11 @@ export default function InvitePage() {
                             </div>
                             <div>
                                 <div className="text-2xl font-bold">
-                                    {referralPoints}
+                                    {statsLoading ? (
+                                        <span className="opacity-50">—</span>
+                                    ) : (
+                                        referralPoints
+                                    )}
                                 </div>
                                 <div className="text-xs text-white/60">
                                     Points Earned
@@ -245,11 +290,14 @@ export default function InvitePage() {
                     </label>
                     <div className="flex gap-2">
                         <div className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 text-sm text-gray-600 truncate font-mono">
-                            {referralLink}
+                            {isClient && referralLink
+                                ? referralLink
+                                : "/register?ref=LOADING..."}
                         </div>
                         <button
                             onClick={handleCopy}
-                            className="flex items-center gap-1.5 bg-[#F97316] text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-[#EA580C] transition-colors"
+                            disabled={!isClient || !referralLink}
+                            className="flex items-center gap-1.5 bg-[#F97316] text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-[#EA580C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <CopyIcon />
                             Copy
@@ -272,7 +320,8 @@ export default function InvitePage() {
                             <button
                                 key={option.name}
                                 onClick={option.action}
-                                className={`flex-1 ${option.color} text-white rounded-xl py-3 flex flex-col items-center gap-1.5 hover:opacity-90 transition-opacity`}
+                                disabled={!isClient || !referralLink}
+                                className={`flex-1 ${option.color} text-white rounded-xl py-3 flex flex-col items-center gap-1.5 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed`}
                             >
                                 {option.icon}
                                 <span className="text-xs font-semibold">
@@ -303,7 +352,7 @@ export default function InvitePage() {
                             { step: "3", text: "They post their first issue" },
                             {
                                 step: "4",
-                                text: "You both earn 50 bonus points!",
+                                text: "You earn 15 bonus points + they earn 5!",
                             },
                         ].map((item, i) => (
                             <div key={i} className="flex items-center gap-3">
