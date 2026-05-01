@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import LoginPage from "../(auth)/login/page";
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 
@@ -13,14 +12,20 @@ const ChevronLeft = () => (
         stroke="currentColor"
         strokeWidth="2.5"
         strokeLinecap="round"
-        className="w-4 h-4"
+        className="w-4 h-4 shrink-0"
     >
         <polyline points="15 18 9 12 15 6" />
     </svg>
 );
 
 const GoogleIcon = () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        className="shrink-0"
+    >
         <path
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
             fill="#4285F4"
@@ -44,10 +49,10 @@ const GoogleIcon = () => (
 
 function LiveBadge({ count = 147 }) {
     return (
-        <div className="inline-flex items-center gap-1.5 bg-white/20 rounded-full px-3 py-1.5">
-            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+        <div className="inline-flex items-center gap-1.5 bg-white/20 rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5">
+            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-400 rounded-full animate-pulse shrink-0" />
             <span
-                className="text-white text-xs font-semibold"
+                className="text-white text-[11px] sm:text-xs font-semibold whitespace-nowrap"
                 style={{ fontFamily: "DM Sans, sans-serif" }}
             >
                 {count} live
@@ -56,11 +61,12 @@ function LiveBadge({ count = 147 }) {
     );
 }
 
-function PrimaryBtn({ children, onClick, className = "" }) {
+function PrimaryBtn({ children, onClick, className = "", disabled = false }) {
     return (
         <button
             onClick={onClick}
-            className={`w-full bg-[#F97316] hover:bg-[#EA580C] active:scale-[0.98] text-white font-bold text-[15px] py-3.5 sm:py-4 rounded-2xl transition-all cursor-pointer ${className}`}
+            disabled={disabled}
+            className={`w-full bg-[#F97316] hover:bg-[#EA580C] active:scale-[0.98] text-white font-bold text-sm sm:text-[15px] py-3 sm:py-3.5 md:py-4 rounded-2xl transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
             style={{ fontFamily: "DM Sans, sans-serif" }}
         >
             {children}
@@ -72,7 +78,7 @@ function GhostBtn({ children, onClick, className = "" }) {
     return (
         <button
             onClick={onClick}
-            className={`w-full bg-transparent hover:bg-[#FFF5EF] text-[#F97316] font-bold text-[15px] py-3.5 sm:py-4 rounded-2xl border-2 border-[#F97316] transition-colors cursor-pointer ${className}`}
+            className={`w-full bg-transparent hover:bg-[#FFF5EF] text-[#F97316] font-bold text-sm sm:text-[15px] py-3 sm:py-3.5 md:py-4 rounded-2xl border-2 border-[#F97316] transition-colors cursor-pointer ${className}`}
             style={{ fontFamily: "DM Sans, sans-serif" }}
         >
             {children}
@@ -81,11 +87,13 @@ function GhostBtn({ children, onClick, className = "" }) {
 }
 
 function WhiteBtn({ children, onClick, outline = false }) {
+    const base =
+        "w-full font-bold text-sm sm:text-[15px] py-3 sm:py-3.5 md:py-4 rounded-2xl transition-colors cursor-pointer";
     if (outline) {
         return (
             <button
                 onClick={onClick}
-                className="w-full bg-white/15 hover:bg-white/25 text-white font-bold text-[15px] py-3.5 sm:py-4 rounded-2xl border-2 border-white/45 transition-colors cursor-pointer"
+                className={`${base} bg-white/15 hover:bg-white/25 text-white border-2 border-white/45`}
                 style={{ fontFamily: "DM Sans, sans-serif" }}
             >
                 {children}
@@ -95,7 +103,7 @@ function WhiteBtn({ children, onClick, outline = false }) {
     return (
         <button
             onClick={onClick}
-            className="w-full bg-white hover:bg-[#FFF5EF] text-[#F97316] font-bold text-[15px] py-3.5 sm:py-4 rounded-2xl transition-colors cursor-pointer"
+            className={`${base} bg-white hover:bg-[#FFF5EF] text-[#F97316]`}
             style={{ fontFamily: "DM Sans, sans-serif" }}
         >
             {children}
@@ -118,11 +126,55 @@ function StepDots({ active = 0, total = 3 }) {
 
 function StepBar({ pct }) {
     return (
-        <div className="h-0.75 bg-white/25 rounded-sm overflow-hidden mt-3.5">
+        <div className="h-0.75 bg-white/25 rounded-full overflow-hidden mt-3.5">
             <div
-                className="h-full bg-white rounded-sm transition-all duration-500"
+                className="h-full bg-white rounded-full transition-all duration-500"
                 style={{ width: `${pct}%` }}
             />
+        </div>
+    );
+}
+
+/** Shared page header with orange gradient */
+function PageHeader({
+    children,
+    onBack,
+    backLabel = "Back",
+    stepDots,
+    stepLabel,
+    className = "",
+}) {
+    return (
+        <div
+            className={`bg-[#F97316] px-4 sm:px-6 md:px-8 lg:px-12 pt-5 sm:pt-6 md:pt-8 pb-6 sm:pb-7 md:pb-10 ${className}`}
+        >
+            <div className="max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
+                <div className="flex items-center justify-between mb-4 sm:mb-5">
+                    {onBack ? (
+                        <button
+                            onClick={onBack}
+                            className="flex items-center gap-1 bg-white/20 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 text-white text-xs sm:text-sm font-semibold cursor-pointer hover:bg-white/30 transition-colors"
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                        >
+                            <ChevronLeft /> {backLabel}
+                        </button>
+                    ) : (
+                        <div />
+                    )}
+                    {stepDots && (
+                        <StepDots
+                            active={stepDots.active}
+                            total={stepDots.total}
+                        />
+                    )}
+                    {stepLabel && (
+                        <span className="text-xs text-white/60">
+                            {stepLabel}
+                        </span>
+                    )}
+                </div>
+                {children}
+            </div>
         </div>
     );
 }
@@ -152,9 +204,22 @@ function InputField({
                 placeholder={placeholder}
                 value={value}
                 onChange={onChange}
-                className="w-full px-4 py-3 sm:py-3.5 rounded-xl border-[1.5px] border-[#E8DDD4] focus:border-[#F97316] outline-none text-[15px] text-gray-900 placeholder-gray-300 bg-white transition-colors"
+                className="w-full px-4 py-3 sm:py-3.5 rounded-xl border-[1.5px] border-[#E8DDD4] focus:border-[#F97316] outline-none text-sm sm:text-[15px] text-gray-900 placeholder-gray-300 bg-white transition-colors"
                 style={{ fontFamily: "DM Sans, sans-serif" }}
             />
+        </div>
+    );
+}
+
+// Shared content wrapper
+function ContentWrap({ children, className = "" }) {
+    return (
+        <div
+            className={`px-4 sm:px-6 md:px-8 lg:px-12 py-4 sm:py-5 md:py-6 ${className}`}
+        >
+            <div className="max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
+                {children}
+            </div>
         </div>
     );
 }
@@ -163,23 +228,24 @@ function InputField({
 
 function SplashScreen({ goTo }) {
     return (
-        <div className="flex flex-col min-h-full bg-[#F97316]">
-            <div className="flex-1 flex flex-col px-5 sm:px-8 lg:px-12 pt-10 sm:pt-14 lg:pt-16 pb-8 sm:pb-10 max-w-3xl mx-auto w-full">
-                <div className="flex items-center justify-between mb-auto">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-10 h-10 bg-white/20 rounded-[13px] flex items-center justify-center text-xl">
+        <div className="flex flex-col bg-[#F97316] min-h-screen">
+            <div className="flex-1 flex flex-col px-4 sm:px-6 md:px-8 lg:px-12 pt-8 sm:pt-10 md:pt-14 lg:pt-16 pb-6 sm:pb-8 max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
+                {/* Topbar */}
+                <div className="flex items-center justify-between mb-16 md:mb-7">
+                    <div className="flex items-center gap-2 sm:gap-2.5">
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white/20 rounded-[13px] flex items-center justify-center text-lg sm:text-xl shrink-0">
                             🛡️
                         </div>
                         <div>
                             <div
-                                className="text-white font-extrabold text-base sm:text-lg leading-tight"
+                                className="text-white font-extrabold text-sm sm:text-base md:text-lg leading-tight"
                                 style={{
                                     fontFamily: "Plus Jakarta Sans, sans-serif",
                                 }}
                             >
                                 Naija Connect
                             </div>
-                            <div className="text-white/70 text-[10px] sm:text-xs">
+                            <div className="text-white/70 text-[10px] sm:text-xs leading-none mt-0.5">
                                 Be the voice. Drive the change.
                             </div>
                         </div>
@@ -187,18 +253,19 @@ function SplashScreen({ goTo }) {
                     <LiveBadge />
                 </div>
 
-                <div className="mt-10 sm:mt-14 lg:mt-16 mb-6 sm:mb-8">
-                    <div className="text-4xl sm:text-5xl lg:text-6xl mb-4 sm:mb-5">
+                {/* Hero copy */}
+                <div className="mt-2 sm:mt-4 md:mt-8 lg:mt-16 mb-5 sm:mb-6 md:mb-8">
+                    <div className="text-3xl sm:text-4xl md:text-5xl mb-3 sm:mb-4 md:mb-5">
                         🇳🇬
                     </div>
                     <h1
-                        className="text-white font-extrabold text-[26px] sm:text-[32px] lg:text-[40px] leading-tight mb-3 sm:mb-4"
+                        className="text-white font-extrabold text-2xl sm:text-[28px] md:text-[32px] lg:text-[40px] leading-tight mb-2.5 sm:mb-3 md:mb-4"
                         style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                     >
                         Your camp is already talking.
                     </h1>
                     <p
-                        className="text-white/82 text-sm sm:text-base lg:text-lg leading-relaxed max-w-xl"
+                        className="text-white/80 text-sm sm:text-base md:text-lg leading-relaxed max-w-xl"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     >
                         Gists. Issues. Hot takes. Polls. Everything happening in
@@ -206,7 +273,8 @@ function SplashScreen({ goTo }) {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2.5 sm:gap-4 mb-6 sm:mb-8">
+                {/* Stats */}
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 mb-5 sm:mb-6 md:mb-8">
                     {[
                         ["100", "Corps members"],
                         ["50K+", "Gists dropped"],
@@ -214,10 +282,10 @@ function SplashScreen({ goTo }) {
                     ].map(([n, l]) => (
                         <div
                             key={l}
-                            className="bg-white/15 rounded-[13px] py-4 sm:py-5 text-center"
+                            className="bg-white/15 rounded-[13px] py-3.5 sm:py-4 md:py-5 text-center px-1"
                         >
                             <div
-                                className="text-white font-extrabold text-lg sm:text-xl lg:text-2xl"
+                                className="text-white font-extrabold text-base sm:text-lg md:text-xl lg:text-2xl"
                                 style={{
                                     fontFamily: "Plus Jakarta Sans, sans-serif",
                                 }}
@@ -225,7 +293,7 @@ function SplashScreen({ goTo }) {
                                 {n}
                             </div>
                             <div
-                                className="text-white/70 text-[10px] sm:text-xs mt-0.5"
+                                className="text-white/70 text-[9px] sm:text-[10px] md:text-xs mt-0.5 leading-snug"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
                                 {l}
@@ -234,14 +302,15 @@ function SplashScreen({ goTo }) {
                     ))}
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
+                {/* CTAs */}
+                <div className="flex flex-col md:flex-row gap-3.5 sm:gap-4 mt-4">
                     <WhiteBtn onClick={() => goTo("feed-preview")}>
                         See what they&apos;re saying →
                     </WhiteBtn>
-
                     <WhiteBtn outline>
-                        {" "}
-                        <Link href="/login"></Link>I already have an account
+                        <Link href="/login" className="block">
+                            I already have an account
+                        </Link>
                     </WhiteBtn>
                 </div>
             </div>
@@ -294,49 +363,43 @@ function FeedPreviewScreen({ goTo }) {
             className="flex flex-col min-h-full"
             style={{ background: "#FDF6EF" }}
         >
-            <div className="bg-[#F97316] px-5 sm:px-8 lg:px-12 pt-6 sm:pt-8 pb-7 sm:pb-10">
-                <div className="max-w-3xl mx-auto w-full">
-                    <div className="flex items-center justify-between mb-5">
-                        <button
-                            onClick={() => goTo("splash")}
-                            className="flex items-center gap-1 bg-white/20 rounded-xl px-3 py-2 text-white text-sm font-semibold cursor-pointer hover:bg-white/30 transition-colors"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            <ChevronLeft /> Back
-                        </button>
-                        <LiveBadge count={300} />
-                    </div>
-                    <h2
-                        className="text-white font-extrabold text-xl sm:text-[24px] lg:text-[28px] leading-snug mb-1.5"
-                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
-                    >
-                        Don&apos;t be the last to know 👀
-                    </h2>
-                    <p
-                        className="text-white/78 text-[13px] sm:text-sm"
-                        style={{ fontFamily: "DM Sans, sans-serif" }}
-                    >
-                        These dropped in the last 2 hours
-                    </p>
+            <PageHeader onBack={() => goTo("splash")}>
+                <div className="flex items-center justify-between -mt-1 mb-4 sm:mb-5">
+                    <div />{" "}
+                    {/* spacer — back btn already rendered in PageHeader */}
+                    <LiveBadge count={300} />
                 </div>
-            </div>
+                <h2
+                    className="text-white font-extrabold text-xl sm:text-2xl md:text-[26px] leading-snug mb-1.5"
+                    style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
+                >
+                    Don&apos;t be the last to know 👀
+                </h2>
+                <p
+                    className="text-white/78 text-xs sm:text-sm"
+                    style={{ fontFamily: "DM Sans, sans-serif" }}
+                >
+                    These dropped in the last 2 hours
+                </p>
+            </PageHeader>
 
-            <div className="flex-1 px-5 sm:px-8 lg:px-12 py-5 sm:py-6 flex flex-col gap-3 overflow-y-auto">
-                <div className="max-w-3xl mx-auto w-full flex flex-col gap-3">
+            {/* We need a custom header layout here so let's redo it inline */}
+            <div className="flex-1 overflow-y-auto">
+                <ContentWrap className="flex flex-col gap-3">
                     {PREVIEW_POSTS.map((p) => (
                         <div
                             key={p.id}
-                            className="bg-white rounded-2xl p-4 sm:p-5 lg:p-6 border border-black/[0.07] shadow-sm hover:shadow-md transition-shadow"
+                            className="bg-white rounded-2xl p-4 sm:p-5 border border-black/[0.07] shadow-sm hover:shadow-md transition-shadow"
                         >
-                            <div className="flex justify-between items-start gap-3">
-                                <div className="flex-1">
+                            <div className="flex justify-between items-start gap-2.5 sm:gap-3">
+                                <div className="flex-1 min-w-0">
                                     <span
-                                        className={`text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-full ${p.tagBg} ${p.tagColor}`}
+                                        className={`inline-block text-[10px] sm:text-xs font-bold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full ${p.tagBg} ${p.tagColor}`}
                                     >
                                         {p.tag}
                                     </span>
                                     <p
-                                        className="font-bold text-sm sm:text-[15px] lg:text-base text-gray-900 mt-2 leading-snug"
+                                        className="font-bold text-sm sm:text-[15px] text-gray-900 mt-2 leading-snug"
                                         style={{
                                             fontFamily:
                                                 "Plus Jakarta Sans, sans-serif",
@@ -345,10 +408,12 @@ function FeedPreviewScreen({ goTo }) {
                                         {p.title}
                                     </p>
                                     {p.poll && (
-                                        <div className="mt-3 sm:mt-4">
+                                        <div className="mt-3">
                                             <div className="flex justify-between text-xs sm:text-sm text-gray-500 mb-1.5">
-                                                <span>{p.poll.label}</span>
-                                                <span className="font-bold text-[#F97316]">
+                                                <span className="truncate pr-2">
+                                                    {p.poll.label}
+                                                </span>
+                                                <span className="font-bold text-[#F97316] shrink-0">
                                                     {p.poll.pct}%
                                                 </span>
                                             </div>
@@ -373,10 +438,10 @@ function FeedPreviewScreen({ goTo }) {
                                 </div>
                                 {p.votes !== null && (
                                     <div
-                                        className={`${p.voteBg} rounded-xl px-3 sm:px-4 py-2 text-center shrink-0 flex flex-col items-center`}
+                                        className={`${p.voteBg} rounded-xl px-2.5 sm:px-3 md:px-4 py-2 text-center shrink-0 flex flex-col items-center min-w-11`}
                                     >
                                         <span
-                                            className={`font-extrabold text-[17px] sm:text-[19px] ${p.voteColor}`}
+                                            className={`font-extrabold text-base sm:text-[17px] md:text-[19px] ${p.voteColor}`}
                                             style={{
                                                 fontFamily:
                                                     "Plus Jakarta Sans, sans-serif",
@@ -395,8 +460,9 @@ function FeedPreviewScreen({ goTo }) {
                         </div>
                     ))}
 
+                    {/* Paywall teaser */}
                     <div
-                        className="rounded-2xl px-4 sm:px-6 py-6 sm:py-8 -mt-2 text-center"
+                        className="rounded-2xl px-4 sm:px-6 py-6 sm:py-8 text-center"
                         style={{
                             background:
                                 "linear-gradient(to bottom, rgba(253,246,239,0.3) 0%, #FDF6EF 55%)",
@@ -404,7 +470,7 @@ function FeedPreviewScreen({ goTo }) {
                     >
                         <div className="text-2xl sm:text-[28px] mb-2.5">🔒</div>
                         <p
-                            className="font-extrabold text-base sm:text-[17px] lg:text-xl text-gray-900 mb-1.5"
+                            className="font-extrabold text-base sm:text-[17px] text-gray-900 mb-1.5"
                             style={{
                                 fontFamily: "Plus Jakarta Sans, sans-serif",
                             }}
@@ -412,33 +478,32 @@ function FeedPreviewScreen({ goTo }) {
                             +143 more posts today
                         </p>
                         <p
-                            className="text-[13px] sm:text-sm text-gray-500 mb-5 sm:mb-6 leading-relaxed"
+                            className="text-xs sm:text-sm text-gray-500 mb-5 sm:mb-6 leading-relaxed"
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
                             Your camp is ahead of you.
                             <br />
                             Takes 30 seconds to catch up.
                         </p>
-                        <PrimaryBtn
-                            onClick={() => goTo("camp-select")}
-                            className="max-w-xs mx-auto block"
-                        >
-                            Get in. It&apos;s free. →
-                        </PrimaryBtn>
+                        <div className="max-w-xs mx-auto">
+                            <PrimaryBtn onClick={() => goTo("camp-select")}>
+                                Get in. It&apos;s free. →
+                            </PrimaryBtn>
+                        </div>
                     </div>
 
-                    <div className="text-center pb-2">
-                        <span className="text-[12px] sm:text-sm text-gray-400">
+                    <div className="text-center pb-4">
+                        <span className="text-xs sm:text-sm text-gray-400">
                             Already have an account?{" "}
                         </span>
                         <button
                             onClick={() => goTo("login")}
-                            className="text-[12px] sm:text-sm text-[#F97316] font-bold cursor-pointer"
+                            className="text-xs sm:text-sm text-[#F97316] font-bold cursor-pointer"
                         >
                             Log in →
                         </button>
                     </div>
-                </div>
+                </ContentWrap>
             </div>
         </div>
     );
@@ -460,12 +525,12 @@ function CampSelectScreen({ goTo, selectedCamp, setSelectedCamp }) {
             className="flex flex-col min-h-full"
             style={{ background: "#FDF6EF" }}
         >
-            <div className="bg-[#F97316] px-5 sm:px-8 lg:px-12 pt-6 sm:pt-8 pb-7 sm:pb-10">
-                <div className="max-w-3xl mx-auto w-full">
-                    <div className="flex items-center justify-between mb-5">
+            <div className="bg-[#F97316] px-4 sm:px-6 md:px-8 lg:px-12 pt-5 sm:pt-6 md:pt-8 pb-6 sm:pb-7 md:pb-16">
+                <div className="max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
+                    <div className="flex items-center justify-between mb-4 sm:mb-5">
                         <button
                             onClick={() => goTo("feed-preview")}
-                            className="flex items-center gap-1 bg-white/20 rounded-xl px-3 py-2 text-white text-sm font-semibold cursor-pointer hover:bg-white/30 transition-colors"
+                            className="flex items-center gap-1 bg-white/20 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 text-white text-xs sm:text-sm font-semibold cursor-pointer hover:bg-white/30 transition-colors"
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
                             <ChevronLeft /> Back
@@ -473,9 +538,11 @@ function CampSelectScreen({ goTo, selectedCamp, setSelectedCamp }) {
                         <StepDots active={0} total={3} />
                         <span className="text-xs text-white/60">1 of 3</span>
                     </div>
-                    <div className="text-3xl sm:text-4xl mb-2 sm:mb-3">🏕️</div>
+                    <div className="text-2xl sm:text-3xl md:text-4xl mb-2">
+                        🏕️
+                    </div>
                     <h2
-                        className="text-white font-extrabold text-xl sm:text-[24px] lg:text-[28px] leading-snug mb-1.5"
+                        className="text-white font-extrabold text-xl sm:text-[22px] md:text-[26px] leading-snug mb-1.5"
                         style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                     >
                         Which camp are you surviving?
@@ -491,25 +558,29 @@ function CampSelectScreen({ goTo, selectedCamp, setSelectedCamp }) {
                 </div>
             </div>
 
-            <div className="flex-1 px-5 sm:px-8 lg:px-12 py-5 sm:py-6 flex flex-col gap-3">
-                <div className="max-w-3xl mx-auto w-full flex flex-col gap-3">
+            <div className="flex-1 overflow-y-auto">
+                <ContentWrap className="flex flex-col gap-3 mb-12 md:mb-6">
                     <input
                         type="text"
                         placeholder="Search camp or state..."
-                        className="w-full px-4 py-3 sm:py-3.5 rounded-xl border-[1.5px] border-[#E8DDD4] focus:border-[#F97316] outline-none text-[15px] text-gray-900 placeholder-gray-300 bg-white transition-colors mb-2"
+                        className="w-full px-4 py-3 sm:py-3.5 rounded-xl border-[1.5px] border-[#E8DDD4] focus:border-[#F97316] outline-none text-sm sm:text-[15px] text-gray-900 placeholder-gray-300 bg-white transition-colors mb-4"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     />
 
-                    <div className="flex flex-col gap-2.5">
+                    <div className="flex flex-col gap-2 sm:gap-2.5">
                         {CAMPS.map((camp) => (
                             <button
                                 key={camp.name}
                                 onClick={() => setSelectedCamp(camp.name)}
-                                className={`w-full text-left rounded-2xl p-4 border-[1.5px] transition-all cursor-pointer flex items-center justify-between ${selectedCamp === camp.name ? "border-[#F97316] bg-[#FFF0E6]" : "border-[#E8DDD4] bg-white hover:border-[#F97316] hover:bg-[#FFF8F4]"}`}
+                                className={`w-full text-left rounded-2xl p-3.5 sm:p-4 border-[1.5px] transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                                    selectedCamp === camp.name
+                                        ? "border-[#F97316] bg-[#FFF0E6]"
+                                        : "border-[#E8DDD4] bg-white hover:border-[#F97316] hover:bg-[#FFF8F4]"
+                                }`}
                             >
-                                <div>
+                                <div className="min-w-0 flex-1">
                                     <div
-                                        className="font-bold text-sm sm:text-[15px] text-gray-900"
+                                        className="font-bold text-sm sm:text-[15px] text-gray-900 truncate"
                                         style={{
                                             fontFamily:
                                                 "Plus Jakarta Sans, sans-serif",
@@ -518,7 +589,12 @@ function CampSelectScreen({ goTo, selectedCamp, setSelectedCamp }) {
                                         {camp.name}
                                     </div>
                                     <div
-                                        className={`text-xs mt-1 font-semibold ${camp.hot || selectedCamp === camp.name ? "text-[#F97316]" : "text-gray-400"}`}
+                                        className={`text-xs mt-1 font-semibold ${
+                                            camp.hot ||
+                                            selectedCamp === camp.name
+                                                ? "text-[#F97316]"
+                                                : "text-gray-400"
+                                        }`}
                                     >
                                         {camp.count} corpers{" "}
                                         {camp.hot || selectedCamp === camp.name
@@ -527,7 +603,11 @@ function CampSelectScreen({ goTo, selectedCamp, setSelectedCamp }) {
                                     </div>
                                 </div>
                                 <div
-                                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedCamp === camp.name ? "border-[#F97316] bg-[#F97316]" : "border-[#D0C8C0]"}`}
+                                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                                        selectedCamp === camp.name
+                                            ? "border-[#F97316] bg-[#F97316]"
+                                            : "border-[#D0C8C0]"
+                                    }`}
                                 >
                                     {selectedCamp === camp.name && (
                                         <div className="w-2 h-2 rounded-full bg-white" />
@@ -537,19 +617,15 @@ function CampSelectScreen({ goTo, selectedCamp, setSelectedCamp }) {
                         ))}
                     </div>
 
-                    <div className="mt-auto pt-4">
+                    <div className="pt-4 md:pt-6 pb-2">
                         <PrimaryBtn
                             onClick={() => goTo("username")}
-                            className={
-                                !selectedCamp
-                                    ? "opacity-50 cursor-not-allowed"
-                                    : ""
-                            }
+                            disabled={!selectedCamp}
                         >
                             That&apos;s my camp →
                         </PrimaryBtn>
                     </div>
-                </div>
+                </ContentWrap>
             </div>
         </div>
     );
@@ -571,12 +647,12 @@ function UsernameScreen({ goTo, username, setUsername, anon, setAnon }) {
             className="flex flex-col min-h-full"
             style={{ background: "#FDF6EF" }}
         >
-            <div className="bg-[#F97316] px-5 sm:px-8 lg:px-12 pt-6 sm:pt-8 pb-7 sm:pb-10">
-                <div className="max-w-3xl mx-auto w-full">
-                    <div className="flex items-center justify-between mb-5">
+            <div className="bg-[#F97316] px-4 sm:px-6 md:px-8 lg:px-12 pt-5 sm:pt-6 md:pt-8 pb-6 sm:pb-7 md:pb-10">
+                <div className="max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
+                    <div className="flex items-center justify-between mb-4 sm:mb-5">
                         <button
                             onClick={() => goTo("camp-select")}
-                            className="flex items-center gap-1 bg-white/20 rounded-xl px-3 py-2 text-white text-sm font-semibold cursor-pointer hover:bg-white/30 transition-colors"
+                            className="flex items-center gap-1 bg-white/20 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 text-white text-xs sm:text-sm font-semibold cursor-pointer hover:bg-white/30 transition-colors"
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
                             <ChevronLeft /> Back
@@ -584,9 +660,11 @@ function UsernameScreen({ goTo, username, setUsername, anon, setAnon }) {
                         <StepDots active={1} total={3} />
                         <span className="text-xs text-white/60">2 of 3</span>
                     </div>
-                    <div className="text-3xl sm:text-4xl mb-2 sm:mb-3">✍️</div>
+                    <div className="text-2xl sm:text-3xl md:text-4xl mb-2">
+                        ✍️
+                    </div>
                     <h2
-                        className="text-white font-extrabold text-xl sm:text-[24px] lg:text-[28px] leading-snug mb-1.5"
+                        className="text-white font-extrabold text-xl sm:text-[22px] md:text-[26px] leading-snug mb-1.5"
                         style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                     >
                         What should the camp call you?
@@ -601,8 +679,8 @@ function UsernameScreen({ goTo, username, setUsername, anon, setAnon }) {
                 </div>
             </div>
 
-            <div className="flex-1 px-5 sm:px-8 lg:px-12 py-5 sm:py-6 flex flex-col gap-4">
-                <div className="max-w-3xl mx-auto w-full flex flex-col gap-4">
+            <div className="flex-1 overflow-y-auto">
+                <ContentWrap className="flex flex-col gap-4">
                     <InputField
                         label="Your camp alias"
                         type="text"
@@ -612,12 +690,17 @@ function UsernameScreen({ goTo, username, setUsername, anon, setAnon }) {
                         id="usernameInput"
                     />
 
-                    <div className="flex flex-wrap gap-2">
+                    {/* Suggestion chips — wraps naturally */}
+                    <div className="flex flex-wrap gap-2 my-4">
                         {SUGGESTED_NAMES.map((name) => (
                             <button
                                 key={name}
                                 onClick={() => setUsername(name)}
-                                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${username === name ? "bg-[#F97316] text-white border-2 border-[#F97316]" : "bg-[#FFF0E6] text-[#C05207] border-2 border-transparent hover:border-[#F97316]"}`}
+                                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                                    username === name
+                                        ? "bg-[#F97316] text-white border-2 border-[#F97316]"
+                                        : "bg-[#FFF0E6] text-[#C05207] border-2 border-transparent hover:border-[#F97316]"
+                                }`}
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
                                 {name}
@@ -625,8 +708,9 @@ function UsernameScreen({ goTo, username, setUsername, anon, setAnon }) {
                         ))}
                     </div>
 
-                    <div className="flex items-center justify-between bg-white rounded-xl p-4 border-[1.5px] border-[#E8DDD4]">
-                        <div>
+                    {/* Anon toggle — fixed using proper CSS */}
+                    <div className="flex items-center justify-between bg-white rounded-xl p-4 border-[1.5px] border-[#E8DDD4] gap-4 mb-4">
+                        <div className="min-w-0 flex-1">
                             <div className="text-sm font-bold text-gray-900">
                                 Post anonymously 👀
                             </div>
@@ -636,16 +720,28 @@ function UsernameScreen({ goTo, username, setUsername, anon, setAnon }) {
                         </div>
                         <button
                             onClick={() => setAnon(!anon)}
-                            className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${anon ? "bg-[#F97316]" : "bg-[#E0D8D0]"}`}
+                            role="switch"
+                            aria-checked={anon}
+                            className={`relative shrink-0 w-10 h-6 rounded-full transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F97316] ${
+                                anon ? "bg-[#F97316]" : "bg-[#E0D8D0]"
+                            }`}
+                            style={{ minWidth: "2.5rem" }}
                         >
-                            <div
-                                className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.75 shadow transition-all ${anon ? "left-4.75" : "left-0.75"}`}
+                            <span
+                                className="block w-4.5 h-4.5 bg-white rounded-full absolute top-0.75 shadow-sm transition-transform duration-200"
+                                style={{
+                                    transform: anon
+                                        ? "translateX(19px)"
+                                        : "translateX(3px)",
+                                }}
                             />
                         </button>
                     </div>
 
-                    <div className="bg-[#FFF8F4] rounded-xl p-3.5 border border-[#FDDCCA] flex gap-3 items-start">
-                        <div className="text-lg shrink-0 mt-0.5">🫣</div>
+                    <div className="bg-[#FFF8F4] rounded-xl p-3.5 border border-[#FDDCCA] flex gap-2.5 sm:gap-3 items-start">
+                        <div className="text-base sm:text-lg shrink-0 mt-0.5">
+                            🫣
+                        </div>
                         <div className="text-xs text-[#C05207] leading-relaxed">
                             Anonymous posts reach{" "}
                             <strong>40% more people</strong> — camp is always
@@ -653,18 +749,18 @@ function UsernameScreen({ goTo, username, setUsername, anon, setAnon }) {
                         </div>
                     </div>
 
-                    <div className="mt-auto pt-4">
+                    <div className="pt-2 pb-2">
                         <PrimaryBtn onClick={() => goTo("first-vote")}>
                             Lock it in →
                         </PrimaryBtn>
                     </div>
-                </div>
+                </ContentWrap>
             </div>
         </div>
     );
 }
 
-// ── SCREEN 5 — First Vote (Activation) ─────────────────────────────────────
+// ── SCREEN 5 — First Vote ──────────────────────────────────────────────────
 
 const VOTE_OPTIONS = [
     "Yes — we need more time to bond 🤝",
@@ -683,15 +779,15 @@ function FirstVoteScreen({ goTo }) {
 
     return (
         <div
-            className="flex flex-col min-h-full relative"
+            className="flex flex-col min-h-full"
             style={{ background: "#FDF6EF" }}
         >
-            <div className="bg-[#F97316] px-5 sm:px-8 lg:px-12 pt-6 sm:pt-8 pb-7 sm:pb-10">
-                <div className="max-w-3xl mx-auto w-full">
-                    <div className="flex items-center justify-between mb-5">
+            <div className="bg-[#F97316] px-4 sm:px-6 md:px-8 lg:px-12 pt-5 sm:pt-6 md:pt-8 pb-6 sm:pb-7 md:pb-10">
+                <div className="max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
+                    <div className="flex items-center justify-between mb-4 sm:mb-5">
                         <button
                             onClick={() => goTo("username")}
-                            className="flex items-center gap-1 bg-white/20 rounded-xl px-3 py-2 text-white text-sm font-semibold cursor-pointer hover:bg-white/30 transition-colors"
+                            className="flex items-center gap-1 bg-white/20 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 text-white text-xs sm:text-sm font-semibold cursor-pointer hover:bg-white/30 transition-colors"
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
                             <ChevronLeft /> Back
@@ -703,7 +799,7 @@ function FirstVoteScreen({ goTo }) {
                         Before you go — settle this debate
                     </div>
                     <h2
-                        className="text-white font-extrabold text-lg sm:text-xl lg:text-[22px] leading-snug mb-2"
+                        className="text-white font-extrabold text-lg sm:text-xl md:text-[22px] leading-snug mb-2"
                         style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                     >
                         Should NYSC extend camp by 2 more weeks?
@@ -715,31 +811,37 @@ function FirstVoteScreen({ goTo }) {
                 </div>
             </div>
 
-            <div className="flex-1 px-5 sm:px-8 lg:px-12 py-5 sm:py-6 flex flex-col gap-4">
-                <div className="max-w-3xl mx-auto w-full flex flex-col gap-4">
+            <div className="flex-1 overflow-y-auto">
+                <ContentWrap className="flex flex-col gap-4">
                     {!showResult ? (
-                        <div className="flex flex-col gap-2.5">
-                            {VOTE_OPTIONS.map((opt, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => doVote(i)}
-                                    className={`w-full text-left px-4 py-3.5 sm:py-4 rounded-xl border-[1.5px] bg-white text-sm sm:text-[15px] font-medium transition-all cursor-pointer ${picked === i ? "border-[#F97316] bg-[#FFF0E6] text-[#C05207] font-bold" : "border-[#E8DDD4] hover:border-[#F97316] hover:bg-[#FFF8F4] text-gray-900"}`}
-                                    style={{
-                                        fontFamily: "DM Sans, sans-serif",
-                                    }}
-                                >
-                                    {opt}
-                                </button>
-                            ))}
-                            <div className="text-center mt-2">
+                        <>
+                            <div className="flex flex-col gap-2.5">
+                                {VOTE_OPTIONS.map((opt, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => doVote(i)}
+                                        className={`w-full text-left px-4 py-3.5 sm:py-4 rounded-xl border-[1.5px] bg-white text-sm sm:text-[15px] font-medium transition-all cursor-pointer ${
+                                            picked === i
+                                                ? "border-[#F97316] bg-[#FFF0E6] text-[#C05207] font-bold"
+                                                : "border-[#E8DDD4] hover:border-[#F97316] hover:bg-[#FFF8F4] text-gray-900"
+                                        }`}
+                                        style={{
+                                            fontFamily: "DM Sans, sans-serif",
+                                        }}
+                                    >
+                                        {opt}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="text-center">
                                 <span className="text-xs sm:text-sm text-gray-300">
                                     Tap any option to cast your vote
                                 </span>
                             </div>
-                        </div>
+                        </>
                     ) : (
                         <>
-                            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-black/[0.07] shadow-sm">
+                            <div className="bg-white rounded-2xl p-4 sm:p-5 md:p-6 border border-black/[0.07] shadow-sm">
                                 <div className="text-center pb-4">
                                     <div
                                         className="font-extrabold text-2xl sm:text-3xl text-[#F97316]"
@@ -774,14 +876,12 @@ function FirstVoteScreen({ goTo }) {
                                         },
                                     ].map((r, i) => (
                                         <div key={i}>
-                                            <div className="flex justify-between text-xs sm:text-sm text-gray-500 mb-1">
-                                                <span>{r.label}</span>
+                                            <div className="flex justify-between text-xs sm:text-sm text-gray-500 mb-1 gap-2">
+                                                <span className="truncate">
+                                                    {r.label}
+                                                </span>
                                                 <span
-                                                    className={
-                                                        i === 0
-                                                            ? "font-bold text-[#F97316]"
-                                                            : ""
-                                                    }
+                                                    className={`shrink-0 ${i === 0 ? "font-bold text-[#F97316]" : ""}`}
                                                 >
                                                     {r.pct}%
                                                 </span>
@@ -800,10 +900,10 @@ function FirstVoteScreen({ goTo }) {
                                 </div>
                             </div>
 
-                            <div className="mt-auto pt-2">
+                            <div className="pb-2">
                                 <Link
                                     href="/login"
-                                    className="w-full block text-center bg-[#F97316] hover:bg-[#EA580C] active:scale-[0.98] text-white font-bold text-[15px] py-3.5 sm:py-4 rounded-2xl transition-all cursor-pointer"
+                                    className="w-full flex items-center justify-center bg-[#F97316] hover:bg-[#EA580C] active:scale-[0.98] text-white font-bold text-sm sm:text-[15px] py-3 sm:py-3.5 md:py-4 rounded-2xl transition-all cursor-pointer"
                                     style={{
                                         fontFamily: "DM Sans, sans-serif",
                                     }}
@@ -813,13 +913,13 @@ function FirstVoteScreen({ goTo }) {
                             </div>
                         </>
                     )}
-                </div>
+                </ContentWrap>
             </div>
         </div>
     );
 }
 
-// ── Root: OnboardingFlow
+// ── Root ───────────────────────────────────────────────────────────────────
 
 export default function OnboardingFlow() {
     const [screen, setScreen] = useState("splash");
@@ -833,24 +933,8 @@ export default function OnboardingFlow() {
     };
 
     return (
-        <div
-            style={{
-                background: "#111",
-                minHeight: "100vh",
-                display: "flex",
-                justifyContent: "center",
-            }}
-        >
-            <div
-                style={{
-                    width: "100%",
-                    maxWidth: "100%",
-                    minHeight: "100vh",
-                    background: "#FDF6EF",
-                    position: "relative",
-                    overflowX: "hidden",
-                }}
-            >
+        <div className="min-h-screen bg-[#111] flex justify-center">
+            <div className="w-full max-w-full min-h-screen bg-[#FDF6EF] relative overflow-x-hidden">
                 {screen === "splash" && <SplashScreen goTo={goTo} />}
                 {screen === "feed-preview" && <FeedPreviewScreen goTo={goTo} />}
                 {screen === "camp-select" && (
@@ -870,7 +954,6 @@ export default function OnboardingFlow() {
                     />
                 )}
                 {screen === "first-vote" && <FirstVoteScreen goTo={goTo} />}
-                {screen === "login" && <LoginPage goTo={goTo} />}
             </div>
         </div>
     );

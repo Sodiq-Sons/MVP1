@@ -11,12 +11,14 @@ import {
     getDoc,
     writeBatch,
 } from "firebase/firestore";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
-import { db, auth } from "@/lib/firebase";
+import { db, auth, storage } from "@/lib/firebase";
 import Link from "next/link";
 import { toast } from "sonner";
 import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
 import { awardPoints } from "@/lib/gamification";
+import Image from "next/image";
 
 // ─── Post Types ───────────────────────────────────────────────────────────────
 const POST_TYPES = [
@@ -71,6 +73,101 @@ const POST_TYPES = [
         titlePlaceholder: "Brief title of the problem",
         descLabel: "Describe in detail",
         descPlaceholder: "Give us all the details...",
+    },
+];
+
+// ─── Issue Subcategories ──────────────────────────────────────────────────────
+const ISSUE_SUBCATEGORIES = [
+    {
+        id: "security",
+        emoji: "🔒",
+        label: "Security",
+        description: "Theft, safety concerns, unauthorized access",
+        color: "#7C3AED",
+        bg: "bg-purple-50",
+        border: "border-purple-200",
+        selectedBg: "bg-purple-50",
+        selectedText: "text-purple-700",
+        selectedBorder: "border-purple-500",
+        dotColor: "#7C3AED",
+    },
+    {
+        id: "infrastructure",
+        emoji: "🏗️",
+        label: "Infrastructure",
+        description: "Roads, buildings, facilities, repairs needed",
+        color: "#EA580C",
+        bg: "bg-orange-50",
+        border: "border-orange-200",
+        selectedBg: "bg-orange-50",
+        selectedText: "text-orange-700",
+        selectedBorder: "border-orange-500",
+        dotColor: "#EA580C",
+    },
+    {
+        id: "healthcare",
+        emoji: "🏥",
+        label: "Healthcare",
+        description: "Medical concerns, sick bay, first aid issues",
+        color: "#DC2626",
+        bg: "bg-red-50",
+        border: "border-red-200",
+        selectedBg: "bg-red-50",
+        selectedText: "text-red-700",
+        selectedBorder: "border-red-500",
+        dotColor: "#DC2626",
+    },
+    {
+        id: "water",
+        emoji: "💧",
+        label: "Water Supply",
+        description: "Water shortages, contamination, pipe issues",
+        color: "#0284C7",
+        bg: "bg-sky-50",
+        border: "border-sky-200",
+        selectedBg: "bg-sky-50",
+        selectedText: "text-sky-700",
+        selectedBorder: "border-sky-500",
+        dotColor: "#0284C7",
+    },
+    {
+        id: "electricity",
+        emoji: "⚡",
+        label: "Electricity",
+        description: "Power outages, faulty wiring, lighting issues",
+        color: "#CA8A04",
+        bg: "bg-yellow-50",
+        border: "border-yellow-200",
+        selectedBg: "bg-yellow-50",
+        selectedText: "text-yellow-700",
+        selectedBorder: "border-yellow-500",
+        dotColor: "#CA8A04",
+    },
+    {
+        id: "environment",
+        emoji: "🌿",
+        label: "Environment",
+        description: "Sanitation, waste disposal, hygiene concerns",
+        color: "#16A34A",
+        bg: "bg-green-50",
+        border: "border-green-200",
+        selectedBg: "bg-green-50",
+        selectedText: "text-green-700",
+        selectedBorder: "border-green-500",
+        dotColor: "#16A34A",
+    },
+    {
+        id: "other",
+        emoji: "❓",
+        label: "Other",
+        description: "Anything else that doesn't fit above",
+        color: "#4B5563",
+        bg: "bg-gray-50",
+        border: "border-gray-200",
+        selectedBg: "bg-gray-50",
+        selectedText: "text-gray-700",
+        selectedBorder: "border-gray-500",
+        dotColor: "#4B5563",
     },
 ];
 
@@ -137,6 +234,14 @@ const DEMOGRAPHIC_OPTIONS = [
 const MAX_DESC = 2000;
 const MAX_TITLE = 100;
 const MAX_CUSTOM_OPTION = 60;
+const MAX_IMAGE_SIZE_MB = 5;
+const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+];
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 const BackIcon = () => (
@@ -328,6 +433,36 @@ const CustomIcon = () => (
     </svg>
 );
 
+const ImageUploadIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="w-8 h-8"
+    >
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <polyline points="21 15 16 10 5 21" />
+    </svg>
+);
+
+const XIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        className="w-4 h-4"
+    >
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+);
+
 // ─── Character counter color helper ──────────────────────────────────────────
 function charCountColor(current, max) {
     const pct = current / max;
@@ -354,6 +489,183 @@ function StepIndicator({ step, totalSteps }) {
                     )}
                 </div>
             ))}
+        </div>
+    );
+}
+
+// ─── Issue Subcategory Card ───────────────────────────────────────────────────
+function IssueSubcategoryCard({ subcategory, selected, onSelect }) {
+    return (
+        <button
+            onClick={() => onSelect(subcategory.id)}
+            className={`w-full text-left p-3.5 rounded-2xl border-2 transition-all duration-200 cursor-pointer relative ${
+                selected
+                    ? `${subcategory.selectedBg} ${subcategory.selectedBorder}`
+                    : "border-gray-100 bg-white hover:border-gray-200"
+            }`}
+        >
+            <div className="flex items-center gap-3">
+                <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl transition-colors ${
+                        selected ? "bg-white shadow-sm" : "bg-gray-50"
+                    }`}
+                >
+                    {subcategory.emoji}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <span
+                        className={`font-bold text-sm block ${selected ? subcategory.selectedText : "text-gray-900"}`}
+                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
+                    >
+                        {subcategory.label}
+                    </span>
+                    <p
+                        className="text-xs text-gray-400 mt-0.5 leading-tight"
+                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                    >
+                        {subcategory.description}
+                    </p>
+                </div>
+                {selected && (
+                    <div
+                        className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: subcategory.dotColor }}
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="white"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            className="w-3 h-3"
+                        >
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                    </div>
+                )}
+            </div>
+        </button>
+    );
+}
+
+// ─── Image Upload Section ─────────────────────────────────────────────────────
+function ImageUploadSection({ images, onImagesChange, maxImages = 3 }) {
+    const fileInputRef = useRef(null);
+    const [dragOver, setDragOver] = useState(false);
+
+    const handleFiles = (files) => {
+        const validFiles = Array.from(files).filter((f) => {
+            if (!ALLOWED_IMAGE_TYPES.includes(f.type)) {
+                toast.error(`${f.name}: Only JPG, PNG, WebP, GIF allowed`);
+                return false;
+            }
+            if (f.size > MAX_IMAGE_SIZE_BYTES) {
+                toast.error(`${f.name}: Max ${MAX_IMAGE_SIZE_MB}MB per image`);
+                return false;
+            }
+            return true;
+        });
+        const remaining = maxImages - images.length;
+        const toAdd = validFiles.slice(0, remaining).map((file) => ({
+            file,
+            preview: URL.createObjectURL(file),
+            id: `${Date.now()}-${Math.random()}`,
+        }));
+        onImagesChange([...images, ...toAdd]);
+    };
+
+    const removeImage = (id) => {
+        const img = images.find((i) => i.id === id);
+        if (img?.preview) URL.revokeObjectURL(img.preview);
+        onImagesChange(images.filter((i) => i.id !== id));
+    };
+
+    return (
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+            <label
+                className="block text-sm font-semibold text-gray-800 mb-3"
+                style={{ fontFamily: "DM Sans, sans-serif" }}
+            >
+                📷 Add Photos{" "}
+                <span className="text-xs font-normal text-gray-400">
+                    (optional, max {maxImages})
+                </span>
+            </label>
+
+            {/* Preview grid */}
+            {images.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                    {images.map((img) => (
+                        <div
+                            key={img.id}
+                            className="relative aspect-square rounded-xl overflow-hidden bg-gray-100"
+                        >
+                            <Image
+                                src={img.preview}
+                                alt="preview"
+                                width={1200}
+                                height={480}
+                                className="w-full h-full object-cover"
+                            />
+                            <button
+                                onClick={() => removeImage(img.id)}
+                                className="absolute top-1 right-1 w-6 h-6 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center text-white transition-colors cursor-pointer"
+                            >
+                                <XIcon />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Upload zone */}
+            {images.length < maxImages && (
+                <div
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragOver(true);
+                    }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOver(false);
+                        handleFiles(e.dataTransfer.files);
+                    }}
+                    className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all duration-200 ${
+                        dragOver
+                            ? "border-[#F97316] bg-orange-50"
+                            : "border-gray-200 hover:border-orange-300 hover:bg-orange-50/30"
+                    }`}
+                >
+                    <div
+                        className={`${dragOver ? "text-[#F97316]" : "text-gray-300"} transition-colors`}
+                    >
+                        <ImageUploadIcon />
+                    </div>
+                    <p
+                        className="text-sm font-semibold text-gray-500"
+                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                    >
+                        {dragOver ? "Drop to add photo" : "Tap to upload photo"}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                        JPG, PNG, WebP · Max {MAX_IMAGE_SIZE_MB}MB each
+                    </p>
+                    <p className="text-xs text-gray-300">
+                        {images.length}/{maxImages} added
+                    </p>
+                </div>
+            )}
+
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept={ALLOWED_IMAGE_TYPES.join(",")}
+                multiple
+                className="hidden"
+                onChange={(e) => e.target.files && handleFiles(e.target.files)}
+            />
         </div>
     );
 }
@@ -684,9 +996,31 @@ export default function CreatePostPage() {
     return <CreatePostForm currentUser={currentUser} router={router} />;
 }
 
+// ─── Upload images to Firebase Storage ───────────────────────────────────────
+async function uploadImages(images, uid, postId) {
+    const urls = [];
+    for (const img of images) {
+        const ext = img.file.name.split(".").pop();
+        const storageRef = ref(
+            storage,
+            `post-images/${uid}/${postId}/${img.id}.${ext}`,
+        );
+        await new Promise((resolve, reject) => {
+            const task = uploadBytesResumable(storageRef, img.file);
+            task.on("state_changed", null, reject, async () => {
+                const url = await getDownloadURL(task.snapshot.ref);
+                urls.push(url);
+                resolve(null);
+            });
+        });
+    }
+    return urls;
+}
+
 // ─── Create Post Form ─────────────────────────────────────────────────────────
 function CreatePostForm({ currentUser, router }) {
     const [postType, setPostType] = useState("");
+    const [issueSubcategory, setIssueSubcategory] = useState("");
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [foodRating, setFoodRating] = useState(0);
@@ -699,14 +1033,23 @@ function CreatePostForm({ currentUser, router }) {
     const [step, setStep] = useState(1);
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState("");
+    const [uploadProgress, setUploadProgress] = useState("");
+    // Images for food and issue
+    const [images, setImages] = useState([]);
 
     const selectedType = POST_TYPES.find((t) => t.id === postType);
     const selectedResponseType = RESPONSE_TYPES.find(
         (t) => t.id === responseType,
     );
+    const selectedSubcategory = ISSUE_SUBCATEGORIES.find(
+        (s) => s.id === issueSubcategory,
+    );
+
+    // Determine total steps:
+    // issue has an extra subcategory step (step 2b embedded in step 2)
     const totalSteps = 4;
 
-    // ── Validation ────────────────────────────────────────────────────────────
+    // ── Validation ─────────────────────────────────────────────────────────
     const step1Valid = postType.length > 0;
 
     const step2Valid = () => {
@@ -721,7 +1064,11 @@ function CreatePostForm({ currentUser, router }) {
             case "food":
                 return baseValid && foodRating > 0;
             case "issue":
-                return baseValid && description.trim().length > 0;
+                return (
+                    baseValid &&
+                    description.trim().length > 0 &&
+                    issueSubcategory.length > 0
+                );
             default:
                 return false;
         }
@@ -736,7 +1083,7 @@ function CreatePostForm({ currentUser, router }) {
 
     const step4Valid = selectedDemographics.length > 0;
 
-    // ── Poll helpers ──────────────────────────────────────────────────────────
+    // ── Poll helpers ────────────────────────────────────────────────────────
     const updatePollOption = (i, val) => {
         const next = [...pollOptions];
         next[i] = val;
@@ -750,7 +1097,7 @@ function CreatePostForm({ currentUser, router }) {
             setPollOptions(pollOptions.filter((_, idx) => idx !== i));
     };
 
-    // ── Custom option helpers ─────────────────────────────────────────────────
+    // ── Custom option helpers ────────────────────────────────────────────────
     const updateCustomOption = (i, val) => {
         const next = [...customOptions];
         next[i] = val;
@@ -788,15 +1135,14 @@ function CreatePostForm({ currentUser, router }) {
         }
     };
 
-    // ── Submit ────────────────────────────────────────────────────────────────
+    // ── Submit ──────────────────────────────────────────────────────────────
     const handleSubmit = async () => {
         if (!step2Valid() || !step3Valid() || !step4Valid || saving) return;
         setSaving(true);
         setSaveError("");
+        setUploadProgress("");
 
         try {
-            // ── Fetch user's platoon from their Firestore profile
-
             let userPlatoon = null;
             let userName = currentUser.displayName || "Corper";
             try {
@@ -805,8 +1151,6 @@ function CreatePostForm({ currentUser, router }) {
                 );
                 if (userSnap.exists()) {
                     const userData = userSnap.data();
-                    // Store exactly as saved in register e.g. "Platoon 3"
-                    // normalisePlatoon() in the feed card handles display uniformly
                     userPlatoon = userData?.platoon ?? null;
                     if (userData?.fullName) userName = userData.fullName;
                     else if (userData?.displayName)
@@ -829,18 +1173,36 @@ function CreatePostForm({ currentUser, router }) {
 
             const voteOptions = getVoteOptions();
 
+            // Create the doc first to get the ID for storage paths
+            const tempRef = doc(collection(db, "issues"));
+            const postId = tempRef.id;
+
+            // Upload images if any
+            let imageUrls = [];
+            if (
+                images.length > 0 &&
+                (postType === "food" || postType === "issue")
+            ) {
+                setUploadProgress(
+                    `Uploading ${images.length} image${images.length > 1 ? "s" : ""}...`,
+                );
+                imageUrls = await uploadImages(images, currentUser.uid, postId);
+                setUploadProgress("");
+            }
+
             let issueData = {
                 type: postType,
-                category: postType,
+                category: postType === "issue" ? issueSubcategory : postType,
+                subcategory: postType === "issue" ? issueSubcategory : null,
                 title: finalTitle.trim(),
                 description: finalDescription.trim(),
-                // ── author now includes platoon ──
+                images: imageUrls,
                 author: {
                     uid: currentUser.uid,
                     name: isAnonymous ? null : userName,
                     isAnonymous,
                     showDetails: !isAnonymous && showDetails,
-                    platoon: userPlatoon, // ← platoon saved here
+                    platoon: userPlatoon,
                 },
                 reactions: {},
                 commentCount: 0,
@@ -865,9 +1227,11 @@ function CreatePostForm({ currentUser, router }) {
                     break;
             }
 
-            const issueRef = await addDoc(collection(db, "issues"), issueData);
+            // Use setDoc with the pre-generated ref
+            const { setDoc } = await import("firebase/firestore");
+            await setDoc(tempRef, issueData);
+            const issueRef = tempRef;
 
-            // Notification — post is live
             await createNotification({
                 type: NOTIFICATION_TYPES.ISSUE_CREATED,
                 recipientId: currentUser.uid,
@@ -878,7 +1242,6 @@ function CreatePostForm({ currentUser, router }) {
                 meta: `Your ${selectedType?.label} "${finalTitle.trim()}" is now live! 🎉`,
             });
 
-            // Update user doc
             const userRef = doc(db, "users", currentUser.uid);
             const userDoc = await getDoc(userRef);
             const userData = userDoc.exists() ? userDoc.data() : null;
@@ -904,7 +1267,6 @@ function CreatePostForm({ currentUser, router }) {
 
             await batch.commit();
 
-            // Award points after batch
             await awardPoints(currentUser.uid, "CREATE_ISSUE", {
                 issueId: issueRef.id,
                 issueTitle: finalTitle.trim(),
@@ -924,8 +1286,11 @@ function CreatePostForm({ currentUser, router }) {
                 );
             }
             setSaving(false);
+            setUploadProgress("");
         }
     };
+
+    const showImageUpload = postType === "food" || postType === "issue";
 
     return (
         <div className="min-h-screen bg-[#FDF6EF] pb-24 md:pb-8">
@@ -969,7 +1334,7 @@ function CreatePostForm({ currentUser, router }) {
             </header>
 
             <div className="max-w-2xl mx-auto px-4 md:px-6">
-                {/* ══ STEP 1 ════════════════════════════════════════════════════ */}
+                {/* ══ STEP 1 ══════════════════════════════════════════════════════ */}
                 {step === 1 && (
                     <>
                         <div className="flex flex-col items-center pt-6 pb-6">
@@ -1064,7 +1429,7 @@ function CreatePostForm({ currentUser, router }) {
                     </>
                 )}
 
-                {/* ══ STEP 2 ════════════════════════════════════════════════════ */}
+                {/* ══ STEP 2 ══════════════════════════════════════════════════════ */}
                 {step === 2 && selectedType && (
                     <>
                         <div className="flex flex-col items-center pt-6 pb-4">
@@ -1084,6 +1449,38 @@ function CreatePostForm({ currentUser, router }) {
                                 Drop your {selectedType.label}
                             </h2>
                         </div>
+
+                        {/* ── Issue Subcategory Picker ─────────────────────────────────── */}
+                        {postType === "issue" && (
+                            <div className="mb-4">
+                                <div className="bg-white rounded-2xl border border-gray-100 p-4">
+                                    <label
+                                        className="block text-sm font-semibold text-gray-800 mb-3"
+                                        style={{
+                                            fontFamily: "DM Sans, sans-serif",
+                                        }}
+                                    >
+                                        Issue Category{" "}
+                                        <span className="text-red-400">*</span>
+                                        <span className="text-xs font-normal text-gray-400 ml-1">
+                                            (pick one)
+                                        </span>
+                                    </label>
+                                    <div className="grid grid-cols-1 gap-2">
+                                        {ISSUE_SUBCATEGORIES.map((sub) => (
+                                            <IssueSubcategoryCard
+                                                key={sub.id}
+                                                subcategory={sub}
+                                                selected={
+                                                    issueSubcategory === sub.id
+                                                }
+                                                onSelect={setIssueSubcategory}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Title */}
                         <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
@@ -1221,7 +1618,7 @@ function CreatePostForm({ currentUser, router }) {
                         )}
 
                         {/* Description */}
-                        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+                        <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
                             <label
                                 className="block text-sm font-semibold text-gray-800 mb-2"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
@@ -1254,8 +1651,19 @@ function CreatePostForm({ currentUser, router }) {
                             </div>
                         </div>
 
+                        {/* Image Upload — only for food & issue */}
+                        {showImageUpload && (
+                            <div className="mb-3">
+                                <ImageUploadSection
+                                    images={images}
+                                    onImagesChange={setImages}
+                                    maxImages={3}
+                                />
+                            </div>
+                        )}
+
                         {/* Toggles */}
-                        <div className="bg-white rounded-2xl border border-gray-100 p-4 mt-4 space-y-3">
+                        <div className="bg-white rounded-2xl border border-gray-100 p-4 mt-1 space-y-3">
                             <label className="flex items-center justify-between cursor-pointer">
                                 <div className="flex items-center gap-2">
                                     <AnonymousIcon />
@@ -1354,7 +1762,7 @@ function CreatePostForm({ currentUser, router }) {
                     </>
                 )}
 
-                {/* ══ STEP 3 ════════════════════════════════════════════════════ */}
+                {/* ══ STEP 3 ══════════════════════════════════════════════════════ */}
                 {step === 3 && (
                     <>
                         <div className="flex flex-col items-center pt-6 pb-5">
@@ -1518,7 +1926,7 @@ function CreatePostForm({ currentUser, router }) {
                     </>
                 )}
 
-                {/* ══ STEP 4 ════════════════════════════════════════════════════ */}
+                {/* ══ STEP 4 ══════════════════════════════════════════════════════ */}
                 {step === 4 && (
                     <>
                         <div className="flex flex-col items-center pt-6 pb-5">
@@ -1545,7 +1953,9 @@ function CreatePostForm({ currentUser, router }) {
                         <div className="bg-white rounded-xl px-4 py-3 mb-4 border border-orange-100">
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="text-2xl">
-                                    {selectedType?.emoji}
+                                    {postType === "issue" && selectedSubcategory
+                                        ? selectedSubcategory.emoji
+                                        : selectedType?.emoji}
                                 </span>
                                 <p
                                     className="text-sm text-gray-700 font-medium truncate"
@@ -1556,13 +1966,37 @@ function CreatePostForm({ currentUser, router }) {
                                     {title || "Untitled Post"}
                                 </p>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap">
                                 <span>{selectedType?.emoji}</span>
                                 <span>{selectedType?.label}</span>
+                                {postType === "issue" &&
+                                    selectedSubcategory && (
+                                        <>
+                                            <span>•</span>
+                                            <span
+                                                className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                                                style={{
+                                                    backgroundColor: `${selectedSubcategory.dotColor}15`,
+                                                    color: selectedSubcategory.dotColor,
+                                                }}
+                                            >
+                                                {selectedSubcategory.label}
+                                            </span>
+                                        </>
+                                    )}
                                 {postType === "food" && foodRating > 0 && (
                                     <>
                                         <span>•</span>
                                         <span>{"⭐".repeat(foodRating)}</span>
+                                    </>
+                                )}
+                                {images.length > 0 && (
+                                    <>
+                                        <span>•</span>
+                                        <span>
+                                            📷 {images.length} photo
+                                            {images.length > 1 ? "s" : ""}
+                                        </span>
                                     </>
                                 )}
                                 <span>•</span>
@@ -1619,6 +2053,34 @@ function CreatePostForm({ currentUser, router }) {
                             </div>
                         )}
 
+                        {uploadProgress && (
+                            <div
+                                className="mb-4 px-4 py-3 bg-orange-50 border border-orange-100 rounded-xl text-sm text-orange-600 flex items-center gap-2"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                <svg
+                                    className="w-4 h-4 animate-spin"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                >
+                                    <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                    />
+                                    <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                    />
+                                </svg>
+                                {uploadProgress}
+                            </div>
+                        )}
+
                         <div className="flex gap-3 mt-5">
                             <button
                                 onClick={() => setStep(3)}
@@ -1642,7 +2104,10 @@ function CreatePostForm({ currentUser, router }) {
                             >
                                 {saving ? (
                                     <>
-                                        <SpinnerIcon /> Dropping...
+                                        <SpinnerIcon />{" "}
+                                        {uploadProgress
+                                            ? "Uploading..."
+                                            : "Dropping..."}
                                     </>
                                 ) : (
                                     <>

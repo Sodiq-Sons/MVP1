@@ -18,6 +18,7 @@ import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
 import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
 import { awardPoints } from "@/lib/gamification";
+import Image from "next/image";
 
 // ─── Category Meta ────────
 const CATEGORY_META = {
@@ -1298,6 +1299,253 @@ function LoginPromptModal({ isOpen, onClose, onLogin }) {
     );
 }
 
+// ─── Post Image Gallery ───────────────────────────────────────────────────────
+function PostImageGallery({ images }) {
+    const [activeIndex, setActiveIndex] = useState(0);
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+
+    if (!images || images.length === 0) return null;
+
+    const isSingle = images.length === 1;
+    const isDouble = images.length === 2;
+
+    return (
+        <>
+            {/* Gallery Grid */}
+            <div className="px-4 pb-4">
+                {isSingle && (
+                    <div
+                        className="relative w-full rounded-2xl overflow-hidden cursor-zoom-in bg-gray-100"
+                        style={{ maxHeight: "420px" }}
+                        onClick={() => {
+                            setActiveIndex(0);
+                            setLightboxOpen(true);
+                        }}
+                    >
+                        <Image
+                            loading="lazy"
+                            src={images[0]}
+                            alt="Post image"
+                            className="w-full h-full object-cover"
+                            style={{
+                                maxHeight: "420px",
+                                width: "100%",
+                                display: "block",
+                            }}
+                        />
+                        <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
+                            <div className="opacity-0 hover:opacity-100 transition-opacity duration-200 w-10 h-10 bg-black/40 rounded-full flex items-center justify-center">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="white"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    className="w-5 h-5"
+                                >
+                                    <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {isDouble && (
+                    <div className="grid grid-cols-2 gap-2">
+                        {images.map((img, i) => (
+                            <div
+                                key={i}
+                                className="relative rounded-2xl overflow-hidden cursor-zoom-in bg-gray-100"
+                                style={{ aspectRatio: "1/1" }}
+                                onClick={() => {
+                                    setActiveIndex(i);
+                                    setLightboxOpen(true);
+                                }}
+                            >
+                                <Image
+                                    loading="lazy"
+                                    src={img}
+                                    alt={`Post image ${i + 1}`}
+                                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {images.length === 3 && (
+                    <div
+                        className="grid grid-cols-2 gap-2"
+                        style={{ gridTemplateRows: "auto" }}
+                    >
+                        <div
+                            className="relative rounded-2xl overflow-hidden cursor-zoom-in bg-gray-100 row-span-2"
+                            style={{ aspectRatio: "3/4" }}
+                            onClick={() => {
+                                setActiveIndex(0);
+                                setLightboxOpen(true);
+                            }}
+                        >
+                            <Image
+                                loading="lazy"
+                                src={images[0]}
+                                alt="Post image 1"
+                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                            />
+                        </div>
+                        {images.slice(1).map((img, i) => (
+                            <div
+                                key={i + 1}
+                                className="relative rounded-2xl overflow-hidden cursor-zoom-in bg-gray-100"
+                                style={{ aspectRatio: "3/2" }}
+                                onClick={() => {
+                                    setActiveIndex(i + 1);
+                                    setLightboxOpen(true);
+                                }}
+                            >
+                                <Image
+                                    loading="lazy"
+                                    src={img}
+                                    alt={`Post image ${i + 2}`}
+                                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {images.length > 0 && (
+                    <div className="flex items-center gap-2 mt-2">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            className="w-3.5 h-3.5 text-gray-400 shrink-0"
+                        >
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        <span
+                            className="text-xs text-gray-400"
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                        >
+                            {images.length} photo{images.length > 1 ? "s" : ""}{" "}
+                            · Tap to expand
+                        </span>
+                    </div>
+                )}
+            </div>
+
+            {/* Lightbox */}
+            {lightboxOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+                    onClick={() => setLightboxOpen(false)}
+                >
+                    <div
+                        className="relative max-w-4xl max-h-screen w-full px-4"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Close */}
+                        <button
+                            onClick={() => setLightboxOpen(false)}
+                            className="absolute -top-12 right-4 w-9 h-9 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white transition-colors cursor-pointer z-10"
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                className="w-4 h-4"
+                            >
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                        </button>
+
+                        {/* Main image */}
+                        <div className="rounded-2xl overflow-hidden bg-gray-900">
+                            <Image
+                                src={images[activeIndex]}
+                                alt={`Post image ${activeIndex + 1}`}
+                                className="w-full object-contain"
+                                style={{ maxHeight: "80vh" }}
+                                loading="lazy"
+                            />
+                        </div>
+
+                        {/* Prev / Next */}
+                        {images.length > 1 && (
+                            <>
+                                <button
+                                    onClick={() =>
+                                        setActiveIndex(
+                                            (p) =>
+                                                (p - 1 + images.length) %
+                                                images.length,
+                                        )
+                                    }
+                                    className="absolute left-6 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-colors cursor-pointer"
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2.5"
+                                        strokeLinecap="round"
+                                        className="w-5 h-5"
+                                    >
+                                        <polyline points="15 18 9 12 15 6" />
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() =>
+                                        setActiveIndex(
+                                            (p) => (p + 1) % images.length,
+                                        )
+                                    }
+                                    className="absolute right-6 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-colors cursor-pointer"
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2.5"
+                                        strokeLinecap="round"
+                                        className="w-5 h-5"
+                                    >
+                                        <polyline points="9 18 15 12 9 6" />
+                                    </svg>
+                                </button>
+
+                                {/* Dot indicators */}
+                                <div className="flex items-center justify-center gap-2 mt-4">
+                                    {images.map((_, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setActiveIndex(i)}
+                                            className={`rounded-full transition-all cursor-pointer ${i === activeIndex ? "w-5 h-2 bg-white" : "w-2 h-2 bg-white/40 hover:bg-white/60"}`}
+                                        />
+                                    ))}
+                                </div>
+                            </>
+                        )}
+
+                        {/* Counter */}
+                        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                            {activeIndex + 1} / {images.length}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+}
+
 // ─── Main Page ────────────
 export default function IssueDetailPage({ params }) {
     const { id } = use(params);
@@ -1880,7 +2128,12 @@ export default function IssueDetailPage({ params }) {
                             </span>
                         </div>
                     </div>
-                    <div className="px-4 py-4">
+                    {/* ── Post Images ── */}
+                    {issue.images?.length > 0 && (
+                        <PostImageGallery images={issue.images} />
+                    )}
+
+                    <div className="px-4 pb-4">
                         <p
                             className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap"
                             style={{ fontFamily: "DM Sans, sans-serif" }}
