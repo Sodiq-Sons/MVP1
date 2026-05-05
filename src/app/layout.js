@@ -1,5 +1,4 @@
-import "@fontsource/plus-jakarta-sans";
-import "@fontsource/dm-sans";
+import { Plus_Jakarta_Sans, DM_Sans } from "next/font/google";
 import "./globals.css";
 import LayoutWrapper from "@/components/LayoutWrapper";
 import { Analytics } from "@vercel/analytics/next";
