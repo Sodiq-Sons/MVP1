@@ -383,7 +383,7 @@ function getLevelData(points) {
 function LevelProgress({ stats }) {
     if (!stats) return null;
     return (
-        <div className="bg-linear-to-br from-[#EA580C] to-[#F97316] rounded-2xl p-4 text-white relative overflow-hidden">
+        <div className="bg-gradient-to-br from-[#EA580C] to-[#F97316] rounded-2xl p-4 text-white relative overflow-hidden">
             <div
                 className="absolute inset-0 opacity-10"
                 style={{
@@ -1256,7 +1256,7 @@ export default function ProfilePage() {
                                     badges.map((b) => (
                                         <div
                                             key={b.id}
-                                            className="p-3.5 rounded-xl text-center transition-all bg-linear-to-br from-gray-50 to-white border border-gray-100 hover:border-[#F97316]/30 hover:shadow-sm"
+                                            className="p-3.5 rounded-xl text-center transition-all bg-gradient-to-br from-gray-50 to-white border border-gray-100 hover:border-[#F97316]/30 hover:shadow-sm"
                                         >
                                             <div className="text-3xl mb-2">
                                                 {b.emoji}

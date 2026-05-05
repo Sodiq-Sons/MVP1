@@ -18,7 +18,7 @@ const HomeIcon = ({ active }) => (
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="w-4.5 h-4.5 shrink-0"
+        className="w-5 h-5 shrink-0"
     >
         <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
         <polyline points="9 22 9 12 15 12 15 22" />
@@ -33,7 +33,7 @@ const TrendingIcon = ({ active }) => (
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="w-4.5 h-4.5 shrink-0"
+        className="w-5 h-5 shrink-0"
     >
         <polyline points="3 17 9 11 13 15 21 7" />
         <polyline points="14 7 21 7 21 14" />
@@ -47,7 +47,7 @@ const PlusIcon = () => (
         stroke="white"
         strokeWidth="2.5"
         strokeLinecap="round"
-        className="w-4.5 h-4.5 shrink-0"
+        className="w-5 h-5 shrink-0"
     >
         <line x1="12" y1="5" x2="12" y2="19" />
         <line x1="5" y1="12" x2="19" y2="12" />
@@ -62,7 +62,7 @@ const ActivityIcon = ({ active }) => (
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="w-4.5 h-4.5 shrink-0"
+        className="w-5 h-5 shrink-0"
     >
         <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
         <path d="M13.73 21a2 2 0 01-3.46 0" />
@@ -87,7 +87,7 @@ const ProfileIcon = ({ active }) => (
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="w-4.5 h-4.5 shrink-0"
+        className="w-5 h-5 shrink-0"
     >
         <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
         <circle cx="12" cy="7" r="4" />
@@ -102,7 +102,7 @@ const ChevronIcon = ({ direction }) => (
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="w-3.5 h-3.5"
+        className="w-4 h-4"
         style={{
             transform:
                 direction === "right" ? "rotate(0deg)" : "rotate(180deg)",

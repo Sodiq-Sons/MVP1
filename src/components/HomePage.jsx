@@ -544,7 +544,7 @@ function IssueCard({
                 <div className="bg-white rounded-2xl p-4 shadow-card border border-[#FED7AA] hover:shadow-lg hover:border-orange-300 transition-all cursor-pointer relative">
                     {rank && (
                         <div
-                            className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white ${rank === 1 ? "bg-linear-to-br from-yellow-400 to-yellow-600 text-white" : rank === 2 ? "bg-linear-to-br from-gray-300 to-gray-500 text-white" : rank === 3 ? "bg-linear-to-br from-orange-400 to-orange-600 text-white" : "bg-gray-100 text-gray-600"}`}
+                            className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white ${rank === 1 ? "bg-gradient-to-br from-yellow-400 to-yellow-600 text-white" : rank === 2 ? "bg-gradient-to-br from-gray-300 to-gray-500 text-white" : rank === 3 ? "bg-gradient-to-br from-orange-400 to-orange-600 text-white" : "bg-gray-100 text-gray-600"}`}
                         >
                             {rank}
                         </div>
@@ -607,7 +607,7 @@ function IssueCard({
                                         ? "Remove your like first"
                                         : "Dislike this post"
                                 }
-                                className={`flex flex-col items-center gap-0.5 w-13 h-14 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
+                                className={`flex flex-col items-center gap-0.5 w-14 h-14 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
                                     downvoted
                                         ? "border-red-500 bg-red-50"
                                         : isAnonymous || upvoted
@@ -638,7 +638,7 @@ function IssueCard({
                                         ? "Remove your dislike first"
                                         : "Like this post"
                                 }
-                                className={`flex flex-col items-center gap-0.5 w-13 h-14 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
+                                className={`flex flex-col items-center gap-0.5 w-14 h-14 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
                                     upvoted
                                         ? "border-green-500 bg-green-50"
                                         : isAnonymous || downvoted
@@ -934,7 +934,7 @@ export default function HomePage() {
                                 Login
                             </Link>
                         ) : (
-                            <div className="w-8 h-8 rounded-full bg-linear-to-br from-orange-200 to-orange-400 border-2 border-white flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-200 to-orange-400 border-2 border-white flex items-center justify-center">
                                 <span className="text-white text-xs font-bold">
                                     {displayName.charAt(0).toUpperCase()}
                                 </span>
@@ -969,7 +969,7 @@ export default function HomePage() {
                         </Link>
                     ) : (
                         <div className="flex items-center gap-2.5 bg-white rounded-xl px-3 py-2 shadow-sm border border-gray-100">
-                            <div className="w-8 h-8 rounded-full bg-linear-to-br from-orange-300 to-orange-500 flex items-center justify-center text-white text-sm font-bold">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-300 to-orange-500 flex items-center justify-center text-white text-sm font-bold">
                                 {displayName.charAt(0).toUpperCase()}
                             </div>
                             <div>
@@ -1011,7 +1011,7 @@ export default function HomePage() {
             {/* Desktop Greeting */}
             <div className="hidden md:block px-6 mt-4">
                 <div className="bg-white rounded-2xl p-4 shadow-card border border-gray-50 flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-linear-to-br from-orange-300 to-orange-500 flex items-center justify-center text-white text-xl font-bold">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-300 to-orange-500 flex items-center justify-center text-white text-xl font-bold">
                         {displayName.charAt(0).toUpperCase()}
                     </div>
                     <div>

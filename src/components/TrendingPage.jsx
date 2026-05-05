@@ -542,7 +542,15 @@ function TrendingCard({
             <Link href={`/issue/${issue.id}`} className="block">
                 <div className="issue-card bg-white rounded-2xl p-4 shadow-card border border-[#FED7AA] hover:shadow-lg hover:border-orange-300 transition-all cursor-pointer relative">
                     <div
-                        className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white ${rank === 1 ? "bg-linear-to-br from-yellow-400 to-yellow-600 text-white" : rank === 2 ? "bg-linear-to-br from-gray-300 to-gray-500 text-white" : rank === 3 ? "bg-linear-to-br from-orange-400 to-orange-600 text-white" : "bg-gray-100 text-gray-600"}`}
+                        className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white ${
+                            rank === 1
+                                ? "bg-gradient-to-br from-yellow-400 to-yellow-600 text-white"
+                                : rank === 2
+                                  ? "bg-gradient-to-br from-gray-300 to-gray-500 text-white"
+                                  : rank === 3
+                                    ? "bg-gradient-to-br from-orange-400 to-orange-600 text-white"
+                                    : "bg-gray-100 text-gray-600"
+                        }`}
                     >
                         {rank}
                     </div>
@@ -591,7 +599,7 @@ function TrendingCard({
 
                         {/* Vote buttons: Dislike (top) + Like (bottom) */}
                         <div
-                            className="shrink-0 flex gap-1.5"
+                            className="shrink-0 flex flex-col gap-1.5"
                             onClick={(e) => e.preventDefault()}
                         >
                             {/* Oppose button */}
@@ -603,7 +611,7 @@ function TrendingCard({
                                         ? "Remove your like first"
                                         : "Dislike this post"
                                 }
-                                className={`flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
+                                className={`flex flex-col items-center gap-0.5 w-14 h-14 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
                                     downvoted
                                         ? "border-red-500 bg-red-50"
                                         : isAnonymous || upvoted
@@ -634,7 +642,7 @@ function TrendingCard({
                                         ? "Remove your dislike first"
                                         : "Like this post"
                                 }
-                                className={`flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
+                                className={`flex flex-col items-center gap-0.5 w-14 h-14 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
                                     upvoted
                                         ? "border-green-500 bg-green-50"
                                         : isAnonymous || downvoted
