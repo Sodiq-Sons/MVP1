@@ -216,30 +216,6 @@ const LockIcon = () => (
     </svg>
 );
 
-// ─── Status Map ───────────────────────────────────────────────────────────────
-const statusMap = {
-    trending: {
-        label: "🔥 Trending",
-        bg: "bg-orange-50",
-        text: "text-orange-600",
-    },
-    "under-review": {
-        label: "🔍 Under Review",
-        bg: "bg-blue-50",
-        text: "text-blue-600",
-    },
-    resolved: {
-        label: "✅ Resolved",
-        bg: "bg-green-50",
-        text: "text-green-600",
-    },
-    "needs-attention": {
-        label: "⚠️ Needs Attention",
-        bg: "bg-amber-50",
-        text: "text-amber-600",
-    },
-};
-
 // ─── Level Configuration ──────────────────────────────────────────────────────
 const LEVELS = [
     { level: 1, name: "New Voice", min: 0, max: 100 },
@@ -1198,9 +1174,6 @@ export default function ProfilePage() {
                                 ) : (
                                     <>
                                         {issues.map((issue) => {
-                                            const s =
-                                                statusMap[issue.status] ||
-                                                statusMap["under-review"];
                                             return (
                                                 <Link
                                                     href={`/issue/${issue.id}`}
@@ -1225,11 +1198,6 @@ export default function ProfilePage() {
                                                                 {issue.title}
                                                             </h4>
                                                             <div className="flex items-center gap-2 flex-wrap">
-                                                                <span
-                                                                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.bg} ${s.text}`}
-                                                                >
-                                                                    {s.label}
-                                                                </span>
                                                                 <span className="flex items-center gap-1 text-[11px] text-gray-400">
                                                                     <UpvoteIcon />
                                                                     {formatNum(

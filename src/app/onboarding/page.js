@@ -900,7 +900,7 @@ function FirstVoteScreen({ goTo }) {
                                 </div>
                             </div>
 
-                            <div className="pb-2">
+                            <div className="pb-2 mt-4">
                                 <Link
                                     href="/login"
                                     className="w-full flex items-center justify-center bg-[#F97316] hover:bg-[#EA580C] active:scale-[0.98] text-white font-bold text-sm sm:text-[15px] py-3 sm:py-3.5 md:py-4 rounded-2xl transition-all cursor-pointer"

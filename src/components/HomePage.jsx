@@ -593,21 +593,21 @@ function IssueCard({
                             </p>
                         </div>
 
-                        {/* Vote buttons: Oppose (left) + Support (right) */}
+                        {/* Vote buttons: Disalike (top) + Like (bottom) */}
                         <div
-                            className="shrink-0 flex gap-1.5"
+                            className="shrink-0 space-y-1.5"
                             onClick={(e) => e.preventDefault()}
                         >
-                            {/* Oppose button */}
+                            {/* Disalike button */}
                             <button
                                 onClick={handleDownvote}
                                 disabled={downvoteLoading || upvoted}
                                 title={
                                     upvoted
-                                        ? "Remove your support first"
-                                        : "Oppose this post"
+                                        ? "Remove your like first"
+                                        : "Dislike this post"
                                 }
-                                className={`flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
+                                className={`flex flex-col items-center gap-0.5 w-13 h-14 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
                                     downvoted
                                         ? "border-red-500 bg-red-50"
                                         : isAnonymous || upvoted
@@ -635,10 +635,10 @@ function IssueCard({
                                 disabled={loading || downvoted}
                                 title={
                                     downvoted
-                                        ? "Remove your opposition first"
-                                        : "Support this post"
+                                        ? "Remove your dislike first"
+                                        : "Like this post"
                                 }
-                                className={`flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
+                                className={`flex flex-col items-center gap-0.5 w-13 h-14 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
                                     upvoted
                                         ? "border-green-500 bg-green-50"
                                         : isAnonymous || downvoted
@@ -841,7 +841,7 @@ export default function HomePage() {
         { key: "polls", label: "🗳️ Polls" },
         { key: "food", label: "🍛 Food" },
         { key: "issues", label: "🚨 Issues" },
-        { key: "opposed", label: "👎 Opposed" },
+        { key: "opposed", label: "👎 Dislike" },
     ];
 
     const sortLabels = { newest: "Newest", top: "Top", comments: "Comments" };
@@ -1124,7 +1124,7 @@ export default function HomePage() {
                     className="px-4 md:px-6 mt-2 text-xs text-gray-400"
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
-                    Sorted by most upvotes
+                    Sorted by most likes
                 </p>
             )}
             {activeFilter === "opposed" && (
@@ -1132,7 +1132,7 @@ export default function HomePage() {
                     className="px-4 md:px-6 mt-2 text-xs text-gray-400"
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
-                    Posts with the most opposition
+                    Posts with the most dislike
                 </p>
             )}
             {sortBy !== "newest" &&

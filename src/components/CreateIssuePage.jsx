@@ -1034,6 +1034,10 @@ function CreatePostForm({ currentUser, router }) {
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState("");
     const [uploadProgress, setUploadProgress] = useState("");
+    const [pollTimerEnabled, setPollTimerEnabled] = useState(false);
+    const [pollTimerHours, setPollTimerHours] = useState(24);
+    const [pollTimerUnit, setPollTimerUnit] = useState("hours");
+    const [pollTimerCustomVal, setPollTimerCustomVal] = useState("");
     // Images for food and issue
     const [images, setImages] = useState([]);
 
@@ -1215,6 +1219,12 @@ function CreatePostForm({ currentUser, router }) {
                 totalVotes: 0,
                 upvotes: 0,
                 status: "new",
+                pollDeadline:
+                    postType === "poll" && pollTimerEnabled
+                        ? new Date(Date.now() + pollTimerHours * 60 * 60 * 1000)
+                        : null,
+                pollTimerEnabled:
+                    postType === "poll" ? pollTimerEnabled : false,
             };
 
             switch (postType) {
@@ -1449,6 +1459,172 @@ function CreatePostForm({ currentUser, router }) {
                                 Drop your {selectedType.label}
                             </h2>
                         </div>
+
+                        {postType === "poll" && (
+                            <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
+                                <div className="flex items-center justify-between mb-1">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-base">⏱️</span>
+                                        <span
+                                            className="text-sm font-semibold text-gray-800"
+                                            style={{
+                                                fontFamily:
+                                                    "DM Sans, sans-serif",
+                                            }}
+                                        >
+                                            Set voting deadline
+                                        </span>
+                                    </div>
+                                    <div
+                                        onClick={() =>
+                                            setPollTimerEnabled(
+                                                !pollTimerEnabled,
+                                            )
+                                        }
+                                        className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${pollTimerEnabled ? "bg-[#F97316]" : "bg-gray-200"}`}
+                                    >
+                                        <div
+                                            className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${pollTimerEnabled ? "translate-x-5" : "translate-x-0.5"}`}
+                                        />
+                                    </div>
+                                </div>
+
+                                {pollTimerEnabled && (
+                                    <div className="mt-4">
+                                        <p
+                                            className="text-xs font-semibold text-gray-500 mb-2"
+                                            style={{
+                                                fontFamily:
+                                                    "DM Sans, sans-serif",
+                                            }}
+                                        >
+                                            Duration presets
+                                        </p>
+                                        <div className="grid grid-cols-3 gap-2 mb-3">
+                                            {[
+                                                { label: "1 hour", hours: 1 },
+                                                { label: "3 hours", hours: 3 },
+                                                { label: "6 hours", hours: 6 },
+                                                {
+                                                    label: "12 hours",
+                                                    hours: 12,
+                                                },
+                                                { label: "1 day", hours: 24 },
+                                                { label: "3 days", hours: 72 },
+                                            ].map((opt) => (
+                                                <button
+                                                    key={opt.hours}
+                                                    onClick={() =>
+                                                        setPollTimerHours(
+                                                            opt.hours,
+                                                        )
+                                                    }
+                                                    className={`py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
+                                                        pollTimerHours ===
+                                                        opt.hours
+                                                            ? "border-[#F97316] bg-[#FFF7F2] text-[#F97316]"
+                                                            : "border-gray-100 bg-gray-50 text-gray-500 hover:border-orange-200"
+                                                    }`}
+                                                    style={{
+                                                        fontFamily:
+                                                            "DM Sans, sans-serif",
+                                                    }}
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        <p
+                                            className="text-xs font-semibold text-gray-500 mb-2"
+                                            style={{
+                                                fontFamily:
+                                                    "DM Sans, sans-serif",
+                                            }}
+                                        >
+                                            Or custom duration
+                                        </p>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                value={pollTimerCustomVal}
+                                                placeholder="e.g. 2"
+                                                className="flex-1 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-orange-300"
+                                                style={{
+                                                    fontFamily:
+                                                        "DM Sans, sans-serif",
+                                                }}
+                                                onChange={(e) => {
+                                                    const v = parseInt(
+                                                        e.target.value,
+                                                    );
+                                                    setPollTimerCustomVal(
+                                                        e.target.value,
+                                                    );
+                                                    if (v > 0) {
+                                                        setPollTimerHours(
+                                                            pollTimerUnit ===
+                                                                "days"
+                                                                ? v * 24
+                                                                : v,
+                                                        );
+                                                    }
+                                                }}
+                                            />
+                                            <select
+                                                value={pollTimerUnit}
+                                                onChange={(e) => {
+                                                    setPollTimerUnit(
+                                                        e.target.value,
+                                                    );
+                                                    const v =
+                                                        parseInt(
+                                                            pollTimerCustomVal,
+                                                        );
+                                                    if (v > 0) {
+                                                        setPollTimerHours(
+                                                            e.target.value ===
+                                                                "days"
+                                                                ? v * 24
+                                                                : v,
+                                                        );
+                                                    }
+                                                }}
+                                                className="px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:border-orange-300"
+                                                style={{
+                                                    fontFamily:
+                                                        "DM Sans, sans-serif",
+                                                }}
+                                            >
+                                                <option value="hours">
+                                                    hours
+                                                </option>
+                                                <option value="days">
+                                                    days
+                                                </option>
+                                            </select>
+                                        </div>
+
+                                        <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-xl border border-orange-100">
+                                            <span className="text-sm">⏳</span>
+                                            <span
+                                                className="text-xs font-semibold text-orange-700"
+                                                style={{
+                                                    fontFamily:
+                                                        "DM Sans, sans-serif",
+                                                }}
+                                            >
+                                                Voting closes in{" "}
+                                                {pollTimerHours < 24
+                                                    ? `${pollTimerHours}h`
+                                                    : `${pollTimerHours / 24}d`}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* ── Issue Subcategory Picker ─────────────────────────────────── */}
                         {postType === "issue" && (
@@ -2005,6 +2181,18 @@ function CreatePostForm({ currentUser, router }) {
                                 <span>
                                     {isAnonymous ? "Anonymous" : "Public"}
                                 </span>
+                                {postType === "poll" && pollTimerEnabled && (
+                                    <>
+                                        <span>•</span>
+                                        <span>
+                                            ⏱️{" "}
+                                            {pollTimerHours < 24
+                                                ? `${pollTimerHours}h`
+                                                : `${pollTimerHours / 24}d`}{" "}
+                                            deadline
+                                        </span>
+                                    </>
+                                )}
                             </div>
                         </div>
 

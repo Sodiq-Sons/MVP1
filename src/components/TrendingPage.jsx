@@ -589,7 +589,7 @@ function TrendingCard({
                             </p>
                         </div>
 
-                        {/* Vote buttons: Oppose (left) + Support (right) */}
+                        {/* Vote buttons: Dislike (top) + Like (bottom) */}
                         <div
                             className="shrink-0 flex gap-1.5"
                             onClick={(e) => e.preventDefault()}
@@ -600,8 +600,8 @@ function TrendingCard({
                                 disabled={downvoteLoading || upvoted}
                                 title={
                                     upvoted
-                                        ? "Remove your support first"
-                                        : "Oppose this post"
+                                        ? "Remove your like first"
+                                        : "Dislike this post"
                                 }
                                 className={`flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
                                     downvoted
@@ -631,8 +631,8 @@ function TrendingCard({
                                 disabled={loading || downvoted}
                                 title={
                                     downvoted
-                                        ? "Remove your opposition first"
-                                        : "Support this post"
+                                        ? "Remove your dislike first"
+                                        : "Like this post"
                                 }
                                 className={`flex flex-col items-center gap-0.5 w-14 h-16 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
                                     upvoted
@@ -789,7 +789,7 @@ export default function TrendingPage() {
         { key: "polls", label: "🗳️ Polls" },
         { key: "food", label: "🍛 Food" },
         { key: "issues", label: "🚨 Issues" },
-        { key: "opposed", label: "👎 Opposed" },
+        { key: "opposed", label: "👎 Dislike" },
     ];
 
     const filtered = issues
@@ -1018,8 +1018,8 @@ export default function TrendingPage() {
                         style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                     >
                         {activeFilter === "opposed"
-                            ? "Most Opposed · " + timeRangeLabel
-                            : "Trending by Upvotes · " + timeRangeLabel}
+                            ? "Most Dislike · " + timeRangeLabel
+                            : "Trending by Likes · " + timeRangeLabel}
                     </span>
                 </div>
                 <div className="flex-1 h-px bg-gray-200" />
@@ -1033,7 +1033,7 @@ export default function TrendingPage() {
                     className="px-4 md:px-6 mb-3 text-xs text-gray-400"
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
-                    Posts with the most opposition
+                    Posts with the most dislikes
                 </p>
             )}
 
