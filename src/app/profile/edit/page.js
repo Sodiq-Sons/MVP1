@@ -3,7 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged, updateProfile } from "firebase/auth";
+import {
+    onAuthStateChanged,
+    updateProfile,
+    verifyBeforeUpdateEmail,
+    reload,
+    EmailAuthProvider,
+    reauthenticateWithCredential,
+} from "firebase/auth";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "sonner";
 import {
@@ -53,18 +60,9 @@ const NIGERIAN_STATES = [
     "Zamfara",
 ];
 
-const EDUCATION_LEVELS = [
-    "SSCE / O'Level",
-    "OND / NCE",
-    "HND",
-    "B.Sc / B.A / B.Eng",
-    "M.Sc / M.A / MBA",
-    "Ph.D",
-    "Other",
-];
-
 const INSTITUTION_TYPES = [
-    "University",
+    "Public University",
+    "Private University",
     "Polytechnic",
     "College of Education",
     "Monotechnic",
@@ -72,7 +70,6 @@ const INSTITUTION_TYPES = [
 ];
 
 const RELIGIONS = ["Christianity", "Islam", "Traditional", "Other"];
-
 const GENDERS = ["Male", "Female", "Other", "Prefer not to say"];
 
 // ─── Icons ─────────────────────────────────────────────────────────────────────
@@ -118,6 +115,167 @@ const CheckCircleIcon = () => (
         <polyline points="22 4 12 14.01 9 11.01" />
     </svg>
 );
+const MailIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="w-4 h-4"
+    >
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+        <polyline points="22,6 12,13 2,6" />
+    </svg>
+);
+const LockIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="w-6 h-6"
+    >
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0110 0v4" />
+    </svg>
+);
+
+// ─── Re-authenticate Modal ─────────────────────────────────────────────────────
+function ReauthModal({ isOpen, onConfirm, onCancel, onSkip }) {
+    const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [error, setError] = useState("");
+
+    if (!isOpen) return null;
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError("");
+        try {
+            await onConfirm(password);
+        } catch (err) {
+            if (err.code === "auth/wrong-password") {
+                setError("Incorrect password. Please try again.");
+            } else if (err.code === "auth/too-many-requests") {
+                setError("Too many attempts. Please try again later.");
+            } else {
+                setError("Authentication failed. Please try again.");
+            }
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl p-7 max-w-sm w-full shadow-2xl">
+                <div className="w-14 h-14 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 text-orange-500">
+                    <LockIcon />
+                </div>
+                <h2 className="text-lg font-bold text-slate-900 text-center mb-1">
+                    Confirm Your Identity
+                </h2>
+                <p className="text-xs text-slate-500 text-center mb-5 leading-relaxed">
+                    For security, please enter your current password to change
+                    your email address.
+                </p>
+
+                <form onSubmit={handleSubmit} className="space-y-3">
+                    <div className="relative">
+                        <input
+                            type={showPassword ? "text" : "password"}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Current password"
+                            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all pr-10"
+                            required
+                            autoFocus
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 font-medium"
+                        >
+                            {showPassword ? "Hide" : "Show"}
+                        </button>
+                    </div>
+                    {error && (
+                        <p className="text-xs text-red-500 font-medium">
+                            {error}
+                        </p>
+                    )}
+                    <button
+                        type="submit"
+                        className="w-full py-3 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white text-sm font-bold shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all"
+                    >
+                        Confirm & Send Verification
+                    </button>
+                </form>
+
+                <div className="mt-4 pt-4 border-t border-slate-100 text-center">
+                    <button
+                        onClick={onSkip}
+                        className="text-xs text-slate-400 hover:text-orange-500 font-medium transition-colors"
+                    >
+                        Skip for now — save email to profile only
+                    </button>
+                    <button
+                        onClick={onCancel}
+                        className="block w-full mt-2 text-xs text-slate-400 hover:text-slate-600 font-medium transition-colors"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Email Verification Modal ──────────────────────────────────────────────────
+function EmailVerificationModal({ isOpen, newEmail, onConfirm, onCancel }) {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl p-7 max-w-sm w-full shadow-2xl text-center">
+                <div className="w-14 h-14 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 text-orange-500">
+                    <MailIcon />
+                </div>
+                <h2 className="text-lg font-bold text-slate-900 mb-1">
+                    Verify Your New Email
+                </h2>
+                <p className="text-xs text-slate-500 mb-3">
+                    You are about to change your email to:
+                </p>
+                <p className="text-sm font-bold text-orange-600 bg-orange-50 rounded-lg py-2 px-3 mb-4 break-all">
+                    {newEmail}
+                </p>
+                <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+                    A verification link will be sent to this address. You must
+                    click the link to confirm the change. Your current email
+                    will remain active until verified.
+                </p>
+
+                <div className="flex gap-3">
+                    <button
+                        onClick={onCancel}
+                        className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white text-xs font-bold shadow-lg shadow-orange-500/25 hover:bg-orange-600 transition-all"
+                    >
+                        Send Verification
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 // ─── Field wrapper ─────────────────────────────────────────────────────────────
 function Field({ label, required, hint, children }) {
@@ -163,8 +321,7 @@ function CompletionBar({ pct }) {
             </div>
             {pct === 100 && (
                 <div className="flex items-center gap-2 mt-3 text-green-600 text-sm font-semibold">
-                    <CheckCircleIcon />
-                    Profile complete! You&apos;re verified ✓
+                    <CheckCircleIcon /> Profile complete! You&apos;re verified ✓
                 </div>
             )}
             {pct < 100 && (
@@ -210,6 +367,10 @@ export default function EditProfilePage() {
     const [hasChanges, setHasChanges] = useState(false);
     const [completionPct, setCompletionPct] = useState(0);
     const [wasComplete, setWasComplete] = useState(false);
+    const [pendingEmail, setPendingEmail] = useState(null);
+    const [showEmailModal, setShowEmailModal] = useState(false);
+    const [showReauthModal, setShowReauthModal] = useState(false);
+    const [emailToConfirm, setEmailToConfirm] = useState("");
 
     const emptyForm = {
         displayName: "",
@@ -219,7 +380,6 @@ export default function EditProfilePage() {
         email: "",
         stateOfOrigin: "",
         gender: "",
-        educationLevel: "",
         institutionType: "",
         campLocation: "",
         religion: "",
@@ -227,17 +387,33 @@ export default function EditProfilePage() {
 
     const [formData, setFormData] = useState(emptyForm);
     const [originalData, setOriginalData] = useState(emptyForm);
-    const [currentUser, setCurrentUser] = useState(null);
 
-    // Sync completion pct when form changes
     useEffect(() => {
-        // Map formData → profileCompletion shape
+        const checkVerifiedEmail = async () => {
+            if (auth.currentUser) {
+                await reload(auth.currentUser);
+                if (
+                    auth.currentUser.email !== originalData.email &&
+                    auth.currentUser.emailVerified
+                ) {
+                    setPendingEmail(null);
+                    setOriginalData((prev) => ({
+                        ...prev,
+                        email: auth.currentUser.email,
+                    }));
+                    toast.success("Email verified and updated successfully!");
+                }
+            }
+        };
+        checkVerifiedEmail();
+    }, [originalData.email]);
+
+    useEffect(() => {
         const mapped = {
             email: formData.email,
             phone: formData.phoneNumber,
             stateOfOrigin: formData.stateOfOrigin,
             gender: formData.gender,
-            educationLevel: formData.educationLevel,
             institutionType: formData.institutionType,
             campLocation: formData.campLocation,
             religion: formData.religion,
@@ -249,7 +425,6 @@ export default function EditProfilePage() {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user && !user.isAnonymous) {
-                setCurrentUser(user);
                 try {
                     const userDoc = await getDoc(doc(db, "users", user.uid));
                     let data;
@@ -270,22 +445,19 @@ export default function EditProfilePage() {
                                           .join(", ")
                                     : d.location || "",
                             phoneNumber: d.phoneNumber || d.phone || "",
-                            email: user.email || "",
+                            email: user.email || d.email || "",
                             stateOfOrigin: d.stateOfOrigin || "",
                             gender: d.gender || "",
-                            educationLevel: d.educationLevel || "",
                             institutionType: d.institutionType || "",
                             campLocation: d.campLocation || "",
                             religion: d.religion || "",
                         };
-                        // Track if they were already complete before editing
                         setWasComplete(
                             isProfileComplete({
                                 email: user.email || d.email,
                                 phone: d.phoneNumber || d.phone,
                                 stateOfOrigin: d.stateOfOrigin,
                                 gender: d.gender,
-                                educationLevel: d.educationLevel,
                                 institutionType: d.institutionType,
                                 campLocation: d.campLocation,
                                 religion: d.religion,
@@ -321,79 +493,149 @@ export default function EditProfilePage() {
     const handleChange = (field, value) =>
         setFormData((prev) => ({ ...prev, [field]: value }));
 
+    const doSendVerification = async () => {
+        await verifyBeforeUpdateEmail(auth.currentUser, emailToConfirm);
+        setPendingEmail(emailToConfirm);
+        toast.success(
+            "Verification email sent! Check your inbox and click the link to confirm.",
+        );
+        await saveProfileData(emailToConfirm, true);
+    };
+
+    const handleEmailConfirm = async () => {
+        setShowEmailModal(false);
+        setSaving(true);
+        try {
+            await doSendVerification();
+        } catch (error) {
+            if (error.code === "auth/requires-recent-login") {
+                setShowReauthModal(true);
+            } else if (error.code === "auth/email-already-in-use") {
+                toast.error("This email is already in use by another account.");
+            } else if (error.code === "auth/invalid-email") {
+                toast.error("Please enter a valid email address.");
+            } else {
+                toast.error("Failed to send verification email.");
+            }
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleReauth = async (password) => {
+        const credential = EmailAuthProvider.credential(
+            auth.currentUser.email,
+            password,
+        );
+        await reauthenticateWithCredential(auth.currentUser, credential);
+        setShowReauthModal(false);
+        setSaving(true);
+        try {
+            await doSendVerification();
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleSkipReauth = async () => {
+        setShowReauthModal(false);
+        setSaving(true);
+        try {
+            // Save email to Firestore only, skip Firebase Auth update
+            await saveProfileData(emailToConfirm, false);
+            toast.success(
+                "Profile saved. Email updated in your profile only — sign in again to verify.",
+            );
+            router.push("/profile");
+        } catch (error) {
+            toast.error("Failed to save profile");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const saveProfileData = async (emailValue, isPending = false) => {
+        await updateProfile(auth.currentUser, {
+            displayName: formData.displayName,
+        });
+
+        let locationData = formData.location;
+        if (formData.location.includes(",")) {
+            const parts = formData.location.split(",").map((p) => p.trim());
+            locationData = {
+                city: parts[0] || "",
+                state: parts[1] || "",
+                country: parts[2] || "Nigeria",
+            };
+        }
+
+        const updatePayload = {
+            displayName: formData.displayName,
+            bio: formData.bio,
+            location: locationData,
+            phoneNumber: formData.phoneNumber,
+            phone: formData.phoneNumber,
+            email: emailValue,
+            stateOfOrigin: formData.stateOfOrigin,
+            gender: formData.gender,
+            institutionType: formData.institutionType,
+            campLocation: formData.campLocation,
+            religion: formData.religion,
+            updatedAt: serverTimestamp(),
+        };
+
+        const nowComplete = isProfileComplete({
+            email: emailValue,
+            phone: formData.phoneNumber,
+            stateOfOrigin: formData.stateOfOrigin,
+            gender: formData.gender,
+            institutionType: formData.institutionType,
+            campLocation: formData.campLocation,
+            religion: formData.religion,
+            bio: formData.bio,
+        });
+
+        if (nowComplete && !wasComplete) {
+            updatePayload.isVerified = true;
+            updatePayload.verifiedAt = serverTimestamp();
+        }
+
+        await updateDoc(doc(db, "users", auth.currentUser.uid), updatePayload);
+
+        if (nowComplete && !wasComplete) {
+            await awardPoints(auth.currentUser.uid, "PROFILE_COMPLETE", {});
+            await checkAndAwardBadges(auth.currentUser.uid);
+            toast.success(
+                "🎉 Profile complete! You've earned the Verified Corper badge!",
+            );
+        } else if (!isPending) {
+            toast.success("Profile updated successfully!");
+        }
+
+        setOriginalData((prev) => ({
+            ...prev,
+            ...formData,
+            email: isPending ? prev.email : emailValue,
+        }));
+        setWasComplete(nowComplete);
+
+        if (!isPending) router.push("/profile");
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!auth.currentUser || !hasChanges) return;
+
+        if (formData.email !== originalData.email && formData.email) {
+            setEmailToConfirm(formData.email);
+            setShowEmailModal(true);
+            return;
+        }
+
         setSaving(true);
         try {
-            await updateProfile(auth.currentUser, {
-                displayName: formData.displayName,
-            });
-
-            let locationData = formData.location;
-            if (formData.location.includes(",")) {
-                const parts = formData.location.split(",").map((p) => p.trim());
-                locationData = {
-                    city: parts[0] || "",
-                    state: parts[1] || "",
-                    country: parts[2] || "Nigeria",
-                };
-            }
-
-            const updatePayload = {
-                displayName: formData.displayName,
-                bio: formData.bio,
-                location: locationData,
-                phoneNumber: formData.phoneNumber,
-                phone: formData.phoneNumber,
-                stateOfOrigin: formData.stateOfOrigin,
-                gender: formData.gender,
-                educationLevel: formData.educationLevel,
-                institutionType: formData.institutionType,
-                campLocation: formData.campLocation,
-                religion: formData.religion,
-                updatedAt: serverTimestamp(),
-            };
-
-            // Check if they're completing their profile for the first time
-            const nowComplete = isProfileComplete({
-                email: formData.email,
-                phone: formData.phoneNumber,
-                stateOfOrigin: formData.stateOfOrigin,
-                gender: formData.gender,
-                educationLevel: formData.educationLevel,
-                institutionType: formData.institutionType,
-                campLocation: formData.campLocation,
-                religion: formData.religion,
-                bio: formData.bio,
-            });
-
-            if (nowComplete && !wasComplete) {
-                updatePayload.isVerified = true;
-                updatePayload.verifiedAt = serverTimestamp();
-            }
-
-            await updateDoc(
-                doc(db, "users", auth.currentUser.uid),
-                updatePayload,
-            );
-
-            // Award badge if newly complete
-            if (nowComplete && !wasComplete) {
-                await awardPoints(auth.currentUser.uid, "PROFILE_COMPLETE", {});
-                await checkAndAwardBadges(auth.currentUser.uid);
-                toast.success(
-                    "🎉 Profile complete! You've earned the Verified Corper badge!",
-                );
-            } else {
-                toast.success("Profile updated successfully!");
-            }
-
-            setOriginalData(formData);
-            setWasComplete(nowComplete);
-            router.push("/profile");
+            await saveProfileData(formData.email, false);
         } catch (error) {
-            console.error("Error updating profile:", error);
             toast.error("Failed to update profile");
         } finally {
             setSaving(false);
@@ -426,7 +668,19 @@ export default function EditProfilePage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-            {/* Header */}
+            <EmailVerificationModal
+                isOpen={showEmailModal}
+                newEmail={emailToConfirm}
+                onConfirm={handleEmailConfirm}
+                onCancel={() => setShowEmailModal(false)}
+            />
+            <ReauthModal
+                isOpen={showReauthModal}
+                onConfirm={handleReauth}
+                onCancel={() => setShowReauthModal(false)}
+                onSkip={handleSkipReauth}
+            />
+
             <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
                 <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
@@ -456,7 +710,6 @@ export default function EditProfilePage() {
             </header>
 
             <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Avatar preview */}
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
                     <div className="flex items-center gap-4">
                         <div className="relative">
@@ -495,11 +748,32 @@ export default function EditProfilePage() {
                     </div>
                 </div>
 
-                {/* Completion bar */}
                 <CompletionBar pct={completionPct} />
 
+                {pendingEmail && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6">
+                        <div className="flex items-start gap-3">
+                            <div className="mt-0.5">
+                                <MailIcon />
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-blue-900">
+                                    Verification email sent
+                                </p>
+                                <p className="text-xs text-blue-700 mt-1">
+                                    We sent a verification link to{" "}
+                                    <span className="font-medium">
+                                        {pendingEmail}
+                                    </span>
+                                    . Click the link in that email to confirm
+                                    the change.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Personal */}
                     <SectionCard
                         icon={
                             <svg
@@ -529,7 +803,6 @@ export default function EditProfilePage() {
                                 required
                             />
                         </Field>
-
                         <Field label="Gender" required>
                             <select
                                 value={formData.gender}
@@ -546,7 +819,6 @@ export default function EditProfilePage() {
                                 ))}
                             </select>
                         </Field>
-
                         <Field label="Religion" required>
                             <select
                                 value={formData.religion}
@@ -563,7 +835,6 @@ export default function EditProfilePage() {
                                 ))}
                             </select>
                         </Field>
-
                         <Field label="State of Origin" required>
                             <select
                                 value={formData.stateOfOrigin}
@@ -583,7 +854,6 @@ export default function EditProfilePage() {
                                 ))}
                             </select>
                         </Field>
-
                         <Field label="Bio">
                             <textarea
                                 value={formData.bio}
@@ -606,7 +876,6 @@ export default function EditProfilePage() {
                         </Field>
                     </SectionCard>
 
-                    {/* Education */}
                     <SectionCard
                         icon={
                             <svg
@@ -624,26 +893,6 @@ export default function EditProfilePage() {
                         }
                         title="Education"
                     >
-                        <Field label="Educational Level" required>
-                            <select
-                                value={formData.educationLevel}
-                                onChange={(e) =>
-                                    handleChange(
-                                        "educationLevel",
-                                        e.target.value,
-                                    )
-                                }
-                                className={selectCls}
-                            >
-                                <option value="">Select education level</option>
-                                {EDUCATION_LEVELS.map((l) => (
-                                    <option key={l} value={l}>
-                                        {l}
-                                    </option>
-                                ))}
-                            </select>
-                        </Field>
-
                         <Field label="Institution Type" required>
                             <select
                                 value={formData.institutionType}
@@ -667,7 +916,6 @@ export default function EditProfilePage() {
                         </Field>
                     </SectionCard>
 
-                    {/* Camp & Contact */}
                     <SectionCard
                         icon={
                             <svg
@@ -719,7 +967,6 @@ export default function EditProfilePage() {
                                 />
                             </div>
                         </Field>
-
                         <Field label="Phone Number" required>
                             <div className="relative">
                                 <div className="absolute left-4 top-1/2 -translate-y-1/2">
@@ -749,7 +996,6 @@ export default function EditProfilePage() {
                                 />
                             </div>
                         </Field>
-
                         <Field
                             label="Location"
                             hint="Format: City, State, Country (e.g., Lagos, Lagos State, Nigeria)"
@@ -780,53 +1026,31 @@ export default function EditProfilePage() {
                                 />
                             </div>
                         </Field>
-
-                        <Field label="Email Address">
+                        <Field label="Email Address" required>
                             <div className="relative">
                                 <div className="absolute left-4 top-1/2 -translate-y-1/2">
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        className="w-4 h-4 text-slate-400"
-                                    >
-                                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                                        <polyline points="22,6 12,13 2,6" />
-                                    </svg>
+                                    <MailIcon />
                                 </div>
                                 <input
                                     type="email"
                                     value={formData.email}
-                                    disabled
-                                    className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 font-medium cursor-not-allowed text-sm"
+                                    onChange={(e) =>
+                                        handleChange("email", e.target.value)
+                                    }
+                                    className={`${inputCls} pl-11`}
+                                    placeholder="your@email.com"
+                                    required
                                 />
                             </div>
-                            <div className="flex items-center gap-1.5 mt-1.5 ml-1">
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    className="w-4 h-4 text-slate-400"
-                                >
-                                    <circle cx="12" cy="12" r="10" />
-                                    <line x1="12" y1="16" x2="12" y2="12" />
-                                    <line x1="12" y1="8" x2="12.01" y2="8" />
-                                </svg>
-                                <p className="text-xs text-slate-400">
-                                    Email cannot be changed. Contact support if
-                                    needed.
+                            {pendingEmail && (
+                                <p className="text-xs text-orange-600 mt-1.5 ml-1 font-medium">
+                                    Verification pending: check {pendingEmail}{" "}
+                                    for confirmation link
                                 </p>
-                            </div>
+                            )}
                         </Field>
                     </SectionCard>
 
-                    {/* Actions */}
                     <div className="flex flex-col sm:flex-row gap-3 pt-2 pb-8">
                         <button
                             type="button"
