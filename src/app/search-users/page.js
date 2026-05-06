@@ -201,7 +201,7 @@ function UserProfileCard({ user }) {
 
     return (
         <Link href={`/profile/${user.uid}`}>
-            <div className="bg-white rounded-2xl p-4 border border-[#FED7AA] hover:border-orange-300 hover:shadow-lg transition-all cursor-pointer group">
+            <div className="bg-white rounded-2xl mb-2 md:mb-0 p-4 border border-[#FED7AA] hover:border-orange-300 hover:shadow-lg transition-all cursor-pointer group">
                 <div className="flex items-start gap-3">
                     {/* Avatar */}
                     <div className="relative shrink-0">
@@ -598,7 +598,7 @@ export default function SearchUsersPage() {
                                 : "No results"}
                         </p>
                         {results.length > 0 ? (
-                            <div className="space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
+                            <div className="space-y-4 md:grid md:grid-cols-2 md:gap-3 md:space-y-4">
                                 {results.map((user) => (
                                     <UserProfileCard
                                         key={user.uid}
@@ -658,7 +658,7 @@ export default function SearchUsersPage() {
                                     ))}
                                 </div>
                             ) : topCampers.length > 0 ? (
-                                <div className="space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
+                                <div className="space-y-4 md:grid md:grid-cols-2 md:gap-3 md:space-y-2">
                                     {topCampers.map((user) => (
                                         <UserProfileCard
                                             key={user.uid}
