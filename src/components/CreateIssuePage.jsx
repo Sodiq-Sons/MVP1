@@ -1,5 +1,9 @@
-// app/create-issue/page.tsx
 "use client";
+
+// app/create-issue/page.tsx
+// CHANGES from original:
+// 1. On mount, check if profile is complete. If not, show ProfileIncompleteModal and block.
+// 2. All other logic is unchanged from the original.
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -19,6 +23,8 @@ import { toast } from "sonner";
 import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
 import { awardPoints } from "@/lib/gamification";
 import Image from "next/image";
+import ProfileIncompleteModal from "@/components/ProfileIncompleteModal";
+import { isProfileComplete } from "@/lib/profileCompletion";
 
 // ─── Post Types ───────────────────────────────────────────────────────────────
 const POST_TYPES = [
@@ -76,7 +82,6 @@ const POST_TYPES = [
     },
 ];
 
-// ─── Issue Subcategories ──────────────────────────────────────────────────────
 const ISSUE_SUBCATEGORIES = [
     {
         id: "security",
@@ -171,7 +176,6 @@ const ISSUE_SUBCATEGORIES = [
     },
 ];
 
-// ─── Response Types ───────────────────────────────────────────────────────────
 const RESPONSE_TYPES = [
     {
         id: "agreement",
@@ -202,14 +206,12 @@ const RESPONSE_TYPES = [
     },
 ];
 
-// ─── Demographic options ──────────────────────────────────────────────────────
 const DEMOGRAPHIC_OPTIONS = [
     {
         id: "age",
         emoji: "🎂",
         label: "Age Groups",
-        description:
-            "See how different age groups voted (Teens, Youth, Adults)",
+        description: "See how different age groups voted",
     },
     {
         id: "gender",
@@ -243,7 +245,7 @@ const ALLOWED_IMAGE_TYPES = [
     "image/gif",
 ];
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
+// ─── Icons ─────────────────────────────────────────────────────────────────────
 const BackIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -257,7 +259,6 @@ const BackIcon = () => (
         <polyline points="15 18 9 12 15 6" />
     </svg>
 );
-
 const SpinnerIcon = () => (
     <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
         <circle
@@ -275,7 +276,6 @@ const SpinnerIcon = () => (
         />
     </svg>
 );
-
 const CampIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -288,7 +288,6 @@ const CampIcon = () => (
         <path d="M3 21h18M5 21V7l8-4 8 4v14M8 21v-9a2 2 0 012-2h4a2 2 0 012 2v9" />
     </svg>
 );
-
 const PlusIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -302,7 +301,6 @@ const PlusIcon = () => (
         <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
 );
-
 const TrashIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -314,11 +312,9 @@ const TrashIcon = () => (
     >
         <polyline points="3 6 5 6 21 6" />
         <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-        <path d="M10 11v6M14 11v6" />
-        <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+        <path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
     </svg>
 );
-
 const StarIcon = ({ filled }) => (
     <svg
         viewBox="0 0 24 24"
@@ -331,7 +327,6 @@ const StarIcon = ({ filled }) => (
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </svg>
 );
-
 const AnonymousIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -345,7 +340,6 @@ const AnonymousIcon = () => (
         <circle cx="12" cy="7" r="4" />
     </svg>
 );
-
 const EyeIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -359,7 +353,6 @@ const EyeIcon = () => (
         <circle cx="12" cy="12" r="3" />
     </svg>
 );
-
 const CheckIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -372,7 +365,6 @@ const CheckIcon = () => (
         <polyline points="20 6 9 17 4 12" />
     </svg>
 );
-
 const UsersIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -384,11 +376,9 @@ const UsersIcon = () => (
     >
         <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
         <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 00-3-3.87" />
-        <path d="M16 3.13a4 4 0 010 7.75" />
+        <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
     </svg>
 );
-
 const ScaleIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -404,7 +394,6 @@ const ScaleIcon = () => (
         <circle cx="18" cy="18" r="2" fill="currentColor" />
     </svg>
 );
-
 const YesNoIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -418,7 +407,6 @@ const YesNoIcon = () => (
         <path d="M8 12l2 2 4-4" />
     </svg>
 );
-
 const CustomIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -432,7 +420,6 @@ const CustomIcon = () => (
         <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
     </svg>
 );
-
 const ImageUploadIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -448,7 +435,6 @@ const ImageUploadIcon = () => (
         <polyline points="21 15 16 10 5 21" />
     </svg>
 );
-
 const XIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -463,7 +449,6 @@ const XIcon = () => (
     </svg>
 );
 
-// ─── Character counter color helper ──────────────────────────────────────────
 function charCountColor(current, max) {
     const pct = current / max;
     if (pct >= 0.95) return "text-red-500 font-bold";
@@ -471,7 +456,6 @@ function charCountColor(current, max) {
     return "text-gray-400";
 }
 
-// ─── Step Indicator ───────────────────────────────────────────────────────────
 function StepIndicator({ step, totalSteps }) {
     return (
         <div className="flex items-center justify-center gap-2 py-3">
@@ -493,22 +477,15 @@ function StepIndicator({ step, totalSteps }) {
     );
 }
 
-// ─── Issue Subcategory Card ───────────────────────────────────────────────────
 function IssueSubcategoryCard({ subcategory, selected, onSelect }) {
     return (
         <button
             onClick={() => onSelect(subcategory.id)}
-            className={`w-full text-left p-3.5 rounded-2xl border-2 transition-all duration-200 cursor-pointer relative ${
-                selected
-                    ? `${subcategory.selectedBg} ${subcategory.selectedBorder}`
-                    : "border-gray-100 bg-white hover:border-gray-200"
-            }`}
+            className={`w-full text-left p-3.5 rounded-2xl border-2 transition-all duration-200 cursor-pointer relative ${selected ? `${subcategory.selectedBg} ${subcategory.selectedBorder}` : "border-gray-100 bg-white hover:border-gray-200"}`}
         >
             <div className="flex items-center gap-3">
                 <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl transition-colors ${
-                        selected ? "bg-white shadow-sm" : "bg-gray-50"
-                    }`}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl transition-colors ${selected ? "bg-white shadow-sm" : "bg-gray-50"}`}
                 >
                     {subcategory.emoji}
                 </div>
@@ -548,7 +525,6 @@ function IssueSubcategoryCard({ subcategory, selected, onSelect }) {
     );
 }
 
-// ─── Image Upload Section ─────────────────────────────────────────────────────
 function ImageUploadSection({ images, onImagesChange, maxImages = 3 }) {
     const fileInputRef = useRef(null);
     const [dragOver, setDragOver] = useState(false);
@@ -566,11 +542,13 @@ function ImageUploadSection({ images, onImagesChange, maxImages = 3 }) {
             return true;
         });
         const remaining = maxImages - images.length;
-        const toAdd = validFiles.slice(0, remaining).map((file) => ({
-            file,
-            preview: URL.createObjectURL(file),
-            id: `${Date.now()}-${Math.random()}`,
-        }));
+        const toAdd = validFiles
+            .slice(0, remaining)
+            .map((file) => ({
+                file,
+                preview: URL.createObjectURL(file),
+                id: `${Date.now()}-${Math.random()}`,
+            }));
         onImagesChange([...images, ...toAdd]);
     };
 
@@ -591,8 +569,6 @@ function ImageUploadSection({ images, onImagesChange, maxImages = 3 }) {
                     (optional, max {maxImages})
                 </span>
             </label>
-
-            {/* Preview grid */}
             {images.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 mb-3">
                     {images.map((img) => (
@@ -617,8 +593,6 @@ function ImageUploadSection({ images, onImagesChange, maxImages = 3 }) {
                     ))}
                 </div>
             )}
-
-            {/* Upload zone */}
             {images.length < maxImages && (
                 <div
                     onClick={() => fileInputRef.current?.click()}
@@ -632,11 +606,7 @@ function ImageUploadSection({ images, onImagesChange, maxImages = 3 }) {
                         setDragOver(false);
                         handleFiles(e.dataTransfer.files);
                     }}
-                    className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all duration-200 ${
-                        dragOver
-                            ? "border-[#F97316] bg-orange-50"
-                            : "border-gray-200 hover:border-orange-300 hover:bg-orange-50/30"
-                    }`}
+                    className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all duration-200 ${dragOver ? "border-[#F97316] bg-orange-50" : "border-gray-200 hover:border-orange-300 hover:bg-orange-50/30"}`}
                 >
                     <div
                         className={`${dragOver ? "text-[#F97316]" : "text-gray-300"} transition-colors`}
@@ -657,7 +627,6 @@ function ImageUploadSection({ images, onImagesChange, maxImages = 3 }) {
                     </p>
                 </div>
             )}
-
             <input
                 ref={fileInputRef}
                 type="file"
@@ -670,7 +639,6 @@ function ImageUploadSection({ images, onImagesChange, maxImages = 3 }) {
     );
 }
 
-// ─── Demographic Card ─────────────────────────────────────────────────────────
 function DemographicCard({ option, selected, onToggle }) {
     return (
         <button
@@ -707,27 +675,10 @@ function DemographicCard({ option, selected, onToggle }) {
                     </p>
                 </div>
             </div>
-            {selected && (
-                <div className="absolute top-3 right-3">
-                    <span className="w-5 h-5 bg-[#F97316] rounded-full flex items-center justify-center">
-                        <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="white"
-                            strokeWidth="3"
-                            strokeLinecap="round"
-                            className="w-3 h-3"
-                        >
-                            <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                    </span>
-                </div>
-            )}
         </button>
     );
 }
 
-// ─── Response Type Card ───────────────────────────────────────────────────────
 function ResponseTypeCard({ type, selected, onSelect }) {
     const icons = {
         agreement: <ScaleIcon />,
@@ -776,27 +727,10 @@ function ResponseTypeCard({ type, selected, onSelect }) {
                     )}
                 </div>
             </div>
-            {selected && (
-                <div className="mt-3 flex justify-end">
-                    <div className="w-5 h-5 bg-[#F97316] rounded-full flex items-center justify-center">
-                        <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="white"
-                            strokeWidth="3"
-                            strokeLinecap="round"
-                            className="w-3 h-3"
-                        >
-                            <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                    </div>
-                </div>
-            )}
         </button>
     );
 }
 
-// ─── Auth Error ───────────────────────────────────────────────────────────────
 function AuthErrorPrompt({ error, onRetry }) {
     return (
         <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
@@ -814,16 +748,12 @@ function AuthErrorPrompt({ error, onRetry }) {
                     className="text-gray-500 text-sm mb-6"
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
-                    {error ||
-                        "Unable to authenticate. Please check your connection and try again."}
+                    {error || "Unable to authenticate."}
                 </p>
                 <button
                     onClick={onRetry}
-                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg transition-all duration-200 cursor-pointer mb-3"
-                    style={{
-                        fontFamily: "DM Sans, sans-serif",
-                        boxShadow: "0 4px 20px rgba(232,97,26,0.35)",
-                    }}
+                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#F97316] text-white cursor-pointer mb-3"
+                    style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
                     Retry
                 </button>
@@ -844,7 +774,6 @@ function AuthErrorPrompt({ error, onRetry }) {
     );
 }
 
-// ─── Login Prompt ─────────────────────────────────────────────────────────────
 function LoginPrompt({ onLogin }) {
     return (
         <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
@@ -866,11 +795,8 @@ function LoginPrompt({ onLogin }) {
                 </p>
                 <button
                     onClick={onLogin}
-                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg transition-all duration-200 cursor-pointer"
-                    style={{
-                        fontFamily: "DM Sans, sans-serif",
-                        boxShadow: "0 4px 20px rgba(232,97,26,0.35)",
-                    }}
+                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#F97316] text-white cursor-pointer"
+                    style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
                     Sign In
                 </button>
@@ -898,6 +824,8 @@ export default function CreatePostPage() {
     const [authReady, setAuthReady] = useState(false);
     const [authError, setAuthError] = useState(null);
     const [isInitializing, setIsInitializing] = useState(true);
+    const [profileComplete, setProfileComplete] = useState(null); // null = loading
+    const [showIncompleteModal, setShowIncompleteModal] = useState(false);
 
     const authSucceededRef = useRef(false);
     const timeoutRef = useRef(null);
@@ -929,6 +857,24 @@ export default function CreatePostPage() {
                     setCurrentUser(user);
                     setAuthReady(true);
                     setIsInitializing(false);
+
+                    // Check profile completion
+                    if (!user.isAnonymous) {
+                        try {
+                            const snap = await getDoc(
+                                doc(db, "users", user.uid),
+                            );
+                            if (snap.exists()) {
+                                setProfileComplete(
+                                    isProfileComplete(snap.data()),
+                                );
+                            } else {
+                                setProfileComplete(false);
+                            }
+                        } catch {
+                            setProfileComplete(false);
+                        }
+                    }
                 } else {
                     try {
                         await signInAnonymously(auth);
@@ -969,6 +915,17 @@ export default function CreatePostPage() {
         };
     }, [initAuth]);
 
+    // Show incomplete modal when we know profile is not complete and user is logged in non-anon
+    useEffect(() => {
+        if (
+            profileComplete === false &&
+            currentUser &&
+            !currentUser.isAnonymous
+        ) {
+            setShowIncompleteModal(true);
+        }
+    }, [profileComplete, currentUser]);
+
     const handleLoginClick = () =>
         router.push(
             `/login?redirect=${encodeURIComponent(window.location.pathname)}`,
@@ -993,10 +950,27 @@ export default function CreatePostPage() {
     if (authError)
         return <AuthErrorPrompt error={authError} onRetry={handleRetryAuth} />;
     if (!currentUser) return <LoginPrompt onLogin={handleLoginClick} />;
-    return <CreatePostForm currentUser={currentUser} router={router} />;
+
+    return (
+        <>
+            <ProfileIncompleteModal
+                isOpen={showIncompleteModal}
+                onClose={() => {
+                    setShowIncompleteModal(false);
+                    router.back();
+                }}
+                action="create posts"
+            />
+            <CreatePostForm
+                currentUser={currentUser}
+                router={router}
+                profileComplete={profileComplete}
+                onProfileIncomplete={() => setShowIncompleteModal(true)}
+            />
+        </>
+    );
 }
 
-// ─── Upload images to Firebase Storage ───────────────────────────────────────
 async function uploadImages(images, uid, postId) {
     const urls = [];
     for (const img of images) {
@@ -1017,8 +991,12 @@ async function uploadImages(images, uid, postId) {
     return urls;
 }
 
-// ─── Create Post Form ─────────────────────────────────────────────────────────
-function CreatePostForm({ currentUser, router }) {
+function CreatePostForm({
+    currentUser,
+    router,
+    profileComplete,
+    onProfileIncomplete,
+}) {
     const [postType, setPostType] = useState("");
     const [issueSubcategory, setIssueSubcategory] = useState("");
     const [title, setTitle] = useState("");
@@ -1038,7 +1016,6 @@ function CreatePostForm({ currentUser, router }) {
     const [pollTimerHours, setPollTimerHours] = useState(24);
     const [pollTimerUnit, setPollTimerUnit] = useState("hours");
     const [pollTimerCustomVal, setPollTimerCustomVal] = useState("");
-    // Images for food and issue
     const [images, setImages] = useState([]);
 
     const selectedType = POST_TYPES.find((t) => t.id === postType);
@@ -1048,12 +1025,8 @@ function CreatePostForm({ currentUser, router }) {
     const selectedSubcategory = ISSUE_SUBCATEGORIES.find(
         (s) => s.id === issueSubcategory,
     );
-
-    // Determine total steps:
-    // issue has an extra subcategory step (step 2b embedded in step 2)
     const totalSteps = 4;
 
-    // ── Validation ─────────────────────────────────────────────────────────
     const step1Valid = postType.length > 0;
 
     const step2Valid = () => {
@@ -1087,7 +1060,6 @@ function CreatePostForm({ currentUser, router }) {
 
     const step4Valid = selectedDemographics.length > 0;
 
-    // ── Poll helpers ────────────────────────────────────────────────────────
     const updatePollOption = (i, val) => {
         const next = [...pollOptions];
         next[i] = val;
@@ -1101,7 +1073,6 @@ function CreatePostForm({ currentUser, router }) {
             setPollOptions(pollOptions.filter((_, idx) => idx !== i));
     };
 
-    // ── Custom option helpers ────────────────────────────────────────────────
     const updateCustomOption = (i, val) => {
         const next = [...customOptions];
         next[i] = val;
@@ -1139,9 +1110,15 @@ function CreatePostForm({ currentUser, router }) {
         }
     };
 
-    // ── Submit ──────────────────────────────────────────────────────────────
     const handleSubmit = async () => {
         if (!step2Valid() || !step3Valid() || !step4Valid || saving) return;
+
+        // Gate: must have complete profile
+        if (!profileComplete) {
+            onProfileIncomplete();
+            return;
+        }
+
         setSaving(true);
         setSaveError("");
         setUploadProgress("");
@@ -1161,27 +1138,20 @@ function CreatePostForm({ currentUser, router }) {
                         userName = userData.displayName;
                 }
             } catch (profileErr) {
-                console.warn(
-                    "Could not fetch user profile for platoon:",
-                    profileErr,
-                );
+                console.warn("Could not fetch user profile:", profileErr);
             }
 
             let finalDescription = description;
             let finalTitle = title;
-
             if (postType === "food") {
                 const stars = "⭐".repeat(foodRating);
                 finalDescription = `${stars}\n\n${description}`;
             }
 
             const voteOptions = getVoteOptions();
-
-            // Create the doc first to get the ID for storage paths
             const tempRef = doc(collection(db, "issues"));
             const postId = tempRef.id;
 
-            // Upload images if any
             let imageUrls = [];
             if (
                 images.length > 0 &&
@@ -1237,7 +1207,6 @@ function CreatePostForm({ currentUser, router }) {
                     break;
             }
 
-            // Use setDoc with the pre-generated ref
             const { setDoc } = await import("firebase/firestore");
             await setDoc(tempRef, issueData);
             const issueRef = tempRef;
@@ -1274,9 +1243,7 @@ function CreatePostForm({ currentUser, router }) {
                     isOnline: true,
                 });
             }
-
             await batch.commit();
-
             await awardPoints(currentUser.uid, "CREATE_ISSUE", {
                 issueId: issueRef.id,
                 issueTitle: finalTitle.trim(),
@@ -1304,7 +1271,6 @@ function CreatePostForm({ currentUser, router }) {
 
     return (
         <div className="min-h-screen bg-[#FDF6EF] pb-24 md:pb-8">
-            {/* Header */}
             <header className="sticky top-0 z-40 bg-[#F97316] px-4 pt-6 md:pt-4 pb-3">
                 <div className="flex items-center gap-3 max-w-2xl mx-auto">
                     <button
@@ -1344,7 +1310,28 @@ function CreatePostForm({ currentUser, router }) {
             </header>
 
             <div className="max-w-2xl mx-auto px-4 md:px-6">
-                {/* ══ STEP 1 ══════════════════════════════════════════════════════ */}
+                {/* Profile incomplete warning banner */}
+                {profileComplete === false && (
+                    <div className="mt-4 mb-2 px-4 py-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3">
+                        <span className="text-xl">🔒</span>
+                        <div className="flex-1">
+                            <p className="text-sm font-bold text-red-700">
+                                Profile incomplete
+                            </p>
+                            <p className="text-xs text-red-500">
+                                Complete your profile to create posts
+                            </p>
+                        </div>
+                        <Link
+                            href="/profile/edit"
+                            className="text-xs font-bold text-white bg-red-500 px-3 py-1.5 rounded-lg"
+                        >
+                            Fix it
+                        </Link>
+                    </div>
+                )}
+
+                {/* ══ STEP 1 ══ */}
                 {step === 1 && (
                     <>
                         <div className="flex flex-col items-center pt-6 pb-6">
@@ -1366,7 +1353,6 @@ function CreatePostForm({ currentUser, router }) {
                                 What are you sharing with the camp today?
                             </p>
                         </div>
-
                         <div className="grid grid-cols-2 gap-3">
                             {POST_TYPES.map((type) => (
                                 <button
@@ -1412,9 +1398,14 @@ function CreatePostForm({ currentUser, router }) {
                                 </button>
                             ))}
                         </div>
-
                         <button
-                            onClick={() => step1Valid && setStep(2)}
+                            onClick={() => {
+                                if (!profileComplete) {
+                                    onProfileIncomplete();
+                                    return;
+                                }
+                                step1Valid && setStep(2);
+                            }}
                             disabled={!step1Valid}
                             className={`w-full mt-6 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${step1Valid ? "bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98]" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
                             style={{
@@ -1439,7 +1430,7 @@ function CreatePostForm({ currentUser, router }) {
                     </>
                 )}
 
-                {/* ══ STEP 2 ══════════════════════════════════════════════════════ */}
+                {/* ══ STEP 2 ══ */}
                 {step === 2 && selectedType && (
                     <>
                         <div className="flex flex-col items-center pt-6 pb-4">
@@ -1488,7 +1479,6 @@ function CreatePostForm({ currentUser, router }) {
                                         />
                                     </div>
                                 </div>
-
                                 {pollTimerEnabled && (
                                     <div className="mt-4">
                                         <p
@@ -1519,12 +1509,7 @@ function CreatePostForm({ currentUser, router }) {
                                                             opt.hours,
                                                         )
                                                     }
-                                                    className={`py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
-                                                        pollTimerHours ===
-                                                        opt.hours
-                                                            ? "border-[#F97316] bg-[#FFF7F2] text-[#F97316]"
-                                                            : "border-gray-100 bg-gray-50 text-gray-500 hover:border-orange-200"
-                                                    }`}
+                                                    className={`py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${pollTimerHours === opt.hours ? "border-[#F97316] bg-[#FFF7F2] text-[#F97316]" : "border-gray-100 bg-gray-50 text-gray-500 hover:border-orange-200"}`}
                                                     style={{
                                                         fontFamily:
                                                             "DM Sans, sans-serif",
@@ -1534,16 +1519,6 @@ function CreatePostForm({ currentUser, router }) {
                                                 </button>
                                             ))}
                                         </div>
-
-                                        <p
-                                            className="text-xs font-semibold text-gray-500 mb-2"
-                                            style={{
-                                                fontFamily:
-                                                    "DM Sans, sans-serif",
-                                            }}
-                                        >
-                                            Or custom duration
-                                        </p>
                                         <div className="flex gap-2">
                                             <input
                                                 type="number"
@@ -1562,14 +1537,13 @@ function CreatePostForm({ currentUser, router }) {
                                                     setPollTimerCustomVal(
                                                         e.target.value,
                                                     );
-                                                    if (v > 0) {
+                                                    if (v > 0)
                                                         setPollTimerHours(
                                                             pollTimerUnit ===
                                                                 "days"
                                                                 ? v * 24
                                                                 : v,
                                                         );
-                                                    }
                                                 }}
                                             />
                                             <select
@@ -1582,14 +1556,13 @@ function CreatePostForm({ currentUser, router }) {
                                                         parseInt(
                                                             pollTimerCustomVal,
                                                         );
-                                                    if (v > 0) {
+                                                    if (v > 0)
                                                         setPollTimerHours(
                                                             e.target.value ===
                                                                 "days"
                                                                 ? v * 24
                                                                 : v,
                                                         );
-                                                    }
                                                 }}
                                                 className="px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:border-orange-300"
                                                 style={{
@@ -1605,7 +1578,6 @@ function CreatePostForm({ currentUser, router }) {
                                                 </option>
                                             </select>
                                         </div>
-
                                         <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-xl border border-orange-100">
                                             <span className="text-sm">⏳</span>
                                             <span
@@ -1626,7 +1598,6 @@ function CreatePostForm({ currentUser, router }) {
                             </div>
                         )}
 
-                        {/* ── Issue Subcategory Picker ─────────────────────────────────── */}
                         {postType === "issue" && (
                             <div className="mb-4">
                                 <div className="bg-white rounded-2xl border border-gray-100 p-4">
@@ -1658,7 +1629,6 @@ function CreatePostForm({ currentUser, router }) {
                             </div>
                         )}
 
-                        {/* Title */}
                         <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
                             <label
                                 className="block text-sm font-semibold text-gray-800 mb-2"
@@ -1683,7 +1653,6 @@ function CreatePostForm({ currentUser, router }) {
                             </div>
                         </div>
 
-                        {/* Food Rating */}
                         {postType === "food" && (
                             <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
                                 <label
@@ -1724,7 +1693,6 @@ function CreatePostForm({ currentUser, router }) {
                             </div>
                         )}
 
-                        {/* Poll Options */}
                         {postType === "poll" && (
                             <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
                                 <label
@@ -1793,7 +1761,6 @@ function CreatePostForm({ currentUser, router }) {
                             </div>
                         )}
 
-                        {/* Description */}
                         <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
                             <label
                                 className="block text-sm font-semibold text-gray-800 mb-2"
@@ -1827,7 +1794,6 @@ function CreatePostForm({ currentUser, router }) {
                             </div>
                         </div>
 
-                        {/* Image Upload — only for food & issue */}
                         {showImageUpload && (
                             <div className="mb-3">
                                 <ImageUploadSection
@@ -1838,7 +1804,6 @@ function CreatePostForm({ currentUser, router }) {
                             </div>
                         )}
 
-                        {/* Toggles */}
                         <div className="bg-white rounded-2xl border border-gray-100 p-4 mt-1 space-y-3">
                             <label className="flex items-center justify-between cursor-pointer">
                                 <div className="flex items-center gap-2">
@@ -1938,7 +1903,7 @@ function CreatePostForm({ currentUser, router }) {
                     </>
                 )}
 
-                {/* ══ STEP 3 ══════════════════════════════════════════════════════ */}
+                {/* ══ STEP 3 ══ */}
                 {step === 3 && (
                     <>
                         <div className="flex flex-col items-center pt-6 pb-5">
@@ -1960,7 +1925,6 @@ function CreatePostForm({ currentUser, router }) {
                                 Choose the response format for your post
                             </p>
                         </div>
-
                         <div className="space-y-3 mb-4">
                             {RESPONSE_TYPES.map((type) => (
                                 <ResponseTypeCard
@@ -1971,7 +1935,6 @@ function CreatePostForm({ currentUser, router }) {
                                 />
                             ))}
                         </div>
-
                         {responseType === "custom" && (
                             <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-4">
                                 <label
@@ -2039,7 +2002,6 @@ function CreatePostForm({ currentUser, router }) {
                                 )}
                             </div>
                         )}
-
                         {responseType && (
                             <div className="bg-orange-50 rounded-xl p-4 mb-4">
                                 <div className="flex items-center gap-2 mb-2">
@@ -2066,7 +2028,6 @@ function CreatePostForm({ currentUser, router }) {
                                 </div>
                             </div>
                         )}
-
                         <div className="flex gap-3 mt-5">
                             <button
                                 onClick={() => setStep(2)}
@@ -2102,7 +2063,7 @@ function CreatePostForm({ currentUser, router }) {
                     </>
                 )}
 
-                {/* ══ STEP 4 ══════════════════════════════════════════════════════ */}
+                {/* ══ STEP 4 ══ */}
                 {step === 4 && (
                     <>
                         <div className="flex flex-col items-center pt-6 pb-5">
@@ -2125,7 +2086,6 @@ function CreatePostForm({ currentUser, router }) {
                             </p>
                         </div>
 
-                        {/* Post Recap */}
                         <div className="bg-white rounded-xl px-4 py-3 mb-4 border border-orange-100">
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="text-2xl">
@@ -2240,7 +2200,6 @@ function CreatePostForm({ currentUser, router }) {
                                 {saveError}
                             </div>
                         )}
-
                         {uploadProgress && (
                             <div
                                 className="mb-4 px-4 py-3 bg-orange-50 border border-orange-100 rounded-xl text-sm text-orange-600 flex items-center gap-2"

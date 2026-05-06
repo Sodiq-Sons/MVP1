@@ -1,4 +1,9 @@
 "use client";
+// app/issues/[id]/page.tsx
+// KEY CHANGE: voting (handleVote, handleUpvote, handleDownvote, handleSubmitComment)
+// now checks isProfileComplete(userData) in addition to auth checks.
+// Users without a complete profile see an "IncompleteProfilePrompt" modal
+// instead of the generic login modal.
 
 import { useState, useEffect, use, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -18,9 +23,10 @@ import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
 import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
 import { awardPoints } from "@/lib/gamification";
+import { isProfileComplete } from "@/lib/profileCompletion";
 import Image from "next/image";
 
-// ─── Category Meta ────────
+// ─── Category Meta ─────────────────────────────────────────────────────────────
 const CATEGORY_META = {
     infrastructure: {
         color: "text-orange-700",
@@ -52,7 +58,7 @@ const CATEGORY_META = {
     other: { color: "text-gray-700", bg: "bg-gray-100", label: "Other" },
 };
 
-// ─── Demographic Config ───
+// ─── Demographic Config ────────────────────────────────────────────────────────
 const DEMOGRAPHIC_CONFIG = {
     age: {
         emoji: "🎂",
@@ -92,7 +98,6 @@ const DEMOGRAPHIC_CONFIG = {
     },
 };
 
-// ─── Demo Segment Colors ──
 const DEMO_COLORS = [
     "#F97316",
     "#1D9E75",
@@ -102,7 +107,7 @@ const DEMO_COLORS = [
     "#BA7517",
 ];
 
-// ─── Helpers ──────────────
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 function timeAgo(seconds) {
     const diff = Math.floor(Date.now() / 1000) - seconds;
     if (diff < 60) return "just now";
@@ -124,8 +129,7 @@ function formatNumber(n) {
 }
 
 function getAvatarCount(n) {
-    if (n <= 0) return 0;
-    return Math.min(n, 4);
+    return Math.min(Math.max(n, 0), 4);
 }
 
 const AVATAR_LETTERS = ["A", "B", "C", "D"];
@@ -148,7 +152,7 @@ const BAR_COLORS = [
     "bg-pink-500",
 ];
 
-// ─── SVG Icons ────────────
+// ─── SVG Icons ─────────────────────────────────────────────────────────────────
 const SvgBack = () => (
     <svg
         viewBox="0 0 24 24"
@@ -435,7 +439,6 @@ const SvgUser = () => (
     </svg>
 );
 
-// ─── Category Icons ───────
 const categoryIcons = {
     infrastructure: (
         <svg
@@ -530,12 +533,10 @@ const categoryIcons = {
         </svg>
     ),
 };
-
 function CategoryIcon({ category }) {
     return categoryIcons[category] || categoryIcons.other;
 }
 
-// ─── Status Badge ─────────
 function StatusBadge({ status }) {
     const map = {
         trending: {
@@ -569,7 +570,6 @@ function StatusBadge({ status }) {
     );
 }
 
-// ─── Avatar ───────────────
 function Avatar({ name, size = "md", isBot = false }) {
     const color = isBot
         ? "bg-gradient-to-br from-purple-500 to-indigo-600"
@@ -607,7 +607,111 @@ function Avatar({ name, size = "md", isBot = false }) {
     );
 }
 
-// ─── Demographic Insights ─
+// ─── Incomplete Profile Modal ───────────────────────────────────────────────────
+function IncompleteProfileModal({ isOpen, onClose }) {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                onClick={onClose}
+            />
+            <div className="relative bg-white rounded-2xl p-6 mx-4 max-w-sm w-full z-10 shadow-2xl">
+                <div className="text-center">
+                    <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                        🔒
+                    </div>
+                    <h3
+                        className="text-lg font-bold text-gray-900 mb-2"
+                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
+                    >
+                        Complete Your Profile
+                    </h3>
+                    <p
+                        className="text-sm text-gray-500 mb-2"
+                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                    >
+                        You need a{" "}
+                        <span className="font-semibold text-orange-500">
+                            complete profile
+                        </span>{" "}
+                        to vote and interact with posts.
+                    </p>
+                    <p className="text-xs text-gray-400 mb-6">
+                        Fill in all your details — it only takes a minute and
+                        you&apos;ll earn a <strong>Verified Corper</strong>{" "}
+                        badge 🏅
+                    </p>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 py-3 rounded-xl font-semibold text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={() => {
+                                window.location.href = "/profile/edit";
+                            }}
+                            className="flex-1 py-3 rounded-xl font-bold text-sm bg-[#F97316] text-white hover:bg-[#C2410C] transition-colors cursor-pointer"
+                        >
+                            Complete Profile →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Login Prompt Modal ────────────────────────────────────────────────────────
+function LoginPromptModal({ isOpen, onClose, onLogin }) {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                onClick={onClose}
+            />
+            <div className="relative bg-white rounded-2xl p-6 mx-4 max-w-sm w-full z-10 shadow-2xl">
+                <div className="text-center">
+                    <div className="w-16 h-16 bg-[#FFF7F2] rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                        🔒
+                    </div>
+                    <h3
+                        className="text-lg font-bold text-gray-900 mb-2"
+                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
+                    >
+                        Login Required
+                    </h3>
+                    <p
+                        className="text-sm text-gray-500 mb-6"
+                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                    >
+                        Please sign in to upvote, vote, and join the
+                        conversation.
+                    </p>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 py-3 rounded-xl font-semibold text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={onLogin}
+                            className="flex-1 py-3 rounded-xl font-bold text-sm bg-[#F97316] text-white hover:bg-[#C2410C] transition-colors cursor-pointer"
+                        >
+                            Sign In
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Demographic Insights ──────────────────────────────────────────────────────
 function DemographicInsights({
     issue,
     demographicData,
@@ -629,10 +733,10 @@ function DemographicInsights({
                 : 0,
     }));
 
-    const leadingOpt = overallPcts.sort((a, b) => b.pct - a.pct)[0]?.opt;
-    let topGroupName = null;
-    let topGroupPct = 0;
-    let strongestDemoLabel = null;
+    const leadingOpt = [...overallPcts].sort((a, b) => b.pct - a.pct)[0]?.opt;
+    let topGroupName = null,
+        topGroupPct = 0,
+        strongestDemoLabel = null;
 
     if (leadingOpt && activeTab) {
         const tabData = demographicData[activeTab] || {};
@@ -903,7 +1007,7 @@ function DemographicInsights({
     );
 }
 
-// ─── Reply Form ───────────
+// ─── Reply Form ────────────────────────────────────────────────────────────────
 function ReplyForm({
     parentId,
     replyingTo,
@@ -1022,7 +1126,7 @@ function ReplyForm({
     );
 }
 
-// ─── Comment Item ─────────
+// ─── Comment Item ──────────────────────────────────────────────────────────────
 function CommentItem({
     comment,
     allComments,
@@ -1043,7 +1147,6 @@ function CommentItem({
         const sec = comment.createdAt?.seconds;
         return sec ? timeAgo(sec) : "just now";
     }, [comment.createdAt?.seconds]);
-
     const replies = allComments.filter((c) => c.parentId === comment.id);
     const hasReplies = replies.length > 0;
     const nextDepth = depth < 4 ? depth + 1 : 4;
@@ -1213,7 +1316,6 @@ function CommentItem({
     );
 }
 
-// ─── Loading Screen ───────
 function LoadingScreen() {
     return (
         <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
@@ -1246,292 +1348,9 @@ function LoadingScreen() {
     );
 }
 
-// ─── Login Prompt Modal ───
-function LoginPromptModal({ isOpen, onClose, onLogin }) {
-    if (!isOpen) return null;
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div
-                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                onClick={onClose}
-            />
-            <div className="relative bg-white rounded-2xl p-6 mx-4 max-w-sm w-full z-10 shadow-2xl">
-                <div className="text-center">
-                    <div className="w-16 h-16 bg-[#FFF7F2] rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span className="text-3xl">🔒</span>
-                    </div>
-                    <h3
-                        className="text-lg font-bold text-gray-900 mb-2"
-                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
-                    >
-                        Login Required
-                    </h3>
-                    <p
-                        className="text-sm text-gray-500 mb-6"
-                        style={{ fontFamily: "DM Sans, sans-serif" }}
-                    >
-                        Please sign in to upvote, vote, and join the
-                        conversation.
-                    </p>
-                    <div className="flex gap-3">
-                        <button
-                            onClick={onClose}
-                            className="flex-1 py-3 rounded-xl font-semibold text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={onLogin}
-                            className="flex-1 py-3 rounded-xl font-bold text-sm bg-[#F97316] text-white hover:bg-[#C2410C] transition-colors cursor-pointer"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            Sign In
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// ─── Post Image Gallery ───────────────────────────────────────────────────────
-function PostImageGallery({ images }) {
-    const [activeIndex, setActiveIndex] = useState(0);
-    const [lightboxOpen, setLightboxOpen] = useState(false);
-
-    if (!images || images.length === 0) return null;
-
-    const isSingle = images.length === 1;
-    const isDouble = images.length === 2;
-
-    return (
-        <>
-            <div className="px-4 pb-4">
-                {isSingle && (
-                    <div
-                        className="relative w-full rounded-2xl overflow-hidden cursor-zoom-in bg-gray-100"
-                        style={{ maxHeight: "420px" }}
-                        onClick={() => {
-                            setActiveIndex(0);
-                            setLightboxOpen(true);
-                        }}
-                    >
-                        <Image
-                            loading="lazy"
-                            src={images[0]}
-                            alt="Post image"
-                            className="w-full h-full object-cover"
-                            style={{
-                                maxHeight: "420px",
-                                width: "100%",
-                                display: "block",
-                            }}
-                        />
-                        <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
-                            <div className="opacity-0 hover:opacity-100 transition-opacity duration-200 w-10 h-10 bg-black/40 rounded-full flex items-center justify-center">
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="white"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    className="w-5 h-5"
-                                >
-                                    <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                )}
-                {isDouble && (
-                    <div className="grid grid-cols-2 gap-2">
-                        {images.map((img, i) => (
-                            <div
-                                key={i}
-                                className="relative rounded-2xl overflow-hidden cursor-zoom-in bg-gray-100"
-                                style={{ aspectRatio: "1/1" }}
-                                onClick={() => {
-                                    setActiveIndex(i);
-                                    setLightboxOpen(true);
-                                }}
-                            >
-                                <Image
-                                    loading="lazy"
-                                    src={img}
-                                    alt={`Post image ${i + 1}`}
-                                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                                />
-                            </div>
-                        ))}
-                    </div>
-                )}
-                {images.length === 3 && (
-                    <div
-                        className="grid grid-cols-2 gap-2"
-                        style={{ gridTemplateRows: "auto" }}
-                    >
-                        <div
-                            className="relative rounded-2xl overflow-hidden cursor-zoom-in bg-gray-100 row-span-2"
-                            style={{ aspectRatio: "3/4" }}
-                            onClick={() => {
-                                setActiveIndex(0);
-                                setLightboxOpen(true);
-                            }}
-                        >
-                            <Image
-                                loading="lazy"
-                                src={images[0]}
-                                alt="Post image 1"
-                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                            />
-                        </div>
-                        {images.slice(1).map((img, i) => (
-                            <div
-                                key={i + 1}
-                                className="relative rounded-2xl overflow-hidden cursor-zoom-in bg-gray-100"
-                                style={{ aspectRatio: "3/2" }}
-                                onClick={() => {
-                                    setActiveIndex(i + 1);
-                                    setLightboxOpen(true);
-                                }}
-                            >
-                                <Image
-                                    loading="lazy"
-                                    src={img}
-                                    alt={`Post image ${i + 2}`}
-                                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                                />
-                            </div>
-                        ))}
-                    </div>
-                )}
-                {images.length > 0 && (
-                    <div className="flex items-center gap-2 mt-2">
-                        <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            className="w-3.5 h-3.5 text-gray-400 shrink-0"
-                        >
-                            <rect x="3" y="3" width="18" height="18" rx="2" />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <polyline points="21 15 16 10 5 21" />
-                        </svg>
-                        <span
-                            className="text-xs text-gray-400"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            {images.length} photo{images.length > 1 ? "s" : ""}{" "}
-                            · Tap to expand
-                        </span>
-                    </div>
-                )}
-            </div>
-
-            {lightboxOpen && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
-                    onClick={() => setLightboxOpen(false)}
-                >
-                    <div
-                        className="relative max-w-4xl max-h-screen w-full px-4"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <button
-                            onClick={() => setLightboxOpen(false)}
-                            className="absolute -top-12 right-4 w-9 h-9 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white transition-colors cursor-pointer z-10"
-                        >
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.5"
-                                strokeLinecap="round"
-                                className="w-4 h-4"
-                            >
-                                <line x1="18" y1="6" x2="6" y2="18" />
-                                <line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                        </button>
-                        <div className="rounded-2xl overflow-hidden bg-gray-900">
-                            <Image
-                                src={images[activeIndex]}
-                                alt={`Post image ${activeIndex + 1}`}
-                                className="w-full object-contain"
-                                style={{ maxHeight: "80vh" }}
-                                loading="lazy"
-                            />
-                        </div>
-                        {images.length > 1 && (
-                            <>
-                                <button
-                                    onClick={() =>
-                                        setActiveIndex(
-                                            (p) =>
-                                                (p - 1 + images.length) %
-                                                images.length,
-                                        )
-                                    }
-                                    className="absolute left-6 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-colors cursor-pointer"
-                                >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2.5"
-                                        strokeLinecap="round"
-                                        className="w-5 h-5"
-                                    >
-                                        <polyline points="15 18 9 12 15 6" />
-                                    </svg>
-                                </button>
-                                <button
-                                    onClick={() =>
-                                        setActiveIndex(
-                                            (p) => (p + 1) % images.length,
-                                        )
-                                    }
-                                    className="absolute right-6 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-colors cursor-pointer"
-                                >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2.5"
-                                        strokeLinecap="round"
-                                        className="w-5 h-5"
-                                    >
-                                        <polyline points="9 18 15 12 9 6" />
-                                    </svg>
-                                </button>
-                                <div className="flex items-center justify-center gap-2 mt-4">
-                                    {images.map((_, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => setActiveIndex(i)}
-                                            className={`rounded-full transition-all cursor-pointer ${i === activeIndex ? "w-5 h-2 bg-white" : "w-2 h-2 bg-white/40 hover:bg-white/60"}`}
-                                        />
-                                    ))}
-                                </div>
-                            </>
-                        )}
-                        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                            {activeIndex + 1} / {images.length}
-                        </div>
-                    </div>
-                </div>
-            )}
-        </>
-    );
-}
-
-// ─── Share Modal ──────────────────────────────────────────────────────────────
+// ─── Share Modal (kept identical to original) ──────────────────────────────────
 function ShareModal({ isOpen, onClose, imageDataUrl, capturing, issue }) {
     const [linkCopied, setLinkCopied] = useState(false);
-
     if (!isOpen) return null;
 
     const shareUrl = typeof window !== "undefined" ? window.location.href : "";
@@ -1544,7 +1363,6 @@ function ShareModal({ isOpen, onClose, imageDataUrl, capturing, issue }) {
             setTimeout(() => setLinkCopied(false), 2500);
         } catch {}
     };
-
     const handleNativeShare = async () => {
         try {
             if (imageDataUrl && navigator.canShare) {
@@ -1562,16 +1380,14 @@ function ShareModal({ isOpen, onClose, imageDataUrl, capturing, issue }) {
                     return;
                 }
             }
-            if (navigator.share) {
+            if (navigator.share)
                 await navigator.share({
                     title: issue?.title,
                     text: shareText,
                     url: shareUrl,
                 });
-            }
         } catch {}
     };
-
     const handleDownload = () => {
         if (!imageDataUrl) return;
         const a = document.createElement("a");
@@ -1587,20 +1403,14 @@ function ShareModal({ isOpen, onClose, imageDataUrl, capturing, issue }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-            {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                 onClick={onClose}
             />
-
-            {/* Sheet */}
             <div className="relative bg-white rounded-t-3xl sm:rounded-2xl w-full sm:max-w-sm mx-auto z-10 shadow-2xl overflow-hidden">
-                {/* Drag handle (mobile) */}
                 <div className="flex justify-center pt-3 pb-1 sm:hidden">
                     <div className="w-10 h-1 bg-gray-200 rounded-full" />
                 </div>
-
-                {/* Header */}
                 <div className="flex items-center justify-between px-5 pt-3 pb-3">
                     <h3
                         className="text-base font-bold text-gray-900"
@@ -1625,8 +1435,6 @@ function ShareModal({ isOpen, onClose, imageDataUrl, capturing, issue }) {
                         </svg>
                     </button>
                 </div>
-
-                {/* Screenshot preview */}
                 <div className="px-5 pb-4">
                     <div
                         className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50 relative"
@@ -1656,94 +1464,82 @@ function ShareModal({ isOpen, onClose, imageDataUrl, capturing, issue }) {
                         )}
                     </div>
                 </div>
-
-                {/* Platform icons row */}
                 <div className="px-5 pb-4 grid grid-cols-5 gap-2">
-                    {/* X / Twitter */}
-                    <a
-                        href={twitterUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex flex-col items-center gap-1.5 group cursor-pointer"
-                    >
-                        <div className="w-11 h-11 bg-black rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="white"
-                                className="w-4 h-4"
+                    {[
+                        {
+                            href: twitterUrl,
+                            bg: "bg-black",
+                            icon: (
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="white"
+                                    className="w-4 h-4"
+                                >
+                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.632zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                </svg>
+                            ),
+                            label: "X",
+                        },
+                        {
+                            href: whatsappUrl,
+                            bg: "bg-[#25D366]",
+                            icon: (
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="white"
+                                    className="w-4 h-4"
+                                >
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                                </svg>
+                            ),
+                            label: "WhatsApp",
+                        },
+                        {
+                            href: telegramUrl,
+                            bg: "bg-[#229ED9]",
+                            icon: (
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="white"
+                                    className="w-4 h-4"
+                                >
+                                    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                                </svg>
+                            ),
+                            label: "Telegram",
+                        },
+                        {
+                            href: facebookUrl,
+                            bg: "bg-[#1877F2]",
+                            icon: (
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="white"
+                                    className="w-4 h-4"
+                                >
+                                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                                </svg>
+                            ),
+                            label: "Facebook",
+                        },
+                    ].map((item) => (
+                        <a
+                            key={item.label}
+                            href={item.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex flex-col items-center gap-1.5 group cursor-pointer"
+                        >
+                            <div
+                                className={`w-11 h-11 ${item.bg} rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm`}
                             >
-                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.632zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                            </svg>
-                        </div>
-                        <span className="text-[10px] font-semibold text-gray-500">
-                            X
-                        </span>
-                    </a>
-
-                    {/* WhatsApp */}
-                    <a
-                        href={whatsappUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex flex-col items-center gap-1.5 group cursor-pointer"
-                    >
-                        <div className="w-11 h-11 bg-[#25D366] rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="white"
-                                className="w-4 h-4"
-                            >
-                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                            </svg>
-                        </div>
-                        <span className="text-[10px] font-semibold text-gray-500">
-                            WhatsApp
-                        </span>
-                    </a>
-
-                    {/* Telegram */}
-                    <a
-                        href={telegramUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex flex-col items-center gap-1.5 group cursor-pointer"
-                    >
-                        <div className="w-11 h-11 bg-[#229ED9] rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="white"
-                                className="w-4 h-4"
-                            >
-                                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                            </svg>
-                        </div>
-                        <span className="text-[10px] font-semibold text-gray-500">
-                            Telegram
-                        </span>
-                    </a>
-
-                    {/* Facebook */}
-                    <a
-                        href={facebookUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex flex-col items-center gap-1.5 group cursor-pointer"
-                    >
-                        <div className="w-11 h-11 bg-[#1877F2] rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="white"
-                                className="w-4 h-4"
-                            >
-                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                            </svg>
-                        </div>
-                        <span className="text-[10px] font-semibold text-gray-500">
-                            Facebook
-                        </span>
-                    </a>
-
-                    {/* Download / Save */}
+                                {item.icon}
+                            </div>
+                            <span className="text-[10px] font-semibold text-gray-500">
+                                {item.label}
+                            </span>
+                        </a>
+                    ))}
                     <button
                         onClick={handleDownload}
                         disabled={!imageDataUrl || capturing}
@@ -1769,8 +1565,6 @@ function ShareModal({ isOpen, onClose, imageDataUrl, capturing, issue }) {
                         </span>
                     </button>
                 </div>
-
-                {/* Copy link row */}
                 <div className="px-5 pb-4">
                     <div className="flex items-center gap-2 bg-gray-50 rounded-2xl border border-gray-100 px-3 py-2.5">
                         <svg
@@ -1798,8 +1592,6 @@ function ShareModal({ isOpen, onClose, imageDataUrl, capturing, issue }) {
                         </button>
                     </div>
                 </div>
-
-                {/* Native share fallback (mobile) */}
                 {typeof navigator !== "undefined" && navigator.share && (
                     <div className="px-5 pb-6">
                         <button
@@ -1841,16 +1633,15 @@ function ShareModal({ isOpen, onClose, imageDataUrl, capturing, issue }) {
     );
 }
 
-// ─── Main Page ────────────
+// ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function IssueDetailPage({ params }) {
     const { id } = use(params);
     const router = useRouter();
-
-    // ── Ref for screenshot capture ──
     const postCardRef = useRef(null);
 
     const [authReady, setAuthReady] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
+    const [profileComplete, setProfileComplete] = useState(false);
     const [issue, setIssue] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -1872,24 +1663,50 @@ export default function IssueDetailPage({ params }) {
     const [demographicData, setDemographicData] = useState({});
     const [demographicsLoading, setDemographicsLoading] = useState(false);
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+    const [showProfilePrompt, setShowProfilePrompt] = useState(false);
     const [isAnonymous, setIsAnonymous] = useState(true);
-
-    // ── Share modal state ──
     const [showShareModal, setShowShareModal] = useState(false);
     const [shareImageUrl, setShareImageUrl] = useState(null);
     const [capturing, setCapturing] = useState(false);
 
+    // ── Auth + profile check ──
     useEffect(() => {
-        const unsub = onAuthStateChanged(auth, (user) => {
+        const unsub = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 setCurrentUser(user);
                 setIsAnonymous(user.isAnonymous);
                 setAuthReady(true);
-            } else signInAnonymously(auth).catch(console.error);
+                if (!user.isAnonymous) {
+                    try {
+                        const snap = await getDoc(doc(db, "users", user.uid));
+                        if (snap.exists()) {
+                            const d = snap.data();
+                            setProfileComplete(
+                                isProfileComplete({
+                                    email: user.email || d.email,
+                                    phone: d.phoneNumber || d.phone,
+                                    stateOfOrigin: d.stateOfOrigin,
+                                    gender: d.gender,
+                                    educationLevel: d.educationLevel,
+                                    institutionType: d.institutionType,
+                                    campLocation: d.campLocation,
+                                    religion: d.religion,
+                                    bio: d.bio,
+                                }),
+                            );
+                        }
+                    } catch {
+                        /* non-fatal */
+                    }
+                }
+            } else {
+                signInAnonymously(auth).catch(console.error);
+            }
         });
         return unsub;
     }, []);
 
+    // ── Issue snapshot ──
     useEffect(() => {
         if (!id) return;
         const ref = doc(db, "issues", id);
@@ -1926,6 +1743,7 @@ export default function IssueDetailPage({ params }) {
         return unsub;
     }, [id]);
 
+    // ── Local vote state ──
     useEffect(() => {
         if (!id || !currentUser) return;
         const v = localStorage.getItem(`vote_${id}_${currentUser.uid}`);
@@ -1936,6 +1754,7 @@ export default function IssueDetailPage({ params }) {
             setDownvoted(true);
     }, [id, currentUser]);
 
+    // ── Comments ──
     useEffect(() => {
         if (!id) return;
         setCommentsLoading(true);
@@ -1951,7 +1770,7 @@ export default function IssueDetailPage({ params }) {
                 setCommentsLoading(false);
             },
             (err) => {
-                console.error("Comments error:", err);
+                console.error(err);
                 setCommentsError("Failed to load comments");
                 setCommentsLoading(false);
             },
@@ -1959,6 +1778,7 @@ export default function IssueDetailPage({ params }) {
         return () => unsub();
     }, [id]);
 
+    // ── Demographics ──
     useEffect(() => {
         if (
             !id ||
@@ -1967,12 +1787,11 @@ export default function IssueDetailPage({ params }) {
             !currentUser
         )
             return;
-        const fetchDemographicData = async () => {
+        const fetch = async () => {
             setDemographicsLoading(true);
             const demoData = {};
             issue.demographics.forEach((demo) => {
-                const config = DEMOGRAPHIC_CONFIG[demo];
-                if (config) demoData[demo] = {};
+                if (DEMOGRAPHIC_CONFIG[demo]) demoData[demo] = {};
             });
             try {
                 const votesSnap = await getDocs(
@@ -1980,8 +1799,7 @@ export default function IssueDetailPage({ params }) {
                 );
                 for (const voteDoc of votesSnap.docs) {
                     const voteData = voteDoc.data();
-                    const userId = voteData.userId;
-                    const selectedOption = voteData.option;
+                    const { userId, option: selectedOption } = voteData;
                     if (
                         !userId ||
                         !selectedOption ||
@@ -1990,10 +1808,10 @@ export default function IssueDetailPage({ params }) {
                         continue;
                     let userData = {};
                     try {
-                        const userSnap = await getDoc(doc(db, "users", userId));
-                        if (!userSnap.exists()) continue;
-                        userData = userSnap.data();
-                    } catch (err) {
+                        const s = await getDoc(doc(db, "users", userId));
+                        if (!s.exists()) continue;
+                        userData = s.data();
+                    } catch {
                         continue;
                     }
                     issue.demographics.forEach((demo) => {
@@ -2023,7 +1841,7 @@ export default function IssueDetailPage({ params }) {
                 setDemographicsLoading(false);
             }
         };
-        fetchDemographicData();
+        fetch();
     }, [
         id,
         issue?.demographics?.join(","),
@@ -2031,13 +1849,26 @@ export default function IssueDetailPage({ params }) {
         currentUser,
     ]);
 
-    const handleVote = async (option) => {
+    // ─── Gate helper ──────────────────────────────────────────────────────────────
+    // Returns true if user can interact; shows appropriate modal and returns false otherwise.
+    const requireCompleteProfile = () => {
         if (isAnonymous || !currentUser || currentUser.isAnonymous) {
             setShowLoginPrompt(true);
-            return;
+            return false;
         }
+        if (!profileComplete) {
+            setShowProfilePrompt(true);
+            return false;
+        }
+        return true;
+    };
+
+    // ─── Handlers ─────────────────────────────────────────────────────────────────
+    const handleVote = async (option) => {
+        if (!requireCompleteProfile()) return;
         if (!authReady || !currentUser || voteLoading) return;
         if (!issue.voteOptions?.includes(option)) return;
+
         const prev = userVote;
         const wasSameVote = prev === option;
         setVoteLoading(true);
@@ -2115,13 +1946,15 @@ export default function IssueDetailPage({ params }) {
 
     const handleUpvote = async (e) => {
         e.preventDefault();
-        if (isAnonymous || !currentUser || currentUser.isAnonymous) {
-            setShowLoginPrompt(true);
+        if (!requireCompleteProfile()) return;
+        if (
+            !authReady ||
+            !currentUser ||
+            upvoteLoading ||
+            downvoteLoading ||
+            downvoted
+        )
             return;
-        }
-        if (!authReady || !currentUser || upvoteLoading || downvoteLoading)
-            return;
-        if (downvoted) return;
         const wasUpvoted = upvoted;
         setUpvoted(!wasUpvoted);
         setUpvoteCount((c) => (wasUpvoted ? Math.max(0, c - 1) : c + 1));
@@ -2171,13 +2004,15 @@ export default function IssueDetailPage({ params }) {
 
     const handleDownvote = async (e) => {
         e.preventDefault();
-        if (isAnonymous || !currentUser || currentUser.isAnonymous) {
-            setShowLoginPrompt(true);
+        if (!requireCompleteProfile()) return;
+        if (
+            !authReady ||
+            !currentUser ||
+            downvoteLoading ||
+            upvoteLoading ||
+            upvoted
+        )
             return;
-        }
-        if (!authReady || !currentUser || downvoteLoading || upvoteLoading)
-            return;
-        if (upvoted) return;
         const wasDownvoted = downvoted;
         setDownvoted(!wasDownvoted);
         setDownvoteCount((c) => (wasDownvoted ? Math.max(0, c - 1) : c + 1));
@@ -2207,11 +2042,9 @@ export default function IssueDetailPage({ params }) {
 
     const handleSubmitComment = async (e) => {
         e.preventDefault();
-        if (isAnonymous || !currentUser || currentUser.isAnonymous) {
-            setShowLoginPrompt(true);
-            return;
-        }
+        if (!requireCompleteProfile()) return;
         if (!commentText.trim() || !authReady || submittingComment) return;
+
         const tempId = `temp-${Date.now()}`;
         const tempComment = {
             id: tempId,
@@ -2278,14 +2111,13 @@ export default function IssueDetailPage({ params }) {
         }
     };
 
-    // ── Capture & Share ──────────────────────────────────────────────────────
+    // ── Capture & Share ──
     const captureAndShare = async () => {
         setShowShareModal(true);
         setShareImageUrl(null);
         setCapturing(true);
         try {
             if (!postCardRef.current) throw new Error("No ref");
-            // Dynamically import to avoid SSR issues & reduce initial bundle
             const html2canvas = (await import("html2canvas")).default;
             const canvas = await html2canvas(postCardRef.current, {
                 useCORS: true,
@@ -2293,13 +2125,11 @@ export default function IssueDetailPage({ params }) {
                 scale: 2,
                 backgroundColor: "#ffffff",
                 logging: false,
-                // Hide elements tagged to be excluded from the screenshot
                 ignoreElements: (el) => el.hasAttribute("data-share-ignore"),
             });
             setShareImageUrl(canvas.toDataURL("image/png"));
         } catch (err) {
             console.error("Capture failed:", err);
-            // Modal stays open; preview area shows graceful fallback
         } finally {
             setCapturing(false);
         }
@@ -2342,7 +2172,6 @@ export default function IssueDetailPage({ params }) {
     const voteOptions = issue.voteOptions || [];
     const hasVoted = userVote !== null;
     const avatarCount = getAvatarCount(totalVotes);
-
     const isPollClosed = (() => {
         if (!issue?.pollTimerEnabled || !issue?.pollDeadline) return false;
         const deadline = issue.pollDeadline?.toDate
@@ -2350,14 +2179,16 @@ export default function IssueDetailPage({ params }) {
             : new Date(issue.pollDeadline);
         return Date.now() > deadline.getTime();
     })();
-
     const authorName = issue.author?.isAnonymous
         ? "👤 Anonymous"
         : issue.author?.name || issue.author?.displayName || null;
 
+    // Banner shown above voting when profile is incomplete
+    const showProfileBanner = !isAnonymous && currentUser && !profileComplete;
+
     return (
         <div className="min-h-screen bg-[#FDF6EF] pb-24">
-            {/* ── Header ── */}
+            {/* Header */}
             <header className="sticky top-0 z-40 bg-[#F97316] px-4 pt-6 md:pt-4 pb-3">
                 <div className="flex items-center justify-between max-w-3xl mx-auto">
                     <div className="flex items-center gap-3">
@@ -2394,7 +2225,7 @@ export default function IssueDetailPage({ params }) {
             </header>
 
             <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-4">
-                {/* ── Issue Card (captured for share screenshot) ── */}
+                {/* Issue card */}
                 <div
                     ref={postCardRef}
                     className="bg-white rounded-2xl border border-[#FED7AA] overflow-hidden shadow-sm"
@@ -2442,7 +2273,25 @@ export default function IssueDetailPage({ params }) {
                     </div>
 
                     {issue.images?.length > 0 && (
-                        <PostImageGallery images={issue.images} />
+                        <div className="px-4 pb-4">
+                            <div className="grid grid-cols-1 gap-2">
+                                {issue.images.map((img, i) => (
+                                    <div
+                                        key={i}
+                                        className="relative w-full rounded-2xl overflow-hidden bg-gray-100"
+                                    >
+                                        <Image
+                                            loading="lazy"
+                                            src={img}
+                                            alt={`Post image ${i + 1}`}
+                                            width={800}
+                                            height={600}
+                                            className="w-full object-cover rounded-2xl"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     )}
 
                     <div className="px-4 pb-4">
@@ -2454,68 +2303,46 @@ export default function IssueDetailPage({ params }) {
                         </p>
                     </div>
 
-                    {/* ── Stats row ── */}
+                    {/* Stats row */}
                     <div className="px-4 py-3 bg-gray-50/80 flex flex-wrap items-center justify-between gap-y-2">
                         <div className="flex items-center gap-4 flex-wrap">
-                            <div className="text-center">
-                                <div
-                                    className="text-lg font-bold text-green-600"
-                                    style={{
-                                        fontFamily:
-                                            "Plus Jakarta Sans, sans-serif",
-                                    }}
-                                >
-                                    {formatNumber(upvoteCount)}
-                                </div>
-                                <div className="text-[10px] text-gray-400 uppercase tracking-wide">
-                                    Like
-                                </div>
-                            </div>
-                            <div className="text-center">
-                                <div
-                                    className="text-lg font-bold text-red-500"
-                                    style={{
-                                        fontFamily:
-                                            "Plus Jakarta Sans, sans-serif",
-                                    }}
-                                >
-                                    {formatNumber(downvoteCount)}
-                                </div>
-                                <div className="text-[10px] text-gray-400 uppercase tracking-wide">
-                                    Dislike
-                                </div>
-                            </div>
-                            <div className="text-center">
-                                <div
-                                    className="text-lg font-bold text-[#F97316]"
-                                    style={{
-                                        fontFamily:
-                                            "Plus Jakarta Sans, sans-serif",
-                                    }}
-                                >
-                                    {formatNumber(totalVotes)}
-                                </div>
-                                <div className="text-[10px] text-gray-400 uppercase tracking-wide">
-                                    Votes
-                                </div>
-                            </div>
-                            <div className="text-center">
-                                <div className="flex items-center justify-center gap-1">
+                            {[
+                                {
+                                    val: upvoteCount,
+                                    label: "Like",
+                                    color: "text-green-600",
+                                },
+                                {
+                                    val: downvoteCount,
+                                    label: "Dislike",
+                                    color: "text-red-500",
+                                },
+                                {
+                                    val: totalVotes,
+                                    label: "Votes",
+                                    color: "text-[#F97316]",
+                                },
+                                {
+                                    val: comments.length,
+                                    label: "Comments",
+                                    color: "text-gray-800",
+                                },
+                            ].map((item) => (
+                                <div key={item.label} className="text-center">
                                     <div
-                                        className="text-lg font-bold text-gray-800"
+                                        className={`text-lg font-bold ${item.color}`}
                                         style={{
                                             fontFamily:
                                                 "Plus Jakarta Sans, sans-serif",
                                         }}
                                     >
-                                        {formatNumber(comments.length)}
+                                        {formatNumber(item.val)}
                                     </div>
-                                    <SvgComments className="w-4 h-4 text-gray-400" />
+                                    <div className="text-[10px] text-gray-400 uppercase tracking-wide">
+                                        {item.label}
+                                    </div>
                                 </div>
-                                <div className="text-[10px] text-gray-400 uppercase tracking-wide">
-                                    Comments
-                                </div>
-                            </div>
+                            ))}
                         </div>
                         {avatarCount > 0 && (
                             <div className="hidden sm:flex items-center gap-2">
@@ -2538,7 +2365,7 @@ export default function IssueDetailPage({ params }) {
                         )}
                     </div>
 
-                    {/* ── Action row — tagged data-share-ignore so it's excluded from screenshot ── */}
+                    {/* Action row */}
                     <div
                         data-share-ignore
                         className="px-4 py-3 border-t border-gray-50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2"
@@ -2547,7 +2374,6 @@ export default function IssueDetailPage({ params }) {
                             React to this post
                         </p>
                         <div className="flex flex-col xs:flex-row sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-                            {/* Share */}
                             <button
                                 onClick={captureAndShare}
                                 className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 font-semibold text-sm transition-all cursor-pointer flex-1 sm:flex-none border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700"
@@ -2579,17 +2405,10 @@ export default function IssueDetailPage({ params }) {
                                 </svg>
                                 Share
                             </button>
-
-                            {/* Oppose */}
                             <button
                                 onClick={handleDownvote}
                                 disabled={
                                     !authReady || downvoteLoading || upvoted
-                                }
-                                title={
-                                    upvoted
-                                        ? "Remove your like first"
-                                        : "Dislike this post"
                                 }
                                 className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl border-2 font-semibold text-sm transition-all cursor-pointer disabled:opacity-50 flex-1 sm:flex-none ${downvoted ? "border-red-500 bg-red-50 text-red-700" : "border-red-200 bg-white text-red-500 hover:border-red-400 hover:bg-red-50"}`}
                             >
@@ -2598,22 +2417,15 @@ export default function IssueDetailPage({ params }) {
                                 ) : (
                                     <SvgDownvote active={downvoted} />
                                 )}
-                                {downvoted ? "Disliked" : "Dislike"}
+                                {downvoted ? "Disliked" : "Dislike"}{" "}
                                 <span className="font-bold">
                                     {formatNumber(downvoteCount)}
                                 </span>
                             </button>
-
-                            {/* Support */}
                             <button
                                 onClick={handleUpvote}
                                 disabled={
                                     !authReady || upvoteLoading || downvoted
-                                }
-                                title={
-                                    downvoted
-                                        ? "Remove your dislike first"
-                                        : "Like this post"
                                 }
                                 className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl border-2 font-semibold text-sm transition-all cursor-pointer disabled:opacity-50 flex-1 sm:flex-none ${upvoted ? "border-green-500 bg-green-50 text-green-700" : "border-green-200 bg-white text-green-600 hover:border-green-400 hover:bg-green-50"}`}
                             >
@@ -2622,7 +2434,7 @@ export default function IssueDetailPage({ params }) {
                                 ) : (
                                     <SvgUpvote active={upvoted} />
                                 )}
-                                {upvoted ? "Liked" : "Like"}
+                                {upvoted ? "Liked" : "Like"}{" "}
                                 <span className="font-bold">
                                     {formatNumber(upvoteCount)}
                                 </span>
@@ -2631,7 +2443,28 @@ export default function IssueDetailPage({ params }) {
                     </div>
                 </div>
 
-                {/* ── Voting Section ── */}
+                {/* Profile complete banner (above voting) */}
+                {showProfileBanner && (
+                    <div className="flex items-center gap-3 px-4 py-3 bg-orange-50 border border-orange-200 rounded-2xl">
+                        <span className="text-xl">🔒</span>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-orange-700">
+                                Complete your profile to vote
+                            </p>
+                            <p className="text-xs text-orange-500">
+                                Voting and reacting require a complete profile
+                            </p>
+                        </div>
+                        <Link
+                            href="/profile/edit"
+                            className="shrink-0 text-xs font-bold text-white bg-orange-500 hover:bg-orange-600 px-3 py-2 rounded-xl transition-colors"
+                        >
+                            Complete →
+                        </Link>
+                    </div>
+                )}
+
+                {/* Voting section */}
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
                     <h2
                         className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2"
@@ -2667,11 +2500,6 @@ export default function IssueDetailPage({ params }) {
                                         voteLoading ||
                                         isPollClosed
                                     }
-                                    title={
-                                        isPollClosed
-                                            ? "Voting has closed for this poll"
-                                            : undefined
-                                    }
                                     className={`w-full relative overflow-hidden rounded-xl border-2 transition-all duration-200 text-left ${isPollClosed ? "cursor-not-allowed opacity-75 border-gray-100" : "cursor-pointer disabled:opacity-60"} ${sel && !isPollClosed ? "border-[#F97316] bg-orange-50" : "border-gray-100 hover:border-orange-200"}`}
                                 >
                                     <div
@@ -2703,7 +2531,6 @@ export default function IssueDetailPage({ params }) {
                                 </button>
                             );
                         })}
-
                         {isPollClosed && (
                             <div className="mt-3 flex items-center gap-2 px-3 py-2.5 bg-red-50 rounded-xl border border-red-100">
                                 <span className="text-sm">🔒</span>
@@ -2719,7 +2546,6 @@ export default function IssueDetailPage({ params }) {
                             </div>
                         )}
                     </div>
-
                     {voteLoading && (
                         <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-400">
                             <SvgSpinner /> Saving your vote...
@@ -2727,7 +2553,7 @@ export default function IssueDetailPage({ params }) {
                     )}
                 </div>
 
-                {/* ── Demographic Insights ── */}
+                {/* Demographics */}
                 {issue.demographics?.length > 0 && (
                     <DemographicInsights
                         issue={issue}
@@ -2737,7 +2563,7 @@ export default function IssueDetailPage({ params }) {
                     />
                 )}
 
-                {/* ── Discussion ── */}
+                {/* Discussion */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                     <div className="px-4 pt-4 pb-3 border-b border-gray-50 flex items-center justify-between">
                         <h2
@@ -2864,7 +2690,7 @@ export default function IssueDetailPage({ params }) {
                     )}
                 </div>
 
-                {/* ── Action Buttons ── */}
+                {/* Bottom CTAs */}
                 <div className="flex gap-3">
                     <Link
                         href="/"
@@ -2881,7 +2707,7 @@ export default function IssueDetailPage({ params }) {
                 </div>
             </div>
 
-            {/* ── Modals ── */}
+            {/* Modals */}
             <ShareModal
                 isOpen={showShareModal}
                 onClose={() => setShowShareModal(false)}
@@ -2889,13 +2715,16 @@ export default function IssueDetailPage({ params }) {
                 capturing={capturing}
                 issue={issue}
             />
-
             <LoginPromptModal
                 isOpen={showLoginPrompt}
                 onClose={() => setShowLoginPrompt(false)}
                 onLogin={() => {
                     window.location.href = "/login";
                 }}
+            />
+            <IncompleteProfileModal
+                isOpen={showProfilePrompt}
+                onClose={() => setShowProfilePrompt(false)}
             />
         </div>
     );

@@ -14,34 +14,28 @@ import {
 import { db } from "@/lib/firebase";
 import { createNotification, NOTIFICATION_TYPES } from "./notifications";
 
-// ─── Points Configuration
+// ─── Points Configuration ──────────────────────────────────────────────────────
 export const POINTS_CONFIG = {
-    // Action points
     CREATE_ISSUE: 10,
     RECEIVE_UPVOTE: 1,
     RECEIVE_VOTE: 2,
     RECEIVE_COMMENT: 3,
     RECEIVE_REPLY: 1,
     RECEIVE_LIKE: 1,
-
-    // Engagement points
     UPVOTE_ISSUE: 1,
     VOTE_ON_ISSUE: 2,
     COMMENT_ON_ISSUE: 3,
     REPLY_TO_COMMENT: 2,
     LIKE_COMMENT: 1,
-
-    // Milestones
     ISSUE_RESOLVED: 10,
     ISSUE_TRENDING: 5,
     ISSUE_VIRAL: 7,
-
-    // Referral points
-    REFERRAL_BONUS: 5, // Points for invitee
-    REFERRAL_COMPLETION: 15, // Points for inviter
+    REFERRAL_BONUS: 5,
+    REFERRAL_COMPLETION: 15,
+    PROFILE_COMPLETE: 20, // Bonus for completing profile
 };
 
-// ─── Levels Configuration
+// ─── Levels Configuration ──────────────────────────────────────────────────────
 export const LEVELS = [
     { level: 1, name: "New Voice", minPoints: 0, maxPoints: 100 },
     { level: 2, name: "Active Camper", minPoints: 100, maxPoints: 300 },
@@ -60,13 +54,25 @@ export const LEVELS = [
     },
 ];
 
-// ─── Badges Configuration
+// ─── Badges Configuration ──────────────────────────────────────────────────────
 export const BADGES = {
+    // ── Profile ──
+    VERIFIED_CORPER: {
+        id: "verified_corper",
+        emoji: "✅",
+        label: "Verified Corper",
+        description: "Completed your full profile",
+        rarity: "uncommon",
+        condition: (stats) => !!stats.profileComplete,
+    },
+
+    // ── Posting ──
     FIRST_ISSUE: {
         id: "first_issue",
         emoji: "📝",
         label: "First Steps",
-        description: "Dropped first post",
+        description: "Dropped your first post",
+        rarity: "common",
         condition: (stats) => stats.issuesCount >= 1,
     },
     PRO_REPORTER: {
@@ -74,6 +80,7 @@ export const BADGES = {
         emoji: "📋",
         label: "Pro Reporter",
         description: "Dropped 5 posts",
+        rarity: "common",
         condition: (stats) => stats.issuesCount >= 5,
     },
     COMMUNITY_WATCH: {
@@ -81,6 +88,7 @@ export const BADGES = {
         emoji: "👁️",
         label: "Community Watch",
         description: "Dropped 10 posts",
+        rarity: "uncommon",
         condition: (stats) => stats.issuesCount >= 10,
     },
     LOCAL_HERO: {
@@ -88,13 +96,17 @@ export const BADGES = {
         emoji: "🏆",
         label: "Local Hero",
         description: "Dropped 25 posts",
+        rarity: "uncommon",
         condition: (stats) => stats.issuesCount >= 25,
     },
+
+    // ── Reception ──
     VOICE_HEARD: {
         id: "voice_heard",
         emoji: "📢",
         label: "Voice Heard",
         description: "Received 10 upvotes total",
+        rarity: "common",
         condition: (stats) => stats.upvotesReceived >= 10,
     },
     CROWD_FAVORITE: {
@@ -102,6 +114,7 @@ export const BADGES = {
         emoji: "⭐",
         label: "Crowd Favorite",
         description: "Received 50 upvotes total",
+        rarity: "uncommon",
         condition: (stats) => stats.upvotesReceived >= 50,
     },
     VIRAL_SENSATION: {
@@ -109,6 +122,7 @@ export const BADGES = {
         emoji: "🔥",
         label: "Viral Sensation",
         description: "Received 100 upvotes total",
+        rarity: "rare",
         condition: (stats) => stats.upvotesReceived >= 100,
     },
     CONVERSATION_STARTER: {
@@ -116,6 +130,7 @@ export const BADGES = {
         emoji: "💬",
         label: "Conversation Starter",
         description: "Received 5 comments on your post",
+        rarity: "common",
         condition: (stats) => stats.commentsReceived >= 5,
     },
     DISCUSSION_LEADER: {
@@ -123,27 +138,35 @@ export const BADGES = {
         emoji: "🗣️",
         label: "Discussion Leader",
         description: "Received 20 comments on your post",
+        rarity: "uncommon",
         condition: (stats) => stats.commentsReceived >= 20,
     },
+
+    // ── Polls ──
     POLL_MASTER: {
         id: "poll_master",
         emoji: "📊",
         label: "Poll Master",
-        description: "Created an issue with 10+ votes",
+        description: "Created a post with 10+ votes",
+        rarity: "uncommon",
         condition: (stats) => stats.maxVotesOnIssue >= 10,
     },
     POPULAR_VOTE: {
         id: "popular_vote",
         emoji: "🗳️",
         label: "Popular Vote",
-        description: "Created an issue with 50+ votes",
+        description: "Created a post with 50+ votes",
+        rarity: "rare",
         condition: (stats) => stats.maxVotesOnIssue >= 50,
     },
+
+    // ── Engagement ──
     ENGAGED_CITIZEN: {
         id: "engaged_citizen",
         emoji: "🤝",
         label: "Engaged Citizen",
         description: "Upvoted 10 posts",
+        rarity: "common",
         condition: (stats) => stats.upvotesGiven >= 10,
     },
     ACTIVE_VOTER: {
@@ -151,6 +174,7 @@ export const BADGES = {
         emoji: "✅",
         label: "Active Voter",
         description: "Voted on 10 polls",
+        rarity: "common",
         condition: (stats) => stats.votesCast >= 10,
     },
     HELPFUL_COMMENTER: {
@@ -158,13 +182,17 @@ export const BADGES = {
         emoji: "💡",
         label: "Helpful Commenter",
         description: "Posted 10 comments",
+        rarity: "common",
         condition: (stats) => stats.commentsPosted >= 10,
     },
+
+    // ── Referrals ──
     COMMUNITY_BUILDER: {
         id: "community_builder",
         emoji: "🌱",
         label: "Community Builder",
         description: "Invited 1 friend who completed signup",
+        rarity: "uncommon",
         condition: (stats) => stats.completedReferrals >= 1,
     },
     GROWTH_HACKER: {
@@ -172,13 +200,17 @@ export const BADGES = {
         emoji: "📈",
         label: "Growth Hacker",
         description: "Invited 5 friends who completed signup",
+        rarity: "rare",
         condition: (stats) => stats.completedReferrals >= 5,
     },
+
+    // ── Milestones ──
     RESOLUTION_CHAMPION: {
         id: "resolution_champion",
         emoji: "✨",
         label: "Resolution Champion",
         description: "Had an issue marked as resolved",
+        rarity: "uncommon",
         condition: (stats) => stats.resolvedIssues >= 1,
     },
     TRENDING_CREATOR: {
@@ -186,53 +218,36 @@ export const BADGES = {
         emoji: "📈",
         label: "Trending Creator",
         description: "Had an issue reach trending status",
+        rarity: "rare",
         condition: (stats) => stats.trendingIssues >= 1,
     },
 };
 
-// ─── Helper Functions ────
-
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 export function getLevelForPoints(points) {
     for (let i = LEVELS.length - 1; i >= 0; i--) {
-        if (points >= LEVELS[i].minPoints) {
-            return LEVELS[i];
-        }
+        if (points >= LEVELS[i].minPoints) return LEVELS[i];
     }
     return LEVELS[0];
 }
 
 export function getPointsToNextLevel(currentPoints) {
     const currentLevel = getLevelForPoints(currentPoints);
-    if (currentLevel.maxPoints === Infinity) {
-        return 0;
-    }
+    if (currentLevel.maxPoints === Infinity) return 0;
     return currentLevel.maxPoints - currentPoints;
 }
 
-// ─── Core Points Function
-
+// ─── Core Points Function ──────────────────────────────────────────────────────
 export async function awardPoints(userId, action, metadata = {}) {
     if (!userId) return null;
 
-    // FIX (Bug 3): Previously, the function did `let points = POINTS_CONFIG[action]`
-    // then checked `if (!points && action !== "REFERRAL_BONUS" && action !== "REFERRAL_COMPLETION")`
-    // but never actually resolved the points value for those two action strings —
-    // POINTS_CONFIG["REFERRAL_BONUS"] and POINTS_CONFIG["REFERRAL_COMPLETION"] are
-    // defined, so the simple lookup below works for all actions including referrals.
-    // The special-case guard is no longer needed.
     let points = POINTS_CONFIG[action] ?? null;
-
-    // Allow callers to override with an explicit points value in metadata
-    if (metadata.points) {
-        points = metadata.points;
-    }
-
+    if (metadata.points) points = metadata.points;
     if (!points) return null;
 
     try {
         const userRef = doc(db, "users", userId);
         const userSnap = await getDoc(userRef);
-
         if (!userSnap.exists()) return null;
 
         const currentData = userSnap.data();
@@ -298,6 +313,20 @@ export async function awardPoints(userId, action, metadata = {}) {
                     message: `Your friend posted their first issue! You earned ${points} points!`,
                 },
             });
+        } else if (action === "PROFILE_COMPLETE") {
+            await createNotification({
+                type: NOTIFICATION_TYPES.MILESTONE,
+                recipientId: userId,
+                actorId: "system",
+                actorName: "Camp Voice",
+                issueId: null,
+                issueTitle: "Profile Complete! 🎉",
+                meta: {
+                    type: "profile_complete",
+                    points,
+                    message: `Your profile is complete! You earned ${points} bonus points and the Verified Corper badge!`,
+                },
+            });
         }
 
         await updateUserStats(userId, action, metadata);
@@ -315,12 +344,10 @@ export async function awardPoints(userId, action, metadata = {}) {
     }
 }
 
-// ─── Stats Management ────
-
+// ─── Stats Management ──────────────────────────────────────────────────────────
 export async function updateUserStats(userId, action, metadata = {}) {
     const statsRef = doc(db, "users", userId, "stats", "overview");
     const statsSnap = await getDoc(statsRef);
-
     const updates = {};
 
     switch (action) {
@@ -363,14 +390,11 @@ export async function updateUserStats(userId, action, metadata = {}) {
         case "ISSUE_TRENDING":
             updates.trendingIssues = increment(1);
             break;
-        // FIX (Bug 4): ISSUE_VIRAL was missing entirely, so going viral never
-        // updated the viralIssues stat, which blocked the TRENDING_CREATOR badge.
         case "ISSUE_VIRAL":
             updates.viralIssues = increment(1);
             break;
-        case "REFERRAL_BONUS":
-        case "REFERRAL_COMPLETION":
-            // Handled by the referral system directly
+        case "PROFILE_COMPLETE":
+            updates.profileComplete = true;
             break;
         default:
             break;
@@ -393,13 +417,17 @@ export async function updateUserStats(userId, action, metadata = {}) {
     }
 }
 
-// ─── Badge Management ────
-
+// ─── Badge Management ──────────────────────────────────────────────────────────
 export async function checkAndAwardBadges(userId) {
     try {
         const statsRef = doc(db, "users", userId, "stats", "overview");
         const statsSnap = await getDoc(statsRef);
         const stats = statsSnap.exists() ? statsSnap.data() : {};
+
+        // Also check user doc for isVerified (profile complete)
+        const userSnap = await getDoc(doc(db, "users", userId));
+        const userData = userSnap.exists() ? userSnap.data() : {};
+        if (userData.isVerified) stats.profileComplete = true;
 
         const referralStatsRef = doc(
             db,
@@ -412,7 +440,6 @@ export async function checkAndAwardBadges(userId) {
         const referralStats = referralStatsSnap.exists()
             ? referralStatsSnap.data()
             : {};
-
         const combinedStats = {
             ...stats,
             completedReferrals: referralStats.completedReferrals || 0,
@@ -427,14 +454,11 @@ export async function checkAndAwardBadges(userId) {
         const newBadges = [];
         for (const [, badge] of Object.entries(BADGES)) {
             if (currentBadgeIds.has(badge.id)) continue;
-            if (badge.condition(combinedStats)) {
-                newBadges.push(badge);
-            }
+            if (badge.condition(combinedStats)) newBadges.push(badge);
         }
 
         if (newBadges.length > 0) {
             const batch = writeBatch(db);
-
             for (const badge of newBadges) {
                 const badgeRef = doc(collection(db, "users", userId, "badges"));
                 batch.set(badgeRef, {
@@ -444,7 +468,6 @@ export async function checkAndAwardBadges(userId) {
                     description: badge.description,
                     earnedAt: serverTimestamp(),
                 });
-
                 await createNotification({
                     type: NOTIFICATION_TYPES.MILESTONE,
                     recipientId: userId,
@@ -452,15 +475,10 @@ export async function checkAndAwardBadges(userId) {
                     actorName: "Camp Voice",
                     issueId: null,
                     issueTitle: "New Badge Earned!",
-                    meta: {
-                        type: "badge_earned",
-                        badge: badge,
-                    },
+                    meta: { type: "badge_earned", badge },
                 });
             }
-
             await batch.commit();
-
             if (statsSnap.exists()) {
                 await updateDoc(statsRef, {
                     badgesCount: increment(newBadges.length),
@@ -476,11 +494,9 @@ export async function checkAndAwardBadges(userId) {
     }
 }
 
-// ─── Issue Status Check ──
-
+// ─── Issue Status Check ────────────────────────────────────────────────────────
 export async function checkIssueMilestones(issueId, issueData) {
     const updates = {};
-
     if (issueData.upvotes >= 10 && issueData.status !== "trending") {
         updates.status = "trending";
         if (issueData.author?.uid) {
@@ -490,7 +506,6 @@ export async function checkIssueMilestones(issueId, issueData) {
             });
         }
     }
-
     if (issueData.upvotes >= 50 && !issueData.viralAt) {
         updates.viralAt = serverTimestamp();
         if (issueData.author?.uid) {
@@ -500,9 +515,7 @@ export async function checkIssueMilestones(issueId, issueData) {
             });
         }
     }
-
     if (Object.keys(updates).length > 0) {
-        const issueRef = doc(db, "issues", issueId);
-        await updateDoc(issueRef, updates);
+        await updateDoc(doc(db, "issues", issueId), updates);
     }
 }

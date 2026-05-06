@@ -3,66 +3,20 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-    doc,
-    getDoc,
-    collection,
-    onSnapshot,
-    query,
-    where,
-} from "firebase/firestore";
+import { collection, onSnapshot, doc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import Image from "next/image";
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
-const BackIcon = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        className="w-5 h-5"
-    >
-        <path d="M19 12H5M12 19l-7-7 7-7" />
-    </svg>
-);
-
-const TrophyIcon = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        className="w-5 h-5"
-    >
-        <path d="M6 9H4.5a2.5 2.5 0 010-5H6" />
-        <path d="M18 9h1.5a2.5 2.5 0 000-5H18" />
-        <path d="M4 22h16" />
-        <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-        <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-        <path d="M18 2H6v7a6 6 0 006 6 6 6 0 006-6V2z" />
-    </svg>
-);
-
-const LockIcon = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        className="w-4 h-4"
-    >
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-        <path d="M7 11V7a5 5 0 0110 0v4" />
-    </svg>
-);
-
-// ─── Badges Configuration ─────────────────────────────────────────────────────
+// ─── Badges Configuration (mirrors gamification.ts) ───────────────────────────
 const BADGES_CONFIG = {
+    verified_corper: {
+        emoji: "✅",
+        label: "Verified Corper",
+        description: "Completed your full profile",
+        rarity: "uncommon",
+        requirement: "Complete all profile fields",
+        special: true,
+    },
     first_issue: {
         emoji: "📝",
         label: "First Steps",
@@ -161,6 +115,20 @@ const BADGES_CONFIG = {
         rarity: "common",
         requirement: "Post 10 comments",
     },
+    community_builder: {
+        emoji: "🌱",
+        label: "Community Builder",
+        description: "Invited 1 friend who completed signup",
+        rarity: "uncommon",
+        requirement: "Refer 1 friend",
+    },
+    growth_hacker: {
+        emoji: "📈",
+        label: "Growth Hacker",
+        description: "Invited 5 friends who completed signup",
+        rarity: "rare",
+        requirement: "Refer 5 friends",
+    },
     resolution_champion: {
         emoji: "✨",
         label: "Resolution Champion",
@@ -177,7 +145,7 @@ const BADGES_CONFIG = {
     },
 };
 
-// ─── Helper Functions ─────────────────────────────────────────────────────────
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 function formatTimeAgo(date) {
     if (!date) return "Just now";
     const now = new Date();
@@ -189,35 +157,63 @@ function formatTimeAgo(date) {
     return date.toLocaleDateString();
 }
 
-const getRarityColor = (rarity) => {
-    const colors = {
-        common: "bg-gray-50 border-gray-200 text-gray-600",
-        uncommon: "bg-blue-50 border-blue-200 text-blue-600",
-        rare: "bg-purple-50 border-purple-200 text-purple-600",
-        epic: "bg-orange-50 border-orange-200 text-orange-600",
-        legendary: "bg-yellow-50 border-yellow-200 text-yellow-600",
-    };
-    return colors[rarity] || colors.common;
+const RARITY_STYLES = {
+    common: {
+        card: "bg-gray-50 border-gray-200",
+        badge: "bg-gray-100 text-gray-500",
+        label: "Common",
+        glow: "",
+    },
+    uncommon: {
+        card: "bg-blue-50 border-blue-200",
+        badge: "bg-blue-100 text-blue-600",
+        label: "Uncommon",
+        glow: "shadow-blue-100",
+    },
+    rare: {
+        card: "bg-purple-50 border-purple-200",
+        badge: "bg-purple-100 text-purple-600",
+        label: "Rare",
+        glow: "shadow-purple-100",
+    },
+    epic: {
+        card: "bg-orange-50 border-orange-200",
+        badge: "bg-orange-100 text-orange-600",
+        label: "Epic",
+        glow: "shadow-orange-100",
+    },
+    legendary: {
+        card: "bg-yellow-50 border-yellow-200",
+        badge: "bg-yellow-100 text-yellow-600",
+        label: "Legendary",
+        glow: "shadow-yellow-100",
+    },
 };
 
-const getRarityLabel = (rarity) => {
-    const labels = {
-        common: "Common",
-        uncommon: "Uncommon",
-        rare: "Rare",
-        epic: "Epic",
-        legendary: "Legendary",
-    };
-    return labels[rarity] || "Common";
-};
-
-// ─── Login Prompt ─────────────────────────────────────────────────────────────
+// ─── Login Prompt ──────────────────────────────────────────────────────────────
 function LoginPrompt() {
     return (
         <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
             <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-8 max-w-md w-full text-center">
                 <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <LockIcon />
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#F97316"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        className="w-8 h-8"
+                    >
+                        <rect
+                            x="3"
+                            y="11"
+                            width="18"
+                            height="11"
+                            rx="2"
+                            ry="2"
+                        />
+                        <path d="M7 11V7a5 5 0 0110 0v4" />
+                    </svg>
                 </div>
                 <h2
                     className="text-2xl font-bold text-gray-900 mb-2"
@@ -233,11 +229,8 @@ function LoginPrompt() {
                 </p>
                 <Link
                     href="/login"
-                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98] transition-all duration-200 cursor-pointer inline-block"
-                    style={{
-                        fontFamily: "DM Sans, sans-serif",
-                        boxShadow: "0 4px 20px rgba(232,97,26,0.35)",
-                    }}
+                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#F97316] text-white hover:bg-[#C2410C] transition-all inline-block text-center"
+                    style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
                     Log In to Continue
                 </Link>
@@ -246,13 +239,108 @@ function LoginPrompt() {
     );
 }
 
-// ─── Main Achievements Page ───────────────────────────────────────────────────
+// ─── Badge Card ────────────────────────────────────────────────────────────────
+function BadgeCard({ badge, earned, earnedData }) {
+    const rarity = RARITY_STYLES[badge.rarity] || RARITY_STYLES.common;
+    const isSpecial = badge.special;
+
+    if (earned) {
+        return (
+            <div
+                className={`p-4 rounded-2xl border-2 transition-all cursor-default ${rarity.card} ${rarity.glow ? `shadow-md ${rarity.glow}` : ""} ${isSpecial ? "ring-2 ring-orange-300 border-orange-300 bg-orange-50" : ""}`}
+            >
+                <div className="text-center">
+                    <div className="text-4xl md:text-5xl mb-2 relative inline-block">
+                        {badge.emoji}
+                        {isSpecial && (
+                            <span className="absolute -top-1 -right-1 text-xs bg-orange-500 text-white rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                                ✓
+                            </span>
+                        )}
+                    </div>
+                    <h3
+                        className="text-xs md:text-sm font-bold mb-1 line-clamp-2 text-gray-900"
+                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
+                    >
+                        {badge.label}
+                    </h3>
+                    <p
+                        className={`text-[10px] md:text-xs leading-snug mb-2 line-clamp-2 ${isSpecial ? "text-orange-600" : "text-gray-500"}`}
+                    >
+                        {badge.description}
+                    </p>
+                    {earnedData?.earnedAt && (
+                        <div className="text-[9px] md:text-[10px] font-semibold text-gray-400 mb-2">
+                            ✓ {formatTimeAgo(earnedData.earnedAt)}
+                        </div>
+                    )}
+                    <div
+                        className={`text-[9px] md:text-[10px] font-bold px-2 py-1 rounded-full inline-block ${rarity.badge}`}
+                    >
+                        {rarity.label}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="p-4 rounded-2xl border-2 bg-gray-50 border-gray-200 opacity-60">
+            <div className="text-center">
+                <div className="text-4xl md:text-5xl mb-2 grayscale">
+                    {badge.emoji}
+                </div>
+                <h3
+                    className="text-xs md:text-sm font-bold mb-1 line-clamp-2 text-gray-500"
+                    style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
+                >
+                    {badge.label}
+                </h3>
+                <p className="text-[10px] md:text-xs leading-snug mb-2 line-clamp-2 text-gray-400">
+                    {badge.description}
+                </p>
+                <div className="text-[9px] md:text-[10px] font-semibold text-gray-400 mb-2">
+                    {badge.requirement}
+                </div>
+                <div className="flex items-center justify-center gap-1 text-[10px] text-gray-400">
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        className="w-3 h-3"
+                    >
+                        <rect
+                            x="3"
+                            y="11"
+                            width="18"
+                            height="11"
+                            rx="2"
+                            ry="2"
+                        />
+                        <path d="M7 11V7a5 5 0 0110 0v4" />
+                    </svg>
+                    Locked
+                </div>
+                <div
+                    className={`mt-2 text-[9px] md:text-[10px] font-bold px-2 py-1 rounded-full inline-block ${RARITY_STYLES[badge.rarity]?.badge || "bg-gray-200 text-gray-500"}`}
+                >
+                    {RARITY_STYLES[badge.rarity]?.label || "Common"}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Main Achievements Page ────────────────────────────────────────────────────
 export default function AchievementsPage() {
     const router = useRouter();
     const [currentUser, setCurrentUser] = useState(null);
     const [authReady, setAuthReady] = useState(false);
     const [earnedBadges, setEarnedBadges] = useState([]);
     const [stats, setStats] = useState(null);
+    const [isVerified, setIsVerified] = useState(false);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState("all");
 
@@ -262,54 +350,54 @@ export default function AchievementsPage() {
             if (user && !user.isAnonymous) {
                 setCurrentUser(user);
 
-                try {
-                    // Get earned badges
-                    const badgesSub = onSnapshot(
-                        collection(db, "users", user.uid, "badges"),
-                        (snap) => {
-                            const badges = snap.docs.map((d) => ({
+                // Listen to badges
+                const badgesUnsub = onSnapshot(
+                    collection(db, "users", user.uid, "badges"),
+                    (snap) => {
+                        setEarnedBadges(
+                            snap.docs.map((d) => ({
                                 id: d.id,
                                 badgeId: d.data().badgeId,
-                                emoji: d.data().emoji,
-                                label: d.data().label,
-                                desc: d.data().description,
                                 earnedAt: d.data().earnedAt?.toDate(),
-                            }));
-                            setEarnedBadges(badges);
-                        },
-                    );
+                            })),
+                        );
+                    },
+                );
 
-                    // Get stats
-                    const statsSub = onSnapshot(
-                        doc(db, "users", user.uid, "stats", "overview"),
-                        (snap) => {
-                            if (snap.exists()) {
-                                setStats(snap.data());
-                            }
-                            setLoading(false);
-                        },
-                    );
+                // Listen to stats
+                const statsUnsub = onSnapshot(
+                    doc(db, "users", user.uid, "stats", "overview"),
+                    (snap) => {
+                        if (snap.exists()) setStats(snap.data());
+                        setLoading(false);
+                    },
+                );
 
-                    return () => {
-                        badgesSub();
-                        statsSub();
-                    };
-                } catch (err) {
-                    console.error("Error loading achievements:", err);
-                    setLoading(false);
-                }
+                // Listen to user doc for verified status
+                const userUnsub = onSnapshot(
+                    doc(db, "users", user.uid),
+                    (snap) => {
+                        if (snap.exists())
+                            setIsVerified(!!snap.data().isVerified);
+                    },
+                );
+
+                return () => {
+                    badgesUnsub();
+                    statsUnsub();
+                    userUnsub();
+                };
             } else {
                 setLoading(false);
             }
         });
-
         return unsubscribe;
     }, []);
 
     if (!authReady || loading) {
         return (
             <div
-                className="min-h-screen pb-24 md:pb-8 flex items-center justify-center"
+                className="min-h-screen pb-24 flex items-center justify-center"
                 style={{ background: "#FDF6EF" }}
             >
                 <div className="flex flex-col items-center gap-3">
@@ -325,11 +413,8 @@ export default function AchievementsPage() {
         );
     }
 
-    if (!currentUser) {
-        return <LoginPrompt />;
-    }
+    if (!currentUser) return <LoginPrompt />;
 
-    // Organize badges
     const earnedIds = new Set(earnedBadges.map((b) => b.badgeId));
     const allBadges = Object.entries(BADGES_CONFIG).map(([id, config]) => ({
         id,
@@ -347,6 +432,7 @@ export default function AchievementsPage() {
 
     const earnedCount = allBadges.filter((b) => b.earned).length;
     const totalCount = allBadges.length;
+    const verifiedBadgeEarned = earnedIds.has("verified_corper");
 
     return (
         <div
@@ -360,24 +446,39 @@ export default function AchievementsPage() {
                         onClick={() => router.back()}
                         className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition-colors cursor-pointer"
                     >
-                        <BackIcon />
-                    </button>
-                    <div>
-                        <h1
-                            className="text-lg md:text-xl font-bold text-gray-900"
-                            style={{
-                                fontFamily: "Plus Jakarta Sans, sans-serif",
-                            }}
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            className="w-5 h-5"
                         >
-                            Achievements & Badges
-                        </h1>
+                            <path d="M19 12H5M12 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                            <h1
+                                className="text-lg md:text-xl font-bold text-gray-900 truncate"
+                                style={{
+                                    fontFamily: "Plus Jakarta Sans, sans-serif",
+                                }}
+                            >
+                                Achievements & Badges
+                            </h1>
+                            {isVerified && (
+                                <span className="flex items-center gap-1 text-xs font-bold text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full shrink-0">
+                                    ✅ Verified
+                                </span>
+                            )}
+                        </div>
                         <p className="text-xs md:text-sm text-gray-500">
                             {earnedCount} of {totalCount} badges earned
                         </p>
                     </div>
                 </div>
-
-                {/* Progress Bar */}
+                {/* Progress bar */}
                 <div className="w-full bg-gray-100 rounded-full h-2">
                     <div
                         className="bg-[#F97316] h-2 rounded-full transition-all duration-500"
@@ -389,99 +490,104 @@ export default function AchievementsPage() {
             </div>
 
             <div className="px-4 md:px-6 py-4 space-y-4">
-                {/* Filter Tabs */}
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => setFilter("all")}
-                        className={`flex-1 py-2 px-3 rounded-lg text-xs md:text-sm font-semibold transition-all cursor-pointer ${
-                            filter === "all"
-                                ? "bg-[#F97316] text-white"
-                                : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-                        }`}
-                    >
-                        All
-                    </button>
-                    <button
-                        onClick={() => setFilter("earned")}
-                        className={`flex-1 py-2 px-3 rounded-lg text-xs md:text-sm font-semibold transition-all cursor-pointer ${
-                            filter === "earned"
-                                ? "bg-green-500 text-white"
-                                : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-                        }`}
-                    >
-                        Earned ({earnedCount})
-                    </button>
-                    <button
-                        onClick={() => setFilter("locked")}
-                        className={`flex-1 py-2 px-3 rounded-lg text-xs md:text-sm font-semibold transition-all cursor-pointer ${
-                            filter === "locked"
-                                ? "bg-gray-400 text-white"
-                                : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-                        }`}
-                    >
-                        Locked ({totalCount - earnedCount})
-                    </button>
-                </div>
-
-                {/* Badges Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {filteredBadges.map((badge) => (
-                        <div
-                            key={badge.id}
-                            className={`p-4 rounded-xl border-2 transition-all ${
-                                badge.earned
-                                    ? `${getRarityColor(badge.rarity)} cursor-pointer hover:shadow-md`
-                                    : "bg-gray-50 border-gray-200 text-gray-400 opacity-60"
-                            }`}
-                        >
-                            <div className="text-center">
-                                <div className="text-4xl md:text-5xl mb-2">
-                                    {badge.emoji}
-                                </div>
+                {/* Verified Corper spotlight */}
+                {!verifiedBadgeEarned && (
+                    <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-4 text-white">
+                        <div className="flex items-start gap-3">
+                            <div className="text-3xl">🔒</div>
+                            <div className="flex-1 min-w-0">
                                 <h3
-                                    className="text-xs md:text-sm font-bold mb-1 line-clamp-2"
+                                    className="font-bold text-base mb-1"
                                     style={{
                                         fontFamily:
                                             "Plus Jakarta Sans, sans-serif",
                                     }}
                                 >
-                                    {badge.label}
+                                    Unlock: Verified Corper ✅
                                 </h3>
-                                <p className="text-[10px] md:text-xs leading-snug mb-2 line-clamp-2">
-                                    {badge.description}
+                                <p className="text-orange-100 text-xs leading-relaxed">
+                                    Complete your profile to earn this badge,
+                                    get verified, unlock voting & posting, and
+                                    earn 20 bonus points!
                                 </p>
+                            </div>
+                            <Link
+                                href="/profile/edit"
+                                className="shrink-0 bg-white text-orange-600 font-bold text-xs px-3 py-2 rounded-xl hover:bg-orange-50 transition-colors"
+                            >
+                                Complete →
+                            </Link>
+                        </div>
+                    </div>
+                )}
 
-                                {!badge.earned && (
-                                    <>
-                                        <div className="text-[9px] md:text-[10px] font-semibold opacity-70 mb-2">
-                                            {badge.requirement}
-                                        </div>
-                                        <div className="flex items-center justify-center gap-1 text-[10px] text-gray-500">
-                                            <LockIcon /> Locked
-                                        </div>
-                                    </>
-                                )}
-
-                                {badge.earned && badge.earnedData?.earnedAt && (
-                                    <div className="text-[9px] md:text-[10px] font-semibold text-current opacity-75">
-                                        ✓{" "}
-                                        {formatTimeAgo(
-                                            badge.earnedData.earnedAt,
-                                        )}
-                                    </div>
-                                )}
-
-                                <div
-                                    className={`mt-2 text-[9px] md:text-[10px] font-bold px-2 py-1 rounded-full inline-block ${
-                                        badge.earned
-                                            ? "bg-current/10"
-                                            : "bg-gray-200"
-                                    }`}
+                {verifiedBadgeEarned && (
+                    <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl p-4 text-white">
+                        <div className="flex items-center gap-3">
+                            <div className="text-3xl">✅</div>
+                            <div>
+                                <h3
+                                    className="font-bold text-base"
+                                    style={{
+                                        fontFamily:
+                                            "Plus Jakarta Sans, sans-serif",
+                                    }}
                                 >
-                                    {getRarityLabel(badge.rarity)}
-                                </div>
+                                    Verified Corper!
+                                </h3>
+                                <p className="text-green-100 text-xs">
+                                    Your profile is complete. You're verified
+                                    and unlocked!
+                                </p>
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {/* Filter Tabs */}
+                <div className="flex gap-2">
+                    {[
+                        {
+                            id: "all",
+                            label: "All",
+                            active: "bg-[#F97316] text-white",
+                            inactive:
+                                "bg-white border border-gray-200 text-gray-600",
+                        },
+                        {
+                            id: "earned",
+                            label: `Earned (${earnedCount})`,
+                            active: "bg-green-500 text-white",
+                            inactive:
+                                "bg-white border border-gray-200 text-gray-600",
+                        },
+                        {
+                            id: "locked",
+                            label: `Locked (${totalCount - earnedCount})`,
+                            active: "bg-gray-500 text-white",
+                            inactive:
+                                "bg-white border border-gray-200 text-gray-600",
+                        },
+                    ].map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setFilter(tab.id)}
+                            className={`flex-1 py-2 px-3 rounded-lg text-xs md:text-sm font-semibold transition-all cursor-pointer ${filter === tab.id ? tab.active : tab.inactive}`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Badges Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {filteredBadges.map((badge) => (
+                        <BadgeCard
+                            key={badge.id}
+                            badge={badge}
+                            earned={badge.earned}
+                            earnedData={badge.earnedData}
+                        />
                     ))}
                 </div>
 
@@ -494,14 +600,14 @@ export default function AchievementsPage() {
                         </p>
                         <p className="text-gray-400 text-xs mt-1">
                             {filter === "earned"
-                                ? "Keep engaging to earn more badges!"
+                                ? "Keep engaging to earn badges!"
                                 : "Complete challenges to unlock badges!"}
                         </p>
                     </div>
                 )}
 
                 {/* Stats Overview */}
-                <div className="bg-white rounded-2xl border border-gray-50 p-4 md:p-6 mt-8">
+                <div className="bg-white rounded-2xl border border-gray-50 p-4 md:p-6">
                     <h2
                         className="text-lg font-bold text-gray-900 mb-4"
                         style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
