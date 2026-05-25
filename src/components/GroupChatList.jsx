@@ -19,6 +19,7 @@ import {
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { toast } from "sonner";
 import Link from "next/link";
 
 const MIN_MEMBERS = 3;
@@ -367,15 +368,22 @@ export default function GroupChatList() {
 
     useEffect(() => {
         if (!uid) return;
+        // No orderBy — array-contains + orderBy requires a composite index.
+        // Sort client-side instead so no index deployment is needed.
         const q = query(
             collection(db, "groupChats"),
-            where("memberIds", "array-contains", uid),
-            orderBy("updatedAt", "desc")
+            where("memberIds", "array-contains", uid)
         );
         const unsub = onSnapshot(q, (snap) => {
-            setChats(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+            const sorted = snap.docs
+                .map((d) => ({ id: d.id, ...d.data() }))
+                .sort((a, b) => (b.updatedAt?.toMillis?.() ?? 0) - (a.updatedAt?.toMillis?.() ?? 0));
+            setChats(sorted);
             setLoading(false);
-        }, () => setLoading(false));
+        }, (err) => {
+            console.error("groupChats listen error:", err);
+            setLoading(false);
+        });
         return () => unsub();
     }, [uid]);
 
@@ -409,17 +417,21 @@ export default function GroupChatList() {
         if (!user) return;
         setAcceptingId(invite.id);
         try {
-            const batch = writeBatch(db);
-            batch.update(doc(db, "groupChats", invite.chatId), {
+            // Step 1 — join the group (critical)
+            await updateDoc(doc(db, "groupChats", invite.chatId), {
                 memberIds: arrayUnion(uid),
                 members: arrayUnion({ uid, name: user.name, photoURL: user.photoURL }),
                 updatedAt: serverTimestamp(),
             });
-            batch.update(doc(db, "groupChatInvites", invite.id), { status: "accepted" });
-            await batch.commit();
+            // Step 2 — mark invite accepted (non-critical, don't block navigation)
+            updateDoc(doc(db, "groupChatInvites", invite.id), { status: "accepted" }).catch(() => {});
             router.push(`/chat/${invite.chatId}`);
-        } catch (err) { console.error(err); }
-        finally { setAcceptingId(null); }
+        } catch (err) {
+            console.error("Join failed:", err);
+            toast.error("Could not join the group. Please try again.");
+        } finally {
+            setAcceptingId(null);
+        }
     };
 
     const declineInvite = async (invite) => {
