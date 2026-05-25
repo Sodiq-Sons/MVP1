@@ -9,9 +9,8 @@
         "lint": "eslint"
     },
     "dependencies": {
-        "@fontsource/dm-sans": "^5.2.8",
-        "@fontsource/plus-jakarta-sans": "^5.2.8",
         "@vercel/analytics": "^2.0.1",
+        "cloudinary": "^2.10.0",
         "firebase": "^12.11.0",
         "html2canvas": "^1.4.1",
         "lucide-react": "^1.7.0",

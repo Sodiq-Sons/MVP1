@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import {
@@ -170,8 +170,8 @@ function ReauthModal({ isOpen, onConfirm, onCancel, onSkip }) {
 
     return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl p-7 max-w-sm w-full shadow-2xl">
-                <div className="w-14 h-14 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 text-orange-500">
+            <div className="bg-card rounded-2xl p-7 max-w-sm w-full shadow-2xl">
+                <div className="w-14 h-14 bg-cp-tint rounded-full flex items-center justify-center mx-auto mb-4 text-cp">
                     <LockIcon />
                 </div>
                 <h2 className="text-lg font-bold text-slate-900 text-center mb-1">
@@ -189,7 +189,7 @@ function ReauthModal({ isOpen, onConfirm, onCancel, onSkip }) {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="Current password"
-                            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all pr-10"
+                            className="w-full px-4 py-3 rounded-xl bg-subtle border border-slate-200 text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-cp transition-all pr-10"
                             required
                             autoFocus
                         />
@@ -208,7 +208,7 @@ function ReauthModal({ isOpen, onConfirm, onCancel, onSkip }) {
                     )}
                     <button
                         type="submit"
-                        className="w-full py-3 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white text-sm font-bold shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all"
+                        className="w-full py-3 rounded-xl bg-cp text-white text-sm font-bold shadow-lg shadow-lg transition-all"
                     >
                         Confirm & Send Verification
                     </button>
@@ -217,7 +217,7 @@ function ReauthModal({ isOpen, onConfirm, onCancel, onSkip }) {
                 <div className="mt-4 pt-4 border-t border-slate-100 text-center">
                     <button
                         onClick={onSkip}
-                        className="text-xs text-slate-400 hover:text-orange-500 font-medium transition-colors"
+                        className="text-xs text-slate-400 hover:text-cp font-medium transition-colors"
                     >
                         Skip for now — save email to profile only
                     </button>
@@ -239,8 +239,8 @@ function EmailVerificationModal({ isOpen, newEmail, onConfirm, onCancel }) {
 
     return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl p-7 max-w-sm w-full shadow-2xl text-center">
-                <div className="w-14 h-14 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 text-orange-500">
+            <div className="bg-card rounded-2xl p-7 max-w-sm w-full shadow-2xl text-center">
+                <div className="w-14 h-14 bg-cp-tint rounded-full flex items-center justify-center mx-auto mb-4 text-cp">
                     <MailIcon />
                 </div>
                 <h2 className="text-lg font-bold text-slate-900 mb-1">
@@ -249,7 +249,7 @@ function EmailVerificationModal({ isOpen, newEmail, onConfirm, onCancel }) {
                 <p className="text-xs text-slate-500 mb-3">
                     You are about to change your email to:
                 </p>
-                <p className="text-sm font-bold text-orange-600 bg-orange-50 rounded-lg py-2 px-3 mb-4 break-all">
+                <p className="text-sm font-bold text-cp bg-cp-tint rounded-lg py-2 px-3 mb-4 break-all">
                     {newEmail}
                 </p>
                 <p className="text-xs text-slate-400 mb-6 leading-relaxed">
@@ -261,13 +261,13 @@ function EmailVerificationModal({ isOpen, newEmail, onConfirm, onCancel }) {
                 <div className="flex gap-3">
                     <button
                         onClick={onCancel}
-                        className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all"
+                        className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-subtle transition-all"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={onConfirm}
-                        className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white text-xs font-bold shadow-lg shadow-orange-500/25 hover:bg-orange-600 transition-all"
+                        className="flex-1 py-2.5 rounded-xl bg-cp-deeper text-white text-xs font-bold shadow-lg shadow-lg  transition-all"
                     >
                         Send Verification
                     </button>
@@ -283,7 +283,7 @@ function Field({ label, required, hint, children }) {
         <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 {label}
-                {required && <span className="text-orange-500 ml-0.5">*</span>}
+                {required && <span className="text-cp ml-0.5">*</span>}
             </label>
             {children}
             {hint && (
@@ -304,7 +304,7 @@ function CompletionBar({ pct }) {
                 ? "#3B82F6"
                 : "#22C55E";
     return (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-6">
+        <div className="bg-card rounded-2xl border border-slate-200 shadow-sm p-4 mb-6">
             <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-semibold text-slate-700">
                     Profile Completion
@@ -327,7 +327,7 @@ function CompletionBar({ pct }) {
             {pct < 100 && (
                 <p className="text-xs text-slate-400 mt-2">
                     Complete all fields to unlock voting, posting & earn the{" "}
-                    <span className="text-orange-500 font-semibold">
+                    <span className="text-cp font-semibold">
                         Verified Corper
                     </span>{" "}
                     badge 🏅
@@ -340,8 +340,8 @@ function CompletionBar({ pct }) {
 // ─── Section card ──────────────────────────────────────────────────────────────
 function SectionCard({ icon, title, children }) {
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+        <div className="bg-card rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 bg-subtle/50">
                 <div className="flex items-center gap-2">
                     {icon}
                     <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
@@ -355,9 +355,9 @@ function SectionCard({ icon, title, children }) {
 }
 
 const inputCls =
-    "w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all placeholder:text-slate-400 text-sm";
+    "w-full px-4 py-3 rounded-xl bg-subtle border border-slate-200 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-cp transition-all placeholder:text-slate-400 text-sm";
 const selectCls =
-    "w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-sm appearance-none cursor-pointer";
+    "w-full px-4 py-3 rounded-xl bg-subtle border border-slate-200 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-cp transition-all text-sm appearance-none cursor-pointer";
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function EditProfilePage() {
@@ -371,6 +371,9 @@ export default function EditProfilePage() {
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [showReauthModal, setShowReauthModal] = useState(false);
     const [emailToConfirm, setEmailToConfirm] = useState("");
+    const [photoURL, setPhotoURL] = useState("");
+    const [photoUploading, setPhotoUploading] = useState(false);
+    const photoInputRef = useRef(null);
 
     const emptyForm = {
         displayName: "",
@@ -430,6 +433,7 @@ export default function EditProfilePage() {
                     let data;
                     if (userDoc.exists()) {
                         const d = userDoc.data();
+                        setPhotoURL(d.photoURL || user.photoURL || "");
                         data = {
                             displayName:
                                 d.displayName || user.displayName || "",
@@ -494,7 +498,11 @@ export default function EditProfilePage() {
         setFormData((prev) => ({ ...prev, [field]: value }));
 
     const doSendVerification = async () => {
-        await verifyBeforeUpdateEmail(auth.currentUser, emailToConfirm);
+        const actionCodeSettings = {
+            url: `${window.location.origin}/verify-email`,
+            handleCodeInApp: true,
+        };
+        await verifyBeforeUpdateEmail(auth.currentUser, emailToConfirm, actionCodeSettings);
         setPendingEmail(emailToConfirm);
         toast.success(
             "Verification email sent! Check your inbox and click the link to confirm.",
@@ -642,6 +650,40 @@ export default function EditProfilePage() {
         }
     };
 
+    const handlePhotoUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file || !auth.currentUser) return;
+        if (!file.type.startsWith("image/")) {
+            toast.error("Please select an image file");
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("Image must be under 5 MB");
+            return;
+        }
+        setPhotoUploading(true);
+        try {
+            const formPayload = new FormData();
+            formPayload.append("file", file);
+            const res = await fetch("/api/upload", { method: "POST", body: formPayload });
+            if (!res.ok) throw new Error("Upload failed");
+            const { url } = await res.json();
+            const optimisedUrl = url.replace("/upload/", "/upload/f_auto,q_auto,w_400/");
+            await updateProfile(auth.currentUser, { photoURL: optimisedUrl });
+            await updateDoc(doc(db, "users", auth.currentUser.uid), {
+                photoURL: optimisedUrl,
+                updatedAt: serverTimestamp(),
+            });
+            setPhotoURL(optimisedUrl);
+            toast.success("Profile photo updated!");
+        } catch {
+            toast.error("Failed to upload photo. Please try again.");
+        } finally {
+            setPhotoUploading(false);
+            e.target.value = "";
+        }
+    };
+
     const handleCancel = () => {
         if (
             hasChanges &&
@@ -701,7 +743,7 @@ export default function EditProfilePage() {
                             </div>
                         </div>
                         {hasChanges && (
-                            <span className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded-full">
+                            <span className="text-xs font-medium text-cp bg-cp-tint px-2 py-1 rounded-full">
                                 Unsaved changes
                             </span>
                         )}
@@ -710,27 +752,54 @@ export default function EditProfilePage() {
             </header>
 
             <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+                <div className="bg-card rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
                     <div className="flex items-center gap-4">
-                        <div className="relative">
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white shadow-lg">
-                                <span className="text-2xl font-bold">
-                                    {formData.displayName
-                                        .charAt(0)
-                                        .toUpperCase() || "U"}
-                                </span>
-                            </div>
+                        {/* Clickable photo avatar */}
+                        <div className="relative shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => photoInputRef.current?.click()}
+                                disabled={photoUploading}
+                                className="relative w-16 h-16 rounded-full overflow-hidden group focus:outline-none focus-visible:ring-2 focus-visible:ring-cp"
+                                title="Change profile photo"
+                            >
+                                {photoURL ? (
+                                    <img
+                                        src={photoURL}
+                                        alt="Profile"
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full bg-cp flex items-center justify-center text-white shadow-lg">
+                                        <span className="text-2xl font-bold">
+                                            {(formData.displayName || "U").charAt(0).toUpperCase()}
+                                        </span>
+                                    </div>
+                                )}
+                                {/* Camera overlay */}
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {photoUploading ? (
+                                        <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="w-5 h-5">
+                                            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                                            <circle cx="12" cy="13" r="4" />
+                                        </svg>
+                                    )}
+                                </div>
+                            </button>
+                            <input
+                                ref={photoInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handlePhotoUpload}
+                                className="hidden"
+                            />
+                            {/* Verified badge */}
                             {completionPct === 100 && (
-                                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="white"
-                                        strokeWidth="3"
-                                        strokeLinecap="round"
-                                        className="w-3 h-3"
-                                    >
-                                        <polyline points="20 6 9 17 4 12" />
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 border-white" style={{ background: "var(--cp)" }}>
+                                    <svg viewBox="0 0 16 16" fill="white" className="w-2.5 h-2.5">
+                                        <path d="M13 3.5 6.5 10 3 6.5l-1 1L6.5 12 14 4.5z" />
                                     </svg>
                                 </div>
                             )}
@@ -742,7 +811,7 @@ export default function EditProfilePage() {
                             <p className="text-sm text-slate-500">
                                 {completionPct === 100
                                     ? "✓ Verified Corper"
-                                    : "Update your personal information"}
+                                    : "Tap photo to change it"}
                             </p>
                         </div>
                     </div>
@@ -1043,7 +1112,7 @@ export default function EditProfilePage() {
                                 />
                             </div>
                             {pendingEmail && (
-                                <p className="text-xs text-orange-600 mt-1.5 ml-1 font-medium">
+                                <p className="text-xs text-cp mt-1.5 ml-1 font-medium">
                                     Verification pending: check {pendingEmail}{" "}
                                     for confirmation link
                                 </p>
@@ -1055,14 +1124,14 @@ export default function EditProfilePage() {
                         <button
                             type="button"
                             onClick={handleCancel}
-                            className="flex-1 px-6 py-3.5 rounded-xl border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 transition-all focus:outline-none focus:ring-2 focus:ring-slate-200"
+                            className="flex-1 px-6 py-3.5 rounded-xl border border-slate-300 text-slate-700 font-semibold hover:bg-subtle transition-all focus:outline-none focus:ring-2 focus:ring-slate-200"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={saving || !hasChanges}
-                            className="flex-1 px-6 py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:from-orange-600 hover:to-orange-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2"
+                            className="flex-1 px-6 py-3.5 rounded-xl bg-cp text-white font-semibold shadow-lg shadow-lg  transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2"
                         >
                             {saving ? (
                                 <>

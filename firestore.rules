@@ -1,0 +1,142 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Used for message subcollection reads — get()s the parent chat doc.
+    // NOT used for the chat doc itself (would be self-referential).
+    function isChatMember(chatId) {
+      return isSignedIn() &&
+        request.auth.uid in get(/databases/$(database)/documents/groupChats/$(chatId)).data.memberIds;
+    }
+
+    // Invite IDs are stored as "{chatId}_{invitedUid}" so we can check
+    // existence without a collection query (exists() is cheaper than get()).
+    function hasPendingInvite(chatId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/groupChatInvites/$(chatId + "_" + request.auth.uid));
+    }
+
+    match /stats/{statId} {
+      allow read: if true;
+      allow write: if isSignedIn() || isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read:   if isSignedIn() && request.auth.uid == resource.data.userId;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && request.auth.uid == resource.data.userId;
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.userId;
+    }
+
+    match /presence/{userId} {
+      allow read:  if true;
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /issues/{issueId} {
+      allow read:   if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if false;
+
+      match /votes/{voteId} {
+        allow read:                   if true;
+        allow create, update, delete: if request.auth != null
+                                      && request.auth.uid == voteId;
+      }
+
+      match /comments/{commentId} {
+        allow read:           if true;
+        allow create:         if request.auth != null;
+        allow update, delete: if request.auth != null
+                              && request.auth.uid == resource.data.userId;
+      }
+    }
+
+    match /users/{userId} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+
+      match /badges/{badgeId} {
+        allow read:  if request.auth != null;
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /savedIssues/{savedId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /stats/{statId} {
+        allow read:  if request.auth != null;
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    match /referrals/{ownerId} {
+      allow read:  if true;
+      allow write: if request.auth != null && request.auth.uid == ownerId;
+
+      match /referrals/{referralId} {
+        allow read:           if request.auth != null && request.auth.uid == ownerId;
+        allow create:         if request.auth != null;
+        allow update, delete: if request.auth != null && request.auth.uid == ownerId;
+      }
+
+      match /stats/{statId} {
+        allow read:  if request.auth != null;
+        allow write: if request.auth != null && request.auth.uid == ownerId;
+      }
+    }
+
+    match /reports/{reportId} {
+      allow read:   if isAdmin();
+      allow create: if isSignedIn();
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Chat doc: use resource.data.memberIds directly (not get()) to avoid
+    // a self-referential read that Firestore rejects.
+    // Update is also allowed for users with a pending invite (joining the group).
+    match /groupChats/{chatId} {
+      allow read:   if isSignedIn() && request.auth.uid in resource.data.memberIds;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+                      request.auth.uid in resource.data.memberIds ||
+                      hasPendingInvite(chatId)
+                    );
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read:   if isChatMember(chatId);
+        allow create: if isChatMember(chatId);
+        allow update, delete: if isChatMember(chatId)
+                              && request.auth.uid == resource.data.senderId;
+      }
+    }
+
+    // Invites use fixed IDs: "{chatId}_{invitedUid}"
+    // Only existing chat members can create invites for their group.
+    match /groupChatInvites/{inviteId} {
+      allow read:   if isSignedIn() && (
+                      request.auth.uid == resource.data.invitedUid ||
+                      request.auth.uid == resource.data.invitedByUid
+                    );
+      allow create: if isChatMember(request.resource.data.chatId);
+      allow update: if isSignedIn() && (
+                      request.auth.uid == resource.data.invitedUid ||
+                      request.auth.uid == resource.data.invitedByUid
+                    );
+      allow delete: if false;
+    }
+  }
+}

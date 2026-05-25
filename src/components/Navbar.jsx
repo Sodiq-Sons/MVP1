@@ -6,15 +6,18 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { useTheme } from "@/context/ThemeContext";
+import { isProfileComplete } from "@/lib/profileCompletion";
+import { updateStreak } from "@/lib/streaks";
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 
-const HomeIcon = ({ active }) => (
+const HomeIcon = ({ active, cp }) => (
     <svg
         viewBox="0 0 24 24"
-        fill={active ? "#F97316" : "none"}
-        stroke={active ? "#F97316" : "currentColor"}
+        fill={active ? cp : "none"}
+        stroke={active ? cp : "currentColor"}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -25,11 +28,11 @@ const HomeIcon = ({ active }) => (
     </svg>
 );
 
-const TrendingIcon = ({ active }) => (
+const TrendingIcon = ({ active, cp }) => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
-        stroke={active ? "#F97316" : "currentColor"}
+        stroke={active ? cp : "currentColor"}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -54,11 +57,11 @@ const PlusIcon = () => (
     </svg>
 );
 
-const ActivityIcon = ({ active }) => (
+const ActivityIcon = ({ active, cp }) => (
     <svg
         viewBox="0 0 24 24"
         fill="none"
-        stroke={active ? "#F97316" : "currentColor"}
+        stroke={active ? cp : "currentColor"}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -71,7 +74,7 @@ const ActivityIcon = ({ active }) => (
                 cx="18"
                 cy="5"
                 r="3"
-                fill="#F97316"
+                fill={cp}
                 stroke="white"
                 strokeWidth="1.5"
             />
@@ -79,11 +82,11 @@ const ActivityIcon = ({ active }) => (
     </svg>
 );
 
-const ProfileIcon = ({ active }) => (
+const ProfileIcon = ({ active, cp }) => (
     <svg
         viewBox="0 0 24 24"
-        fill={active ? "#F97316" : "none"}
-        stroke={active ? "#F97316" : "currentColor"}
+        fill={active ? cp : "none"}
+        stroke={active ? cp : "currentColor"}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -146,7 +149,13 @@ export default function Navbar() {
     const isCreateIssue = pathname === "/create-issue";
 
     const { collapsed, toggle } = useSidebar();
+    const { theme } = useTheme();
     const [userData, setUserData] = useState(null);
+
+    // Read the current primary colour from CSS variables at render time.
+    // Using a data attribute lookup keeps it in sync without a separate state.
+    const cp = `var(--cp)`;
+    const cpDark = `var(--cp-dark)`;
 
     const handleLogout = async () => {
         try {
@@ -158,8 +167,28 @@ export default function Navbar() {
     };
 
     useEffect(() => {
+        let heartbeatInterval = null;
+        let presenceRef = null;
+
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            // Clear previous heartbeat when auth state changes
+            if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
+            if (presenceRef) { deleteDoc(presenceRef).catch(() => {}); presenceRef = null; }
+
             if (user && !user.isAnonymous) {
+                // Presence heartbeat — runs on every page since Navbar is global
+                presenceRef = doc(db, "presence", user.uid);
+                const writePresence = () => setDoc(presenceRef, {
+                    online: true,
+                    lastSeen: serverTimestamp(),
+                    uid: user.uid,
+                    displayName: user.displayName || "",
+                }, { merge: true }).catch(() => {});
+                writePresence();
+                heartbeatInterval = setInterval(writePresence, 30000);
+
+                // Fire-and-forget streak update; re-read after so streak is current
+                await updateStreak(user.uid);
                 const userRef = doc(db, "users", user.uid);
                 const snap = await getDoc(userRef);
 
@@ -178,17 +207,39 @@ export default function Navbar() {
                                       .filter(Boolean)
                                       .join(", ")
                                 : data.location || "Nigeria",
+                        verified: isProfileComplete({
+                            email: data.email,
+                            phone: data.phoneNumber,
+                            stateOfOrigin: data.stateOfOrigin,
+                            gender: data.gender,
+                            institutionType: data.institutionType,
+                            campLocation: data.campLocation,
+                            religion: data.religion,
+                            bio: data.bio,
+                        }),
+                        photoURL: data.photoURL || user.photoURL || null,
+                        streak: data.streak || 0,
                     });
                 } else {
                     setUserData({
                         name: user.displayName || "User",
                         location: "Nigeria",
+                        verified: false,
+                        photoURL: user.photoURL || null,
                     });
                 }
             }
         });
 
-        return () => unsubscribe();
+        const handleUnload = () => { if (presenceRef) deleteDoc(presenceRef).catch(() => {}); };
+        window.addEventListener("beforeunload", handleUnload);
+
+        return () => {
+            unsubscribe();
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            if (presenceRef) deleteDoc(presenceRef).catch(() => {});
+            window.removeEventListener("beforeunload", handleUnload);
+        };
     }, []);
 
     return (
@@ -197,6 +248,7 @@ export default function Navbar() {
                 DESKTOP / TABLET — left collapsible sidebar
             ════════════════════════════════════ */}
             <aside
+                aria-label="Main navigation"
                 className="hidden md:flex flex-col fixed top-0 left-0 h-screen bg-white z-50 transition-all duration-300 ease-in-out"
                 style={{
                     width: collapsed ? 72 : 240,
@@ -206,8 +258,9 @@ export default function Navbar() {
             >
                 {/* ── Brand ── */}
                 <div
-                    className="relative flex items-center gap-3 bg-[#F97316] overflow-hidden shrink-0"
+                    className="relative flex items-center gap-3 overflow-hidden shrink-0"
                     style={{
+                        background: cp,
                         padding: collapsed ? "18px 0" : "18px 16px",
                         justifyContent: collapsed ? "center" : "flex-start",
                         minHeight: 68,
@@ -250,8 +303,9 @@ export default function Navbar() {
                     aria-label={
                         collapsed ? "Expand sidebar" : "Collapse sidebar"
                     }
-                    className="absolute flex items-center justify-center bg-white border border-gray-200 rounded-full text-gray-400 hover:text-[#F97316] hover:border-[#F97316]/40 transition-all duration-200 hover:shadow-sm cursor-pointer"
+                    className="absolute flex items-center justify-center bg-white border border-theme rounded-full text-gray-400 transition-all duration-200 hover:shadow-sm cursor-pointer"
                     style={{
+                        "--hover-cp": cp,
                         width: 24,
                         height: 24,
                         top: 22,
@@ -264,7 +318,7 @@ export default function Navbar() {
                 </button>
 
                 {/* ── Nav links ── */}
-                <nav className="flex flex-col gap-0.5 p-2 flex-1 overflow-hidden">
+                <nav aria-label="Sidebar" className="flex flex-col gap-0.5 p-2 flex-1 overflow-hidden">
                     {navItems.map(({ href, label, Icon, isPost }) => {
                         const active = isPost
                             ? isCreateIssue
@@ -277,9 +331,11 @@ export default function Navbar() {
                                 <Link
                                     key={href}
                                     href={href}
+                                    aria-label={label}
                                     title={collapsed ? label : undefined}
-                                    className="flex items-center rounded-xl bg-[#F97316] hover:bg-[#D45516] active:bg-[#C2410C] transition-colors mt-1 mb-0.5 group"
+                                    className="flex items-center rounded-xl transition-colors mt-1 mb-0.5 group"
                                     style={{
+                                        background: cp,
                                         gap: collapsed ? 0 : 10,
                                         padding: collapsed
                                             ? "10px 0"
@@ -311,13 +367,16 @@ export default function Navbar() {
                             <Link
                                 key={href}
                                 href={href}
+                                aria-label={collapsed ? label : undefined}
+                                aria-current={active ? "page" : undefined}
                                 title={collapsed ? label : undefined}
                                 className={`flex items-center rounded-xl transition-all duration-150 group ${
                                     active
-                                        ? "bg-[#FFF4EE] text-[#F97316]"
-                                        : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
+                                        ? "text-gray-800"
+                                        : "text-gray-500 hover:bg-subtle hover:text-gray-800"
                                 }`}
                                 style={{
+                                    ...(active ? { background: "var(--cp-light)", color: cp } : {}),
                                     gap: collapsed ? 0 : 10,
                                     padding: collapsed ? "10px 0" : "10px 12px",
                                     justifyContent: collapsed
@@ -326,9 +385,11 @@ export default function Navbar() {
                                 }}
                             >
                                 <div
-                                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors cursor-pointer ${active ? "bg-[#F97316]/10" : "group-hover:bg-gray-100/80"}`}
+                                    aria-hidden="true"
+                                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors cursor-pointer ${active ? "" : "group-hover:bg-muted/80"}`}
+                                    style={active ? { background: "var(--cp-light)" } : {}}
                                 >
-                                    {Icon && <Icon active={active} />}
+                                    {Icon && <Icon active={active} cp={cp} />}
                                 </div>
 
                                 {!collapsed && (
@@ -343,13 +404,13 @@ export default function Navbar() {
                                             {label}
                                         </span>
                                         {active && (
-                                            <div className="w-1 h-4 bg-[#F97316] rounded-full shrink-0" />
+                                            <div className="w-1 h-4 rounded-full shrink-0" style={{ background: cp }} />
                                         )}
                                     </>
                                 )}
 
                                 {collapsed && active && (
-                                    <div className="absolute right-2 w-1 h-4 bg-[#F97316] rounded-full" />
+                                    <div className="absolute right-2 w-1 h-4 rounded-full" style={{ background: cp }} />
                                 )}
                             </Link>
                         );
@@ -358,7 +419,7 @@ export default function Navbar() {
 
                 {/* ── User & Logout Section ── */}
                 <div
-                    className="shrink-0 border-t border-gray-100 flex flex-col transition-all"
+                    className="shrink-0 border-t border-subtle flex flex-col transition-all"
                     style={{
                         padding: collapsed ? "12px 0" : "16px 14px",
                     }}
@@ -369,42 +430,59 @@ export default function Navbar() {
                             justifyContent: collapsed ? "center" : "flex-start",
                         }}
                     >
-                        <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
-                            style={{
-                                background:
-                                    "linear-gradient(135deg, #fb923c 0%, #c2410c 100%)",
-                            }}
-                        >
-                            {userData?.name?.charAt(0)?.toUpperCase() || "U"}
+                        {/* Avatar with badge overlay */}
+                        <div className="relative shrink-0">
+                            <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold overflow-hidden"
+                                style={{ background: userData?.photoURL ? "transparent" : cp }}
+                            >
+                                {userData?.photoURL
+                                    ? <img src={userData.photoURL} alt="" className="w-full h-full object-cover" />
+                                    : userData?.name?.charAt(0)?.toUpperCase() || "U"
+                                }
+                            </div>
+                            {userData?.verified && (
+                                <div
+                                    className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center border-2 border-white"
+                                    style={{ background: "var(--cp)" }}
+                                    title="Verified corper"
+                                >
+                                    <svg viewBox="0 0 16 16" fill="white" className="w-2 h-2">
+                                        <path d="M13 3.5 6.5 10 3 6.5l-1 1L6.5 12 14 4.5z" />
+                                    </svg>
+                                </div>
+                            )}
                         </div>
                         {!collapsed && (
                             <div className="flex-1 min-w-0">
-                                <div className="text-[12px] font-semibold text-gray-800 truncate leading-none">
+                                <div className="text-[12px] font-semibold text-gray-800 truncate leading-none flex items-center gap-1">
                                     {userData?.name || "Loading..."}
+                                    {userData?.streak >= 3 && (
+                                        <span className="text-[10px]" title={`${userData.streak}-day streak`}>
+                                            🔥{userData.streak}
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="text-[10px] text-gray-400 mt-1 truncate">
                                     {userData?.location || ""}
                                 </div>
                             </div>
                         )}
-                        {!collapsed && (
-                            <div
-                                className="w-2 h-2 bg-emerald-400 rounded-full shrink-0"
-                                title="Online"
-                            />
+                        {collapsed && userData?.streak >= 3 && (
+                            <span className="absolute right-1 top-1 text-[9px] leading-none" title={`${userData.streak}-day streak`}>🔥</span>
                         )}
                     </div>
 
                     {/* Logout Button */}
                     <button
                         onClick={handleLogout}
+                        aria-label="Sign out"
                         className={`flex items-center justify-center cursor-pointer transition-all duration-200 group ${
                             collapsed
                                 ? "text-gray-400 hover:text-red-500"
                                 : "gap-2.5 px-3 py-2 rounded-xl text-gray-500 hover:bg-red-50 hover:text-red-600"
                         }`}
-                        title={collapsed ? "Logout" : undefined}
+                        title={collapsed ? "Sign out" : undefined}
                     >
                         <LogoutIcon />
                         {!collapsed && (
@@ -420,7 +498,8 @@ export default function Navbar() {
                 MOBILE — fixed bottom tab bar
             ════════════════════════════════════ */}
             <nav
-                className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50"
+                aria-label="Tab bar navigation"
+                className={`md:hidden fixed bottom-0 left-0 right-0 bg-nav border-t border-subtle z-50 ${pathname.startsWith("/chat") ? "hidden" : ""}`}
                 style={{
                     boxShadow: "0 -1px 0 #F3F4F6, 0 -4px 20px rgba(0,0,0,0.06)",
                 }}
@@ -449,12 +528,12 @@ export default function Navbar() {
                                     aria-label="Post to Camp"
                                 >
                                     <div
-                                        className="bg-[#F97316] flex items-center justify-center active:scale-95 transition-transform rounded-full"
+                                        className="flex items-center justify-center active:scale-95 transition-transform rounded-full"
                                         style={{
                                             width: 50,
                                             height: 50,
-                                            boxShadow:
-                                                "0 4px 16px rgba(232,97,26,0.42), 0 1px 4px rgba(232,97,26,0.2)",
+                                            background: cp,
+                                            boxShadow: `0 4px 16px var(--cp-glow), 0 1px 4px var(--cp-glow)`,
                                         }}
                                     >
                                         <PlusIcon />
@@ -467,21 +546,18 @@ export default function Navbar() {
                             <Link
                                 key={href}
                                 href={href}
+                                aria-label={label}
+                                aria-current={active ? "page" : undefined}
                                 className="flex flex-col items-center gap-0.75 px-3 py-1.5"
                             >
-                                <div
-                                    className={
-                                        active
-                                            ? "text-[#F97316]"
-                                            : "text-gray-400"
-                                    }
-                                >
-                                    {Icon && <Icon active={active} />}
+                                <div style={active ? { color: cp } : { color: "#9CA3AF" }}>
+                                    {Icon && <Icon active={active} cp={cp} />}
                                 </div>
                                 <span
-                                    className={`text-[9.5px] font-semibold tracking-wide leading-none ${active ? "text-[#F97316]" : "text-gray-400"}`}
+                                    className="text-[9.5px] font-semibold tracking-wide leading-none"
                                     style={{
                                         fontFamily: "DM Sans, sans-serif",
+                                        ...(active ? { color: cp } : { color: "#9CA3AF" }),
                                     }}
                                 >
                                     {label}

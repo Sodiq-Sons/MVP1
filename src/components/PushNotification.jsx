@@ -183,12 +183,12 @@ const typeConfig = {
         accent: "#F59E0B",
     },
     update: {
-        bg: "bg-orange-50",
-        color: "text-orange-500",
-        border: "border-orange-200",
+        bg: "bg-cp-tint",
+        color: "text-cp",
+        border: "border-theme",
         label: "Update",
         icon: <AlertIcon />,
-        accent: "#F97316",
+        accent: "var(--cp)",
     },
 };
 
@@ -272,10 +272,10 @@ function Toast({ toast, onDismiss }) {
                     : "transform 0.4s cubic-bezier(0.16,1,0.3,1), opacity 0.3s ease",
                 fontFamily: "DM Sans, sans-serif",
             }}
-            className="w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden pointer-events-auto"
+            className="w-80 bg-card rounded-2xl shadow-2xl border border-subtle overflow-hidden pointer-events-auto"
         >
             {/* Progress bar */}
-            <div className="h-1 w-full bg-gray-100 rounded-t-2xl overflow-hidden">
+            <div className="h-1 w-full bg-muted rounded-t-2xl overflow-hidden">
                 <div
                     className="h-full rounded-t-2xl transition-none"
                     style={{
@@ -328,7 +328,7 @@ function Toast({ toast, onDismiss }) {
                 {/* Dismiss */}
                 <button
                     onClick={dismiss}
-                    className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors shrink-0 cursor-pointer active:scale-95"
+                    className="w-6 h-6 rounded-lg bg-muted hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors shrink-0 cursor-pointer active:scale-95"
                 >
                     <XIcon />
                 </button>

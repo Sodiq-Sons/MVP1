@@ -164,7 +164,7 @@ export default function HelpPage() {
     return (
         <div className="min-h-screen pb-24" style={{ background: "#FDF6EF" }}>
             {/* Header */}
-            <header className="sticky top-0 z-40 bg-[#F97316] px-4 pt-4 pb-4">
+            <header className="sticky top-0 z-40 bg-cp px-4 pt-4 pb-4">
                 <div className="flex items-center gap-3 mb-3">
                     <button
                         onClick={() => router.back()}
@@ -197,7 +197,7 @@ export default function HelpPage() {
 
             <div className="px-4 space-y-4 mt-4">
                 {/* Contact Support Card */}
-                <div className="bg-[#EA580C] rounded-2xl p-4 text-white relative overflow-hidden">
+                <div className="bg-cp-deeper rounded-2xl p-4 text-white relative overflow-hidden">
                     <div
                         className="absolute inset-0 opacity-10"
                         style={{
@@ -222,7 +222,7 @@ export default function HelpPage() {
                             onClick={() =>
                                 toast.success("Opening support chat...")
                             }
-                            className="flex items-center gap-2 bg-white text-[#EA580C] px-4 py-2 rounded-xl text-xs font-bold hover:bg-white/90 transition-colors"
+                            className="flex items-center gap-2 bg-white text-cp px-4 py-2 rounded-xl text-xs font-bold hover:bg-white/90 transition-colors"
                         >
                             <MessageIcon />
                             Contact Support
@@ -234,14 +234,14 @@ export default function HelpPage() {
                 {filteredCategories.map((category, catIdx) => (
                     <div
                         key={catIdx}
-                        className="bg-white rounded-2xl border border-gray-50 shadow-sm overflow-hidden"
+                        className="bg-card rounded-2xl border border-subtle shadow-sm overflow-hidden"
                     >
                         <div className="px-4 pt-3 pb-2">
-                            <span className="text-[10px] font-bold text-[#F97316] uppercase tracking-wider">
+                            <span className="text-[10px] font-bold text-cp uppercase tracking-wider">
                                 {category.title}
                             </span>
                         </div>
-                        <div className="divide-y divide-gray-50">
+                        <div className="divide-y divide-subtle">
                             {category.items.map((item, itemIdx) => {
                                 const isOpen =
                                     openItems[`${catIdx}-${itemIdx}`];
@@ -289,7 +289,7 @@ export default function HelpPage() {
                 )}
 
                 {/* Quick Links */}
-                <div className="bg-white rounded-2xl border border-gray-50 shadow-sm overflow-hidden">
+                <div className="bg-card rounded-2xl border border-subtle shadow-sm overflow-hidden">
                     <div className="px-4 pt-3 pb-1">
                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                             Resources
@@ -297,9 +297,9 @@ export default function HelpPage() {
                     </div>
                     <a
                         href="#"
-                        className="flex items-center gap-3 px-4 py-3.5 border-t border-gray-50 hover:bg-gray-50 transition-colors"
+                        className="flex items-center gap-3 px-4 py-3.5 border-t border-subtle hover:bg-subtle transition-colors"
                     >
-                        <div className="w-8 h-8 bg-orange-50 rounded-xl flex items-center justify-center text-[#F97316] shrink-0">
+                        <div className="w-8 h-8 bg-cp-tint rounded-xl flex items-center justify-center text-cp shrink-0">
                             <ExternalIcon />
                         </div>
                         <div className="flex-1">
@@ -314,9 +314,9 @@ export default function HelpPage() {
                     </a>
                     <a
                         href="#"
-                        className="flex items-center gap-3 px-4 py-3.5 border-t border-gray-50 hover:bg-gray-50 transition-colors"
+                        className="flex items-center gap-3 px-4 py-3.5 border-t border-subtle hover:bg-subtle transition-colors"
                     >
-                        <div className="w-8 h-8 bg-orange-50 rounded-xl flex items-center justify-center text-[#F97316] shrink-0">
+                        <div className="w-8 h-8 bg-cp-tint rounded-xl flex items-center justify-center text-cp shrink-0">
                             <ExternalIcon />
                         </div>
                         <div className="flex-1">

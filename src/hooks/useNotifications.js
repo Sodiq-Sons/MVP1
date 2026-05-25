@@ -29,16 +29,7 @@ function parseMeta(meta) {
 // Safely render meta as a display string
 export function formatMetaDisplay(meta) {
     if (!meta) return null;
-    const parsed =
-        typeof meta === "string"
-            ? (() => {
-                  try {
-                      return JSON.parse(meta);
-                  } catch {
-                      return meta;
-                  }
-              })()
-            : meta;
+    const parsed = parseMeta(meta);
 
     if (typeof parsed === "string") return parsed;
     if (parsed?.type === "level_up")
@@ -49,7 +40,7 @@ export function formatMetaDisplay(meta) {
         return `🎁 Referral completed! You earned ${parsed.points} points!`;
     if (parsed?.type === "referral_signup")
         return `✨ Friend joined! You earned ${parsed.points} points!`;
-    return null; // don't render unknown object shapes
+    return null;
 }
 
 export function useNotifications(userId) {

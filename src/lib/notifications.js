@@ -46,7 +46,7 @@ function getUserColor(uid) {
         "bg-purple-500",
         "bg-pink-500",
         "bg-indigo-500",
-        "bg-orange-500",
+        "bg-cp",
         "bg-teal-500",
         "bg-cyan-500",
         "bg-lime-500",
@@ -103,7 +103,7 @@ export async function createNotification({
             actorPhotoURL,
             actorInitial: getInitials(actorName),
             actorColor:
-                actorId === "system" ? "bg-orange-500" : getUserColor(actorId),
+                actorId === "system" ? "bg-cp" : getUserColor(actorId),
             issueId,
             issueTitle: issueTitle || "Untitled",
             commentId,
@@ -122,40 +122,45 @@ export async function createNotification({
 }
 
 export async function createNotificationsBatch(notifications) {
-    const batch = writeBatch(db);
-    const createdIds = [];
+    try {
+        const batch = writeBatch(db);
+        const createdIds = [];
 
-    for (const notif of notifications) {
-        if (notif.recipientId === notif.actorId && notif.actorId !== "system")
-            continue;
+        for (const notif of notifications) {
+            if (notif.recipientId === notif.actorId && notif.actorId !== "system")
+                continue;
 
-        const docRef = doc(collection(db, "notifications"));
-        batch.set(docRef, {
-            type: notif.type,
-            userId: notif.recipientId,
-            actorId: notif.actorId,
-            actorName: notif.actorName || "Someone",
-            actorPhotoURL: notif.actorPhotoURL || null,
-            actorInitial: getInitials(notif.actorName),
-            actorColor:
-                notif.actorId === "system"
-                    ? "bg-orange-500"
-                    : getUserColor(notif.actorId),
-            issueId: notif.issueId,
-            issueTitle: notif.issueTitle || "Untitled",
-            commentId: notif.commentId || null,
-            commentPreview: notif.commentPreview?.substring(0, 100) || null,
-            message: MESSAGES[notif.type] || "interacted with your post",
-            meta: serializeMeta(notif.meta),
-            read: false,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-        });
-        createdIds.push(docRef.id);
+            const docRef = doc(collection(db, "notifications"));
+            batch.set(docRef, {
+                type: notif.type,
+                userId: notif.recipientId,
+                actorId: notif.actorId,
+                actorName: notif.actorName || "Someone",
+                actorPhotoURL: notif.actorPhotoURL || null,
+                actorInitial: getInitials(notif.actorName),
+                actorColor:
+                    notif.actorId === "system"
+                        ? "bg-cp"
+                        : getUserColor(notif.actorId),
+                issueId: notif.issueId,
+                issueTitle: notif.issueTitle || "Untitled",
+                commentId: notif.commentId || null,
+                commentPreview: notif.commentPreview?.substring(0, 100) || null,
+                message: MESSAGES[notif.type] || "interacted with your post",
+                meta: serializeMeta(notif.meta),
+                read: false,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            });
+            createdIds.push(docRef.id);
+        }
+
+        await batch.commit();
+        return createdIds;
+    } catch (error) {
+        console.error("Error creating notifications batch:", error);
+        return [];
     }
-
-    await batch.commit();
-    return createdIds;
 }
 
 export async function markNotificationAsRead(notificationId) {

@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { subscribeToOnlineCount, updateOnlineCount } from "@/lib/presence";
+import { memo, useEffect, useState, useCallback, useRef } from "react";
+import { usePresence } from "@/hooks/usePresence";
 import {
-    collection,
     onSnapshot,
     orderBy,
     query,
+    collection,
     doc,
     runTransaction,
     getDoc,
@@ -15,106 +15,7 @@ import {
 import { db, auth } from "@/lib/firebase";
 import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
-
-const CATEGORY_META = {
-    infrastructure: {
-        emoji: "🏗️",
-        color: "text-orange-700",
-        bg: "bg-orange-50",
-        label: "Infrastructure",
-    },
-    education: {
-        emoji: "📚",
-        color: "text-blue-700",
-        bg: "bg-blue-50",
-        label: "Education",
-    },
-    healthcare: {
-        emoji: "❤️",
-        color: "text-rose-700",
-        bg: "bg-rose-50",
-        label: "Healthcare",
-    },
-    water: {
-        emoji: "💧",
-        color: "text-cyan-700",
-        bg: "bg-cyan-50",
-        label: "Water",
-    },
-    security: {
-        emoji: "🔒",
-        color: "text-purple-700",
-        bg: "bg-purple-50",
-        label: "Security",
-    },
-    electricity: {
-        emoji: "⚡",
-        color: "text-yellow-700",
-        bg: "bg-yellow-50",
-        label: "Electricity",
-    },
-    environment: {
-        emoji: "🌿",
-        color: "text-green-700",
-        bg: "bg-green-50",
-        label: "Environment",
-    },
-    gist: {
-        emoji: "💬",
-        color: "text-pink-700",
-        bg: "bg-pink-50",
-        label: "Gist",
-    },
-    polls: {
-        emoji: "🗳️",
-        color: "text-violet-700",
-        bg: "bg-violet-50",
-        label: "Poll",
-    },
-    poll: {
-        emoji: "🗳️",
-        color: "text-violet-700",
-        bg: "bg-violet-50",
-        label: "Poll",
-    },
-    food: {
-        emoji: "🍛",
-        color: "text-amber-700",
-        bg: "bg-amber-50",
-        label: "Food",
-    },
-    issue: {
-        emoji: "🚨",
-        color: "text-red-700",
-        bg: "bg-red-50",
-        label: "Issue",
-    },
-    other: {
-        emoji: "📌",
-        color: "text-gray-700",
-        bg: "bg-gray-100",
-        label: "Other",
-    },
-};
-
-const FILTER_MAP = {
-    gist: { field: "category", values: ["gist", "gossip", "discussion"] },
-    polls: { field: "category", values: ["poll", "polls"] },
-    food: { field: "category", values: ["food"] },
-    issues: {
-        field: "category",
-        values: [
-            "issue",
-            "infrastructure",
-            "education",
-            "healthcare",
-            "water",
-            "security",
-            "electricity",
-            "environment",
-        ],
-    },
-};
+import { CATEGORY_META, FILTER_MAP, UPVOTE_MILESTONES } from "@/lib/constants";
 
 function timeAgo(seconds) {
     const diff = Math.floor(Date.now() / 1000) - seconds;
@@ -123,6 +24,18 @@ function timeAgo(seconds) {
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
     if (diff < 172800) return "Yesterday";
     return `${Math.floor(diff / 86400)} days ago`;
+}
+
+function getTimeLeft(deadline, enabled) {
+    if (!enabled || !deadline) return null;
+    const d = deadline?.toDate ? deadline.toDate() : new Date(deadline);
+    const ms = d.getTime() - Date.now();
+    if (ms <= 0) return "Closed";
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    if (h >= 48) return `${Math.floor(h / 24)}d left`;
+    if (h >= 1) return `${h}h left`;
+    return `${m}m left`;
 }
 
 function formatUpvotes(n) {
@@ -146,7 +59,7 @@ function normalisePlatoon(raw) {
 
 const AVATAR_LETTERS = ["A", "B", "C", "D"];
 const avatarColors = [
-    "bg-orange-400",
+    "bg-amber-400",
     "bg-blue-400",
     "bg-green-400",
     "bg-purple-400",
@@ -288,18 +201,18 @@ function StatusBadge({ status }) {
 
 function SkeletonCard() {
     return (
-        <div className="bg-white rounded-2xl p-4 border border-[#FED7AA] animate-pulse">
+        <div className="bg-card rounded-2xl p-4 border border-[#FED7AA] animate-pulse">
             <div className="flex items-center justify-between mb-3">
-                <div className="h-5 w-24 bg-gray-100 rounded-full" />
-                <div className="h-4 w-12 bg-gray-100 rounded" />
+                <div className="h-5 w-24 bg-muted rounded-full" />
+                <div className="h-4 w-12 bg-muted rounded" />
             </div>
             <div className="flex gap-3">
                 <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-gray-100 rounded w-3/4" />
-                    <div className="h-3 bg-gray-100 rounded w-full" />
-                    <div className="h-3 bg-gray-100 rounded w-2/3" />
+                    <div className="h-4 bg-muted rounded w-3/4" />
+                    <div className="h-3 bg-muted rounded w-full" />
+                    <div className="h-3 bg-muted rounded w-2/3" />
                 </div>
-                <div className="w-14 h-16 bg-gray-100 rounded-xl shrink-0" />
+                <div className="w-14 h-16 bg-muted rounded-xl shrink-0" />
             </div>
         </div>
     );
@@ -313,7 +226,7 @@ function LoginPromptModal({ isOpen, onClose, onLogin }) {
                 className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                 onClick={onClose}
             />
-            <div className="relative bg-white rounded-2xl p-6 mx-4 max-w-sm w-full z-10 shadow-2xl">
+            <div className="relative bg-card rounded-2xl p-6 mx-4 max-w-sm w-full z-10 shadow-2xl">
                 <div className="text-center">
                     <div className="w-16 h-16 bg-[#FFF7F2] rounded-full flex items-center justify-center mx-auto mb-4">
                         <span className="text-3xl">🔒</span>
@@ -328,21 +241,21 @@ function LoginPromptModal({ isOpen, onClose, onLogin }) {
                         className="text-sm text-gray-500 mb-6"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     >
-                        Please sign in to upvote issues and join the
+                        Please sign in to like posts and join the
                         conversation.
                     </p>
                     <div className="flex gap-3">
                         <button
                             onClick={onClose}
-                            className="flex-1 py-3 rounded-xl font-semibold text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                            className="flex-1 py-3 rounded-xl font-semibold text-sm border border-theme text-gray-600 hover:bg-subtle transition-colors cursor-pointer"
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
                             Cancel
                         </button>
                         <button
                             onClick={onLogin}
-                            className="flex-1 py-3 rounded-xl font-bold text-sm bg-[#F97316] text-white hover:bg-[#C2410C] transition-colors cursor-pointer"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                            className="flex-1 py-3 rounded-xl font-bold text-sm text-white transition-colors cursor-pointer"
+                            style={{ background: "var(--cp)", fontFamily: "DM Sans, sans-serif" }}
                         >
                             Sign In
                         </button>
@@ -353,7 +266,7 @@ function LoginPromptModal({ isOpen, onClose, onLogin }) {
     );
 }
 
-function IssueCard({
+const IssueCard = memo(function IssueCard({
     issue,
     currentUser,
     authReady,
@@ -368,7 +281,6 @@ function IssueCard({
     const [downvoteCount, setDownvoteCount] = useState(issue.downvotes || 0);
     const [downvoteLoading, setDownvoteLoading] = useState(false);
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-    const [realtimeCommentCount, setRealtimeCommentCount] = useState(0);
 
     const meta = CATEGORY_META[issue.category] ?? CATEGORY_META.other;
     const platoonLabel = normalisePlatoon(issue.author?.platoon);
@@ -377,15 +289,6 @@ function IssueCard({
     const authorName = issue.author?.isAnonymous
         ? "👤 Anonymous"
         : issue.author?.name || issue.author?.displayName || null;
-
-    useEffect(() => {
-        if (!issue.id) return;
-        const unsubscribe = onSnapshot(
-            query(collection(db, "issues", issue.id, "comments")),
-            (snap) => setRealtimeCommentCount(snap.docs.length),
-        );
-        return () => unsubscribe();
-    }, [issue.id]);
 
     useEffect(() => {
         if (!currentUser || !issue.id || isAnonymous) return;
@@ -452,11 +355,10 @@ function IssueCard({
                         actorPhotoURL: currentUser.photoURL,
                         issueId: issue.id,
                         issueTitle: issue.title,
-                        meta: `${newCount} total upvotes`,
+                        meta: `${newCount} total likes`,
                     });
                 }
-                const milestones = [10, 25, 50, 100, 250, 500];
-                if (milestones.includes(newCount) && issueData?.author?.uid) {
+                if (UPVOTE_MILESTONES.includes(newCount) && issueData?.author?.uid) {
                     await createNotification({
                         type: NOTIFICATION_TYPES.MILESTONE,
                         recipientId: issueData.author.uid,
@@ -464,7 +366,7 @@ function IssueCard({
                         actorName: "Camp Voice",
                         issueId: issue.id,
                         issueTitle: issue.title,
-                        meta: `🎉 ${newCount} upvotes reached!`,
+                        meta: `🎉 ${newCount} likes reached!`,
                     });
                 }
             }
@@ -541,23 +443,31 @@ function IssueCard({
     return (
         <>
             <Link href={`/issue/${issue.id}`} className="block">
-                <div className="bg-white rounded-2xl p-4 shadow-card border border-[#FED7AA] hover:shadow-lg hover:border-orange-300 transition-all cursor-pointer relative">
+                <div className="bg-card rounded-2xl p-4 shadow-card border border-[#FED7AA] hover:shadow-lg hover:border-gray-300 transition-all cursor-pointer relative">
                     {rank && (
                         <div
-                            className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white ${rank === 1 ? "bg-gradient-to-br from-yellow-400 to-yellow-600 text-white" : rank === 2 ? "bg-gradient-to-br from-gray-300 to-gray-500 text-white" : rank === 3 ? "bg-gradient-to-br from-orange-400 to-orange-600 text-white" : "bg-gray-100 text-gray-600"}`}
+                            className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white ${rank === 1 ? "bg-gradient-to-br from-yellow-400 to-yellow-600 text-white" : rank === 2 ? "bg-gradient-to-br from-gray-300 to-gray-500 text-white" : rank === 3 ? "bg-cp text-white" : "bg-muted text-gray-600"}`}
                         >
                             {rank}
                         </div>
                     )}
 
-                    {/* Author name */}
+                    {/* Author row */}
                     {authorName && (
-                        <p
-                            className="text-xs text-gray-400 mb-1.5"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            {authorName}
-                        </p>
+                        <div className="flex items-center gap-1.5 mb-2">
+                            <div className="relative shrink-0">
+                                {issue.author?.photoURL && !issue.author?.isAnonymous ? (
+                                    <img src={issue.author.photoURL} alt="" className="w-5 h-5 rounded-full object-cover" />
+                                ) : (
+                                    <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center">
+                                        <span className="text-gray-500 text-[8px] font-bold">
+                                            {issue.author?.isAnonymous ? "?" : authorName.charAt(0).toUpperCase()}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                            <p className="text-xs text-gray-400" style={{ fontFamily: "DM Sans, sans-serif" }}>{authorName}</p>
+                        </div>
                     )}
 
                     <div className="flex items-center justify-between mb-2.5">
@@ -567,13 +477,20 @@ function IssueCard({
                             <span>{meta.emoji}</span>
                             {meta.label}
                         </span>
-                        <span
-                            className="text-xs text-gray-400"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            {rank ? `Trending #${rank} · ` : ""}
-                            {issue.timeAgo}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                            {issue.pollTimerEnabled && issue.pollDeadline && (() => {
+                                const tl = getTimeLeft(issue.pollDeadline, issue.pollTimerEnabled);
+                                if (!tl) return null;
+                                return (
+                                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 ${tl === "Closed" ? "bg-gray-100 text-gray-400" : "bg-amber-50 text-amber-600 border border-amber-100"}`}>
+                                        ⏱️ {tl}
+                                    </span>
+                                );
+                            })()}
+                            <span className="text-xs text-gray-400" style={{ fontFamily: "DM Sans, sans-serif" }}>
+                                {rank ? `Trending #${rank} · ` : ""}{issue.timeAgo}
+                            </span>
+                        </div>
                     </div>
                     <div className="flex gap-3">
                         <div className="flex-1 min-w-0">
@@ -611,7 +528,7 @@ function IssueCard({
                                     downvoted
                                         ? "border-red-500 bg-red-50"
                                         : isAnonymous || upvoted
-                                          ? "border-gray-200 bg-gray-50"
+                                          ? "border-theme bg-subtle"
                                           : "border-red-200 bg-white hover:border-red-400 hover:bg-red-50"
                                 }`}
                             >
@@ -642,7 +559,7 @@ function IssueCard({
                                     upvoted
                                         ? "border-green-500 bg-green-50"
                                         : isAnonymous || downvoted
-                                          ? "border-gray-200 bg-gray-50"
+                                          ? "border-theme bg-subtle"
                                           : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50"
                                 }`}
                             >
@@ -663,7 +580,7 @@ function IssueCard({
                             </button>
                         </div>
                     </div>
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-subtle">
                         <div className="flex items-center gap-2 flex-wrap">
                             <span
                                 className="flex items-center gap-1 text-xs text-black"
@@ -676,6 +593,23 @@ function IssueCard({
                             </span>
 
                             <StatusBadge status={issue.status} />
+
+                            {issue.locationTag?.label && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        const url = issue.locationTag.lat
+                                            ? `https://maps.google.com/?q=${issue.locationTag.lat},${issue.locationTag.lng}`
+                                            : `https://maps.google.com/?q=${encodeURIComponent(issue.locationTag.label)}`;
+                                        window.open(url, "_blank", "noopener,noreferrer");
+                                    }}
+                                    className="flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors cursor-pointer"
+                                >
+                                    📍 {issue.locationTag.label}
+                                </button>
+                            )}
                         </div>
                         <button
                             className="flex items-center gap-1.5 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
@@ -686,7 +620,7 @@ function IssueCard({
                                 className="text-xs font-semibold"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
-                                {realtimeCommentCount}
+                                {issue.commentCount}
                             </span>
                         </button>
                     </div>
@@ -708,7 +642,7 @@ function IssueCard({
                                 className="text-xs text-gray-400"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
-                                {count} {count === 1 ? "upvote" : "upvotes"}
+                                {count} {count === 1 ? "like" : "likes"}
                             </span>
                         </div>
                     )}
@@ -721,7 +655,7 @@ function IssueCard({
             />
         </>
     );
-}
+});
 
 export default function HomePage() {
     const [issues, setIssues] = useState([]);
@@ -729,12 +663,30 @@ export default function HomePage() {
     const [error, setError] = useState("");
     const [activeFilter, setActiveFilter] = useState("all");
     const [search, setSearch] = useState("");
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const searchWrapperRef = useRef(null);
     const [currentUser, setCurrentUser] = useState(null);
     const [authReady, setAuthReady] = useState(false);
     const [isAnonymous, setIsAnonymous] = useState(true);
-    const [onlineCampers, setOnlineCampers] = useState(0);
+    const onlineCampers = usePresence();
     const [userProfile, setUserProfile] = useState(null);
     const [sortBy, setSortBy] = useState("newest");
+    const [dismissedEmergencies, setDismissedEmergencies] = useState(() => {
+        try {
+            return new Set(JSON.parse(sessionStorage.getItem("dismissed_emergencies") || "[]"));
+        } catch {
+            return new Set();
+        }
+    });
+
+    const dismissEmergency = useCallback((id) => {
+        setDismissedEmergencies((prev) => {
+            const next = new Set(prev);
+            next.add(id);
+            try { sessionStorage.setItem("dismissed_emergencies", JSON.stringify([...next])); } catch {}
+            return next;
+        });
+    }, []);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -781,16 +733,6 @@ export default function HomePage() {
         return () => unsubscribe();
     }, []);
 
-    useEffect(() => {
-        if (!authReady || !currentUser) return;
-        const unsubscribe = subscribeToOnlineCount(setOnlineCampers);
-        const interval = setInterval(updateOnlineCount, 60000);
-        updateOnlineCount();
-        return () => {
-            unsubscribe();
-            clearInterval(interval);
-        };
-    }, [authReady, currentUser]);
 
     useEffect(() => {
         const q = query(collection(db, "issues"), orderBy("createdAt", "desc"));
@@ -805,6 +747,8 @@ export default function HomePage() {
                         title: d.title ?? "Untitled Issue",
                         description: d.description ?? "",
                         category: d.category ?? "other",
+                        type: d.type ?? null,
+                        isPinned: d.isPinned ?? false,
                         responseType: d.responseType ?? "yes_no",
                         voteOptions: d.voteOptions ?? [],
                         votes: d.votes ?? {},
@@ -816,6 +760,9 @@ export default function HomePage() {
                         timeAgo: seconds ? timeAgo(seconds) : "Just now",
                         status: d.status ?? null,
                         author: d.author ?? {},
+                        pollDeadline: d.pollDeadline ?? null,
+                        pollTimerEnabled: d.pollTimerEnabled ?? false,
+                        locationTag: d.locationTag ?? null,
                     };
                 });
                 setIssues(fetched);
@@ -823,16 +770,39 @@ export default function HomePage() {
             },
             (err) => {
                 console.error("Firestore error:", err);
-                setError("Could not load issues. Please refresh.");
+                setError("Could not load posts. Please refresh.");
                 setLoading(false);
             },
         );
         return () => unsubscribe();
     }, []);
 
-    const handleLoginClick = () => {
+    const handleLoginClick = useCallback(() => {
         window.location.href = "/login";
-    };
+    }, []);
+
+    useEffect(() => {
+        const handler = (e) => {
+            if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
+
+    const suggestions = search.trim().length >= 2
+        ? issues
+            .filter((issue) => {
+                const q = search.toLowerCase();
+                return (
+                    issue.title.toLowerCase().includes(q) ||
+                    issue.description.toLowerCase().includes(q) ||
+                    (normalisePlatoon(issue.author?.platoon) ?? "").toLowerCase().includes(q)
+                );
+            })
+            .slice(0, 6)
+        : [];
 
     const filters = [
         { key: "all", label: "All" },
@@ -840,7 +810,7 @@ export default function HomePage() {
         { key: "gist", label: "💬 Gist" },
         { key: "polls", label: "🗳️ Polls" },
         { key: "food", label: "🍛 Food" },
-        { key: "issues", label: "🚨 Issues" },
+        { key: "issues", label: "🚨 Problems" },
         { key: "opposed", label: "👎 Dislike" },
     ];
 
@@ -849,6 +819,10 @@ export default function HomePage() {
         setSortBy((prev) =>
             prev === "newest" ? "top" : prev === "top" ? "comments" : "newest",
         );
+
+    const emergencyPosts = issues.filter(
+        (i) => i.type === "emergency" && i.isPinned && !dismissedEmergencies.has(i.id)
+    );
 
     const filteredIssues = issues
         .filter((issue) => {
@@ -890,10 +864,10 @@ export default function HomePage() {
     return (
         <div
             className="min-h-screen pb-24 md:pb-0"
-            style={{ background: "#FDF6EF" }}
+            style={{ background: "var(--bg)" }}
         >
             {/* Mobile Header */}
-            <header className="md:hidden sticky top-0 z-40 bg-[#F97316] px-4 pt-6 pb-4">
+            <header className="md:hidden sticky top-0 z-40 px-4 pt-6 pb-4" style={{ background: "var(--header-bg)" }}>
                 <div className="flex items-center justify-between">
                     <div className="flex space-x-2 min-w-0 relative z-10 overflow-hidden">
                         <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center shrink-0 relative z-10">
@@ -928,17 +902,20 @@ export default function HomePage() {
                         {isAnonymous ? (
                             <Link
                                 href="/login"
-                                className="px-4 py-2 bg-white text-[#F97316] rounded-xl font-bold text-sm hover:bg-white/90 transition-colors"
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                                className="px-4 py-2 bg-white rounded-xl font-bold text-sm hover:bg-white/90 transition-colors"
+                                style={{ fontFamily: "DM Sans, sans-serif", color: "var(--cp)" }}
                             >
                                 Login
                             </Link>
                         ) : (
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-200 to-orange-400 border-2 border-white flex items-center justify-center">
-                                <span className="text-white text-xs font-bold">
-                                    {displayName.charAt(0).toUpperCase()}
-                                </span>
-                            </div>
+                            <Link href="/profile" className="relative">
+                                <div className="w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-cp-tint flex items-center justify-center">
+                                    {userProfile?.photoURL
+                                        ? <img src={userProfile.photoURL} alt="" className="w-full h-full object-cover" />
+                                        : <span className="text-white text-xs font-bold">{displayName.charAt(0).toUpperCase()}</span>
+                                    }
+                                </div>
+                            </Link>
                         )}
                     </div>
                 </div>
@@ -961,16 +938,19 @@ export default function HomePage() {
                     {isAnonymous ? (
                         <Link
                             href="/login"
-                            className="flex items-center gap-2 px-5 py-2.5 bg-[#F97316] text-white rounded-xl font-bold text-sm hover:bg-[#C2410C] transition-colors shadow-sm"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                            className="flex items-center gap-2 px-5 py-2.5 text-white rounded-xl font-bold text-sm transition-colors shadow-sm"
+                            style={{ background: "var(--cp)", fontFamily: "DM Sans, sans-serif" }}
                         >
                             <UserIcon />
                             Login
                         </Link>
                     ) : (
-                        <div className="flex items-center gap-2.5 bg-white rounded-xl px-3 py-2 shadow-sm border border-gray-100">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-300 to-orange-500 flex items-center justify-center text-white text-sm font-bold">
-                                {displayName.charAt(0).toUpperCase()}
+                        <Link href="/profile" className="flex items-center gap-2.5 bg-white rounded-xl px-3 py-2 shadow-sm border border-subtle hover:border-cp/30 transition-colors">
+                            <div className="w-8 h-8 rounded-full bg-cp overflow-hidden flex items-center justify-center text-white text-sm font-bold">
+                                {userProfile?.photoURL
+                                    ? <img src={userProfile.photoURL} alt="" className="w-full h-full object-cover" />
+                                    : displayName.charAt(0).toUpperCase()
+                                }
                             </div>
                             <div>
                                 <div
@@ -982,12 +962,10 @@ export default function HomePage() {
                                     {displayName}
                                 </div>
                                 <div className="text-xs text-gray-400 mt-0.5">
-                                    {displayPlatoon
-                                        ? displayPlatoon
-                                        : "No Platoon"}
+                                    {displayPlatoon ? displayPlatoon : "No Platoon"}
                                 </div>
                             </div>
-                        </div>
+                        </Link>
                     )}
                 </div>
             </div>
@@ -1008,11 +986,71 @@ export default function HomePage() {
                 </p>
             </div>
 
+            {/* Emergency Alerts — pinned at top, unmissable */}
+            {emergencyPosts.length > 0 && (
+                <div className="px-4 md:px-6 mt-4 space-y-2">
+                    {emergencyPosts.map((post) => (
+                        <div
+                            key={post.id}
+                            className="relative rounded-2xl p-4 shadow-lg overflow-hidden"
+                            style={{ background: "#DC2626" }}
+                        >
+                            {/* pulsing glow edge */}
+                            <div className="absolute inset-0 rounded-2xl border-2 border-white/30 animate-pulse pointer-events-none" />
+                            <div className="relative flex items-start gap-3">
+                                <span className="text-2xl shrink-0 mt-0.5">🚨</span>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                        <span className="text-[10px] font-black uppercase tracking-widest bg-white/25 text-white px-2 py-0.5 rounded-full">
+                                            Camp Alert
+                                        </span>
+                                        <span className="text-[10px] text-red-200 font-medium">
+                                            Camp Command · {post.timeAgo}
+                                        </span>
+                                    </div>
+                                    <p
+                                        className="font-bold text-sm text-white leading-snug"
+                                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
+                                    >
+                                        {post.title}
+                                    </p>
+                                    {post.description && (
+                                        <p
+                                            className="text-red-100 text-xs mt-1"
+                                            style={{ fontFamily: "DM Sans, sans-serif", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+                                        >
+                                            {post.description}
+                                        </p>
+                                    )}
+                                    <Link
+                                        href={`/issue/${post.id}`}
+                                        className="inline-block mt-2.5 text-xs font-bold bg-white text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                                    >
+                                        View Details →
+                                    </Link>
+                                </div>
+                                <button
+                                    onClick={() => dismissEmergency(post.id)}
+                                    aria-label="Dismiss alert"
+                                    className="shrink-0 w-7 h-7 flex items-center justify-center text-red-200 hover:text-white hover:bg-white/20 rounded-full transition-colors text-base leading-none"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {/* Desktop Greeting */}
             <div className="hidden md:block px-6 mt-4">
-                <div className="bg-white rounded-2xl p-4 shadow-card border border-gray-50 flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-300 to-orange-500 flex items-center justify-center text-white text-xl font-bold">
-                        {displayName.charAt(0).toUpperCase()}
+                <div className="bg-card rounded-2xl p-4 shadow-card border border-subtle flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-cp flex items-center justify-center text-white text-xl font-bold overflow-hidden">
+                        {userProfile?.photoURL
+                            ? <img src={userProfile.photoURL} alt="" className="w-full h-full object-cover" />
+                            : displayName.charAt(0).toUpperCase()
+                        }
                     </div>
                     <div>
                         <h2
@@ -1033,10 +1071,8 @@ export default function HomePage() {
                     <div className="ml-auto flex gap-6 text-center">
                         <div>
                             <div
-                                className="text-lg font-bold text-[#F97316]"
-                                style={{
-                                    fontFamily: "Plus Jakarta Sans, sans-serif",
-                                }}
+                                className="text-lg font-bold"
+                                style={{ color: "var(--cp)", fontFamily: "Plus Jakarta Sans, sans-serif" }}
                             >
                                 {issues.length}
                             </div>
@@ -1078,22 +1114,52 @@ export default function HomePage() {
 
             {/* Search + Sort */}
             <div className="px-4 md:px-6 mt-4 flex gap-2">
-                <div className="flex-1 relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                <div className="flex-1 relative" ref={searchWrapperRef}>
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10">
                         <SearchIcon />
                     </div>
                     <input
                         type="text"
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => { setSearch(e.target.value); setShowSuggestions(true); }}
+                        onFocus={() => setShowSuggestions(true)}
+                        onKeyDown={(e) => e.key === "Escape" && setShowSuggestions(false)}
                         placeholder="Search posts, platoon no..."
-                        className="w-full bg-white rounded-xl pl-9 pr-4 py-3 text-sm text-black placeholder-gray-400 border border-gray-100 shadow-card focus:outline-none focus:ring-2 focus:ring-[#F97316]/20 focus:border-[#F97316]/40 transition-all"
-                        style={{ fontFamily: "DM Sans, sans-serif" }}
+                        className="w-full bg-white rounded-xl pl-9 pr-4 py-3 text-sm text-black placeholder-gray-400 border border-subtle shadow-card focus:outline-none focus:ring-2 transition-all"
+                        style={{ "--tw-ring-color": "var(--cp-border)", fontFamily: "DM Sans, sans-serif" }}
                     />
+                    {showSuggestions && suggestions.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1.5 bg-card rounded-xl border border-subtle shadow-lg z-50 overflow-hidden">
+                            {suggestions.map((issue) => {
+                                const meta = CATEGORY_META[issue.category] ?? CATEGORY_META.other;
+                                return (
+                                    <button
+                                        key={issue.id}
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            setSearch(issue.title);
+                                            setShowSuggestions(false);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-subtle transition-colors text-left cursor-pointer border-b border-subtle last:border-b-0"
+                                    >
+                                        <span className="text-base shrink-0">{meta.emoji}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-black truncate" style={{ fontFamily: "DM Sans, sans-serif" }}>
+                                                {issue.title}
+                                            </p>
+                                            <p className="text-xs text-muted truncate" style={{ fontFamily: "DM Sans, sans-serif" }}>
+                                                {meta.label}{issue.author?.platoon ? ` · ${normalisePlatoon(issue.author.platoon)}` : ""}
+                                            </p>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
                 <button
                     onClick={cycleSort}
-                    className="h-11 bg-white rounded-xl flex items-center gap-1.5 px-3 shadow-card border border-gray-100 hover:bg-gray-50 transition-colors text-black shrink-0 self-center cursor-pointer"
+                    className="h-11 bg-white rounded-xl flex items-center gap-1.5 px-3 shadow-card border border-subtle hover:bg-subtle transition-colors text-black shrink-0 self-center cursor-pointer"
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
                     <SortIcon />
@@ -1110,8 +1176,8 @@ export default function HomePage() {
                         <button
                             key={f.key}
                             onClick={() => setActiveFilter(f.key)}
-                            className={`shrink-0 snap-start px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${activeFilter === f.key ? "bg-[#F97316] text-white shadow-sm" : "bg-white text-black border border-gray-200 hover:border-[#F97316]/40 hover:text-[#F97316]"}`}
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                            className={`shrink-0 snap-start px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${activeFilter === f.key ? "text-white shadow-sm" : "bg-white text-black border border-theme"}`}
+                            style={{ fontFamily: "DM Sans, sans-serif", ...(activeFilter === f.key ? { background: "var(--cp)" } : {}) }}
                         >
                             {f.label}
                         </button>
@@ -1200,10 +1266,11 @@ export default function HomePage() {
             {/* Floating Post Button (mobile) */}
             <Link
                 href="/create-issue"
-                className="md:hidden fixed bottom-20 right-4 flex items-center gap-2 bg-[#EA580C] text-white px-5 py-3.5 rounded-2xl font-bold text-sm shadow-lg hover:bg-[#C2410C] transition-colors"
+                className="md:hidden fixed bottom-20 right-4 flex items-center gap-2 text-white px-5 py-3.5 rounded-2xl font-bold text-sm shadow-lg transition-colors"
                 style={{
                     fontFamily: "DM Sans, sans-serif",
-                    boxShadow: "0 4px 20px rgba(232,97,26,0.45)",
+                    background: "var(--cp-deeper)",
+                    boxShadow: "0 4px 20px var(--cp-glow)",
                 }}
             >
                 <span className="text-lg font-light">+</span>

@@ -158,19 +158,19 @@ function formatNum(n = 0) {
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 function SkeletonCard() {
     return (
-        <div className="bg-white rounded-2xl p-4 border border-[#FED7AA] animate-pulse">
+        <div className="bg-card rounded-2xl p-4 border border-cp-border animate-pulse">
             <div className="flex items-start gap-3">
-                <div className="w-14 h-14 rounded-2xl bg-gray-100 shrink-0" />
+                <div className="w-14 h-14 rounded-2xl bg-muted shrink-0" />
                 <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-gray-100 rounded w-2/3" />
-                    <div className="h-3 bg-gray-100 rounded w-1/3" />
-                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                    <div className="h-4 bg-muted rounded w-2/3" />
+                    <div className="h-3 bg-muted rounded w-1/3" />
+                    <div className="h-3 bg-muted rounded w-1/2" />
                 </div>
             </div>
             <div className="flex gap-2 mt-3">
-                <div className="h-6 bg-gray-100 rounded-full flex-1" />
-                <div className="h-6 bg-gray-100 rounded-full flex-1" />
-                <div className="h-6 bg-gray-100 rounded-full flex-1" />
+                <div className="h-6 bg-muted rounded-full flex-1" />
+                <div className="h-6 bg-muted rounded-full flex-1" />
+                <div className="h-6 bg-muted rounded-full flex-1" />
             </div>
         </div>
     );
@@ -190,7 +190,7 @@ function UserProfileCard({ user }) {
         user.role === "top_reporter"
             ? {
                   label: "🔥 Top Reporter",
-                  cls: "bg-orange-50 text-orange-600 border-orange-100",
+                  cls: "bg-cp-tint text-cp border-cp/20",
               }
             : user.role === "admin"
               ? {
@@ -201,11 +201,11 @@ function UserProfileCard({ user }) {
 
     return (
         <Link href={`/profile/${user.uid}`}>
-            <div className="bg-white rounded-2xl mb-2 md:mb-0 p-4 border border-[#FED7AA] hover:border-orange-300 hover:shadow-lg transition-all cursor-pointer group">
+            <div className="bg-card rounded-2xl mb-2 md:mb-0 p-4 border border-cp-border hover:border-cp/40 hover:shadow-lg transition-all cursor-pointer group">
                 <div className="flex items-start gap-3">
                     {/* Avatar */}
                     <div className="relative shrink-0">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-300 to-orange-500 flex items-center justify-center text-white text-xl font-black border-2 border-white shadow overflow-hidden">
+                        <div className="w-14 h-14 rounded-2xl bg-cp flex items-center justify-center text-white text-xl font-black border-2 border-white shadow overflow-hidden">
                             {user.photoURL ? (
                                 <Image
                                     src={user.photoURL}
@@ -220,8 +220,16 @@ function UserProfileCard({ user }) {
                                     .toUpperCase()
                             )}
                         </div>
-                        {user.isOnline && (
-                            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-white" />
+                        {user.isVerified && (
+                            <div
+                                className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center"
+                                style={{ background: "var(--cp)" }}
+                                title="Profile complete"
+                            >
+                                <svg viewBox="0 0 16 16" fill="white" className="w-2 h-2">
+                                    <path d="M13 3.5 6.5 10 3 6.5l-1 1L6.5 12 14 4.5z" />
+                                </svg>
+                            </div>
                         )}
                     </div>
 
@@ -229,7 +237,7 @@ function UserProfileCard({ user }) {
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                             <h3
-                                className="font-bold text-gray-900 text-sm group-hover:text-[#F97316] transition-colors"
+                                className="font-bold text-gray-900 text-sm group-hover:text-cp transition-colors"
                                 style={{
                                     fontFamily: "Plus Jakarta Sans, sans-serif",
                                 }}
@@ -245,7 +253,7 @@ function UserProfileCard({ user }) {
                             )}
                         </div>
                         <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-50 text-orange-600">
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-cp-tint text-cp">
                                 Lv.{levelData.level} · {levelData.name}
                             </span>
                         </div>
@@ -265,8 +273,8 @@ function UserProfileCard({ user }) {
                 </div>
 
                 {/* Stats row */}
-                <div className="flex items-center gap-1 mt-3 pt-3 border-t border-gray-50">
-                    <div className="flex-1 flex flex-col items-center py-1.5 rounded-xl bg-orange-50">
+                <div className="flex items-center gap-1 mt-3 pt-3 border-t border-subtle">
+                    <div className="flex-1 flex flex-col items-center py-1.5 rounded-xl bg-cp-tint">
                         <div className="flex items-center gap-1">
                             <PostIcon />
                             <span className="text-xs font-black text-gray-800">
@@ -317,7 +325,7 @@ function UserProfileCard({ user }) {
 
                 {/* View Profile CTA */}
                 <div className="mt-2 text-center">
-                    <span className="text-[11px] font-semibold text-[#F97316] group-hover:text-[#C2410C] transition-colors">
+                    <span className="text-[11px] font-semibold text-cp group-hover:text-cp transition-colors">
                         View Full Profile →
                     </span>
                 </div>
@@ -501,7 +509,7 @@ export default function SearchUsersPage() {
             style={{ background: "#FDF6EF" }}
         >
             {/* Mobile Header */}
-            <header className="md:hidden sticky top-0 z-40 bg-[#F97316] px-4 pt-6 pb-4">
+            <header className="md:hidden sticky top-0 z-40 bg-cp px-4 pt-6 pb-4">
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => window.history.back()}
@@ -552,7 +560,7 @@ export default function SearchUsersPage() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search camper by name…"
-                        className="w-full bg-white rounded-2xl pl-12 pr-12 py-4 text-sm text-black placeholder-gray-400 border-2 border-[#FED7AA] shadow-sm focus:outline-none focus:border-[#F97316] transition-all"
+                        className="w-full bg-card rounded-2xl pl-12 pr-12 py-4 text-sm text-black placeholder-gray-400 border-2 border-cp-border shadow-sm focus:outline-none focus:border-cp transition-all"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     />
                     {searchQuery && (
@@ -667,7 +675,7 @@ export default function SearchUsersPage() {
                                     ))}
                                 </div>
                             ) : (
-                                <div className="bg-white rounded-2xl p-8 border border-[#FED7AA] text-center">
+                                <div className="bg-card rounded-2xl p-8 border border-cp-border text-center">
                                     <div className="text-4xl mb-2">👥</div>
                                     <p
                                         className="text-gray-500 text-sm"

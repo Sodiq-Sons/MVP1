@@ -1,7 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import {
+    ALL_ALIASES,
+    pickRandom,
+    fetchTakenAliases,
+    claimAlias,
+    releaseAlias,
+} from "@/lib/campAliases";
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 
@@ -66,7 +73,7 @@ function PrimaryBtn({ children, onClick, className = "", disabled = false }) {
         <button
             onClick={onClick}
             disabled={disabled}
-            className={`w-full bg-[#F97316] hover:bg-[#EA580C] active:scale-[0.98] text-white font-bold text-sm sm:text-[15px] py-3 sm:py-3.5 md:py-4 rounded-2xl transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+            className={`w-full btn-primary active:scale-[0.98] text-white font-bold text-sm sm:text-[15px] py-3 sm:py-3.5 md:py-4 rounded-2xl transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
             style={{ fontFamily: "DM Sans, sans-serif" }}
         >
             {children}
@@ -78,7 +85,7 @@ function GhostBtn({ children, onClick, className = "" }) {
     return (
         <button
             onClick={onClick}
-            className={`w-full bg-transparent hover:bg-[#FFF5EF] text-[#F97316] font-bold text-sm sm:text-[15px] py-3 sm:py-3.5 md:py-4 rounded-2xl border-2 border-[#F97316] transition-colors cursor-pointer ${className}`}
+            className={`w-full bg-transparent hover:bg-cp-tint text-cp font-bold text-sm sm:text-[15px] py-3 sm:py-3.5 md:py-4 rounded-2xl border-2 border-cp transition-colors cursor-pointer ${className}`}
             style={{ fontFamily: "DM Sans, sans-serif" }}
         >
             {children}
@@ -103,7 +110,7 @@ function WhiteBtn({ children, onClick, outline = false }) {
     return (
         <button
             onClick={onClick}
-            className={`${base} bg-white hover:bg-[#FFF5EF] text-[#F97316]`}
+            className={`${base} bg-white hover:bg-cp-tint text-cp`}
             style={{ fontFamily: "DM Sans, sans-serif" }}
         >
             {children}
@@ -146,7 +153,7 @@ function PageHeader({
 }) {
     return (
         <div
-            className={`bg-[#F97316] px-4 sm:px-6 md:px-8 lg:px-12 pt-5 sm:pt-6 md:pt-8 pb-6 sm:pb-7 md:pb-10 ${className}`}
+            className={`bg-cp px-4 sm:px-6 md:px-8 lg:px-12 pt-5 sm:pt-6 md:pt-8 pb-6 sm:pb-7 md:pb-10 ${className}`}
         >
             <div className="max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
                 <div className="flex items-center justify-between mb-4 sm:mb-5">
@@ -204,7 +211,7 @@ function InputField({
                 placeholder={placeholder}
                 value={value}
                 onChange={onChange}
-                className="w-full px-4 py-3 sm:py-3.5 rounded-xl border-[1.5px] border-[#E8DDD4] focus:border-[#F97316] outline-none text-sm sm:text-[15px] text-gray-900 placeholder-gray-300 bg-white transition-colors"
+                className="w-full px-4 py-3 sm:py-3.5 rounded-xl border-[1.5px] border-[#E8DDD4] focus:border-cp outline-none text-sm sm:text-[15px] text-gray-900 placeholder-gray-300 bg-white transition-colors"
                 style={{ fontFamily: "DM Sans, sans-serif" }}
             />
         </div>
@@ -228,7 +235,7 @@ function ContentWrap({ children, className = "" }) {
 
 function SplashScreen({ goTo }) {
     return (
-        <div className="flex flex-col bg-[#F97316] min-h-screen">
+        <div className="flex flex-col bg-cp min-h-screen">
             <div className="flex-1 flex flex-col px-4 sm:px-6 md:px-8 lg:px-12 pt-8 sm:pt-10 md:pt-14 lg:pt-16 pb-6 sm:pb-8 max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
                 {/* Topbar */}
                 <div className="flex items-center justify-between mb-16 md:mb-7">
@@ -324,13 +331,13 @@ const PREVIEW_POSTS = [
     {
         id: 1,
         tag: "🔥 GIST",
-        tagColor: "text-[#F97316]",
-        tagBg: "bg-[#FFF0E6]",
+        tagColor: "text-cp",
+        tagBg: "bg-cp-tint",
         title: 'The parade commander is definitely not from this planet 😭 how does 5am count as "morning"?',
         meta: "Sokoto Camp · 23 min ago · Anonymous",
         votes: 63,
-        voteColor: "text-[#F97316]",
-        voteBg: "bg-[#FFF0E6]",
+        voteColor: "text-cp",
+        voteBg: "bg-cp-tint",
         poll: null,
     },
     {
@@ -389,7 +396,7 @@ function FeedPreviewScreen({ goTo }) {
                     {PREVIEW_POSTS.map((p) => (
                         <div
                             key={p.id}
-                            className="bg-white rounded-2xl p-4 sm:p-5 border border-black/[0.07] shadow-sm hover:shadow-md transition-shadow"
+                            className="bg-card rounded-2xl p-4 sm:p-5 border border-black/[0.07] shadow-sm hover:shadow-md transition-shadow"
                         >
                             <div className="flex justify-between items-start gap-2.5 sm:gap-3">
                                 <div className="flex-1 min-w-0">
@@ -413,13 +420,13 @@ function FeedPreviewScreen({ goTo }) {
                                                 <span className="truncate pr-2">
                                                     {p.poll.label}
                                                 </span>
-                                                <span className="font-bold text-[#F97316] shrink-0">
+                                                <span className="font-bold text-cp shrink-0">
                                                     {p.poll.pct}%
                                                 </span>
                                             </div>
                                             <div className="h-1.5 bg-[#F5EDE5] rounded-full overflow-hidden">
                                                 <div
-                                                    className="h-full bg-[#F97316] rounded-full"
+                                                    className="h-full bg-cp rounded-full"
                                                     style={{
                                                         width: `${p.poll.pct}%`,
                                                     }}
@@ -498,7 +505,7 @@ function FeedPreviewScreen({ goTo }) {
                         </span>
                         <button
                             onClick={() => goTo("login")}
-                            className="text-xs sm:text-sm text-[#F97316] font-bold cursor-pointer"
+                            className="text-xs sm:text-sm text-cp font-bold cursor-pointer"
                         >
                             Log in →
                         </button>
@@ -525,7 +532,7 @@ function CampSelectScreen({ goTo, selectedCamp, setSelectedCamp }) {
             className="flex flex-col min-h-full"
             style={{ background: "#FDF6EF" }}
         >
-            <div className="bg-[#F97316] px-4 sm:px-6 md:px-8 lg:px-12 pt-5 sm:pt-6 md:pt-8 pb-6 sm:pb-7 md:pb-16">
+            <div className="bg-cp px-4 sm:px-6 md:px-8 lg:px-12 pt-5 sm:pt-6 md:pt-8 pb-6 sm:pb-7 md:pb-16">
                 <div className="max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
                     <div className="flex items-center justify-between mb-4 sm:mb-5">
                         <button
@@ -563,7 +570,7 @@ function CampSelectScreen({ goTo, selectedCamp, setSelectedCamp }) {
                     <input
                         type="text"
                         placeholder="Search camp or state..."
-                        className="w-full px-4 py-3 sm:py-3.5 rounded-xl border-[1.5px] border-[#E8DDD4] focus:border-[#F97316] outline-none text-sm sm:text-[15px] text-gray-900 placeholder-gray-300 bg-white transition-colors mb-4"
+                        className="w-full px-4 py-3 sm:py-3.5 rounded-xl border-[1.5px] border-[#E8DDD4] focus:border-cp outline-none text-sm sm:text-[15px] text-gray-900 placeholder-gray-300 bg-white transition-colors mb-4"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     />
 
@@ -574,8 +581,8 @@ function CampSelectScreen({ goTo, selectedCamp, setSelectedCamp }) {
                                 onClick={() => setSelectedCamp(camp.name)}
                                 className={`w-full text-left rounded-2xl p-3.5 sm:p-4 border-[1.5px] transition-all cursor-pointer flex items-center justify-between gap-3 ${
                                     selectedCamp === camp.name
-                                        ? "border-[#F97316] bg-[#FFF0E6]"
-                                        : "border-[#E8DDD4] bg-white hover:border-[#F97316] hover:bg-[#FFF8F4]"
+                                        ? "border-cp bg-cp-tint"
+                                        : "border-[#E8DDD4] bg-white hover:border-cp hover:bg-cp-tint"
                                 }`}
                             >
                                 <div className="min-w-0 flex-1">
@@ -592,7 +599,7 @@ function CampSelectScreen({ goTo, selectedCamp, setSelectedCamp }) {
                                         className={`text-xs mt-1 font-semibold ${
                                             camp.hot ||
                                             selectedCamp === camp.name
-                                                ? "text-[#F97316]"
+                                                ? "text-cp"
                                                 : "text-gray-400"
                                         }`}
                                     >
@@ -605,7 +612,7 @@ function CampSelectScreen({ goTo, selectedCamp, setSelectedCamp }) {
                                 <div
                                     className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
                                         selectedCamp === camp.name
-                                            ? "border-[#F97316] bg-[#F97316]"
+                                            ? "border-cp bg-cp"
                                             : "border-[#D0C8C0]"
                                     }`}
                                 >
@@ -633,21 +640,96 @@ function CampSelectScreen({ goTo, selectedCamp, setSelectedCamp }) {
 
 // ── SCREEN 4 — Username + Anon Toggle ──────────────────────────────────────
 
-const SUGGESTED_NAMES = [
-    "SilentCorper",
-    "CampVoice_88",
-    "NaijaRookie_7",
-    "BarracksBoss",
-    "KhakiVibes",
-];
-
 function UsernameScreen({ goTo, username, setUsername, anon, setAnon }) {
+    const [suggestions, setSuggestions] = useState([]);
+    const [loadingAliases, setLoadingAliases] = useState(true);
+    const [claiming, setClaiming] = useState(false);
+    // Stable session ID for this onboarding session
+    const sessionIdRef = useRef(Math.random().toString(36).slice(2, 10));
+    // Track which alias this session has pending in Firestore
+    const pendingAliasRef = useRef(null);
+    // Snapshot of taken aliases fetched on mount (updated as we claim)
+    const takenSetRef = useRef(new Set());
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const taken = await fetchTakenAliases();
+                if (cancelled) return;
+                takenSetRef.current = taken;
+                const available = ALL_ALIASES.filter((a) => !taken.has(a));
+                setSuggestions(pickRandom(available, 7));
+            } catch {
+                // fallback: pick random from full list
+                setSuggestions(pickRandom(ALL_ALIASES, 7));
+            } finally {
+                if (!cancelled) setLoadingAliases(false);
+            }
+        })();
+        // Release pending alias when user navigates away from this screen
+        return () => {
+            cancelled = true;
+            if (pendingAliasRef.current) {
+                releaseAlias(pendingAliasRef.current).catch(() => {});
+                pendingAliasRef.current = null;
+            }
+        };
+    }, []);
+
+    async function handleAliasClick(alias) {
+        if (claiming || alias === username) return;
+        setClaiming(true);
+        try {
+            // Release the previous pending alias so it re-enters the pool
+            if (pendingAliasRef.current && pendingAliasRef.current !== alias) {
+                await releaseAlias(pendingAliasRef.current);
+                takenSetRef.current.delete(pendingAliasRef.current);
+            }
+            // Claim the new alias
+            await claimAlias(alias, sessionIdRef.current);
+            pendingAliasRef.current = alias;
+            takenSetRef.current.add(alias);
+            setUsername(alias);
+
+            // Replace the clicked chip with a fresh available alias
+            const shownNow = suggestions;
+            const pool = ALL_ALIASES.filter(
+                (a) => !takenSetRef.current.has(a) && !shownNow.includes(a)
+            );
+            const replacement =
+                pool.length > 0
+                    ? pool[Math.floor(Math.random() * pool.length)]
+                    : null;
+            setSuggestions(
+                shownNow
+                    .map((s) => (s === alias ? replacement : s))
+                    .filter(Boolean)
+            );
+        } catch {
+            // Firestore unavailable — just set the name locally
+            setUsername(alias);
+        } finally {
+            setClaiming(false);
+        }
+    }
+
+    function handleLockIn() {
+        if (!username.trim()) return;
+        // Store alias so the register page can finalize it after account creation
+        localStorage.setItem("onboardingAlias", username.trim());
+        localStorage.setItem("onboardingAliasSession", sessionIdRef.current);
+        // Prevent cleanup effect from releasing the alias we're keeping
+        pendingAliasRef.current = null;
+        goTo("first-vote");
+    }
+
     return (
         <div
             className="flex flex-col min-h-full"
             style={{ background: "#FDF6EF" }}
         >
-            <div className="bg-[#F97316] px-4 sm:px-6 md:px-8 lg:px-12 pt-5 sm:pt-6 md:pt-8 pb-6 sm:pb-7 md:pb-10">
+            <div className="bg-cp px-4 sm:px-6 md:px-8 lg:px-12 pt-5 sm:pt-6 md:pt-8 pb-6 sm:pb-7 md:pb-10">
                 <div className="max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
                     <div className="flex items-center justify-between mb-4 sm:mb-5">
                         <button
@@ -673,7 +755,7 @@ function UsernameScreen({ goTo, username, setUsername, anon, setAnon }) {
                         className="text-white/80 text-sm sm:text-base leading-relaxed"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     >
-                        Pick a name — or go fully anonymous. No judgment here.
+                        Pick a camp alias or type your own. No judgment here.
                     </p>
                     <StepBar pct={66} />
                 </div>
@@ -684,31 +766,77 @@ function UsernameScreen({ goTo, username, setUsername, anon, setAnon }) {
                     <InputField
                         label="Your camp alias"
                         type="text"
-                        placeholder="Pick a username..."
+                        placeholder="Type a custom name..."
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         id="usernameInput"
                     />
 
-                    {/* Suggestion chips — wraps naturally */}
-                    <div className="flex flex-wrap gap-2 my-4">
-                        {SUGGESTED_NAMES.map((name) => (
-                            <button
-                                key={name}
-                                onClick={() => setUsername(name)}
-                                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                                    username === name
-                                        ? "bg-[#F97316] text-white border-2 border-[#F97316]"
-                                        : "bg-[#FFF0E6] text-[#C05207] border-2 border-transparent hover:border-[#F97316]"
-                                }`}
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
-                            >
-                                {name}
-                            </button>
-                        ))}
+                    {/* Live alias chips from Firestore */}
+                    <div>
+                        <p
+                            className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5"
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                        >
+                            {loadingAliases
+                                ? "Finding available aliases…"
+                                : "Available camp aliases — tap to claim"}
+                        </p>
+                        {loadingAliases ? (
+                            <div className="flex flex-wrap gap-2">
+                                {Array.from({ length: 7 }).map((_, i) => (
+                                    <div
+                                        key={i}
+                                        className="h-8 w-24 rounded-full bg-gray-100 animate-pulse"
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-wrap gap-2">
+                                {suggestions.map((name) => {
+                                    const isSelected = username === name;
+                                    return (
+                                        <button
+                                            key={name}
+                                            onClick={() =>
+                                                handleAliasClick(name)
+                                            }
+                                            disabled={claiming}
+                                            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer border-2 flex items-center gap-1.5 ${
+                                                isSelected
+                                                    ? "bg-cp text-white border-cp shadow-sm"
+                                                    : "bg-cp-tint text-cp border-transparent hover:border-cp"
+                                            } disabled:opacity-60`}
+                                            style={{
+                                                fontFamily:
+                                                    "DM Sans, sans-serif",
+                                            }}
+                                        >
+                                            {isSelected && (
+                                                <svg
+                                                    viewBox="0 0 16 16"
+                                                    fill="currentColor"
+                                                    className="w-3 h-3 shrink-0"
+                                                >
+                                                    <path d="M13.5 3.5 6 11 2.5 7.5l-1 1L6 13l8.5-8.5z" />
+                                                </svg>
+                                            )}
+                                            {name}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        <p
+                            className="text-[10px] text-gray-300 mt-2"
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                        >
+                            Each alias is unique — once claimed it&apos;s yours.
+                            You can change it later in profile settings.
+                        </p>
                     </div>
 
-                    {/* Anon toggle — fixed using proper CSS */}
+                    {/* Anon toggle */}
                     <div className="flex items-center justify-between bg-white rounded-xl p-4 border-[1.5px] border-[#E8DDD4] gap-4 mb-4">
                         <div className="min-w-0 flex-1">
                             <div className="text-sm font-bold text-gray-900">
@@ -722,8 +850,8 @@ function UsernameScreen({ goTo, username, setUsername, anon, setAnon }) {
                             onClick={() => setAnon(!anon)}
                             role="switch"
                             aria-checked={anon}
-                            className={`relative shrink-0 w-10 h-6 rounded-full transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F97316] ${
-                                anon ? "bg-[#F97316]" : "bg-[#E0D8D0]"
+                            className={`relative shrink-0 w-10 h-6 rounded-full transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 ${
+                                anon ? "bg-cp" : "bg-[#E0D8D0]"
                             }`}
                             style={{ minWidth: "2.5rem" }}
                         >
@@ -742,7 +870,7 @@ function UsernameScreen({ goTo, username, setUsername, anon, setAnon }) {
                         <div className="text-base sm:text-lg shrink-0 mt-0.5">
                             🫣
                         </div>
-                        <div className="text-xs text-[#C05207] leading-relaxed">
+                        <div className="text-xs text-cp leading-relaxed">
                             Anonymous posts reach{" "}
                             <strong>40% more people</strong> — camp is always
                             more honest when nobody&apos;s watching.
@@ -750,8 +878,11 @@ function UsernameScreen({ goTo, username, setUsername, anon, setAnon }) {
                     </div>
 
                     <div className="pt-2 pb-2">
-                        <PrimaryBtn onClick={() => goTo("first-vote")}>
-                            Lock it in →
+                        <PrimaryBtn
+                            onClick={handleLockIn}
+                            disabled={!username.trim() || claiming}
+                        >
+                            {claiming ? "Claiming alias…" : "Lock it in →"}
                         </PrimaryBtn>
                     </div>
                 </ContentWrap>
@@ -782,7 +913,7 @@ function FirstVoteScreen({ goTo }) {
             className="flex flex-col min-h-full"
             style={{ background: "#FDF6EF" }}
         >
-            <div className="bg-[#F97316] px-4 sm:px-6 md:px-8 lg:px-12 pt-5 sm:pt-6 md:pt-8 pb-6 sm:pb-7 md:pb-10">
+            <div className="bg-cp px-4 sm:px-6 md:px-8 lg:px-12 pt-5 sm:pt-6 md:pt-8 pb-6 sm:pb-7 md:pb-10">
                 <div className="max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
                     <div className="flex items-center justify-between mb-4 sm:mb-5">
                         <button
@@ -822,8 +953,8 @@ function FirstVoteScreen({ goTo }) {
                                         onClick={() => doVote(i)}
                                         className={`w-full text-left px-4 py-3.5 sm:py-4 rounded-xl border-[1.5px] bg-white text-sm sm:text-[15px] font-medium transition-all cursor-pointer ${
                                             picked === i
-                                                ? "border-[#F97316] bg-[#FFF0E6] text-[#C05207] font-bold"
-                                                : "border-[#E8DDD4] hover:border-[#F97316] hover:bg-[#FFF8F4] text-gray-900"
+                                                ? "border-cp bg-cp-tint text-cp font-bold"
+                                                : "border-[#E8DDD4] hover:border-cp hover:bg-cp-tint text-gray-900"
                                         }`}
                                         style={{
                                             fontFamily: "DM Sans, sans-serif",
@@ -841,10 +972,10 @@ function FirstVoteScreen({ goTo }) {
                         </>
                     ) : (
                         <>
-                            <div className="bg-white rounded-2xl p-4 sm:p-5 md:p-6 border border-black/[0.07] shadow-sm">
+                            <div className="bg-card rounded-2xl p-4 sm:p-5 md:p-6 border border-black/[0.07] shadow-sm">
                                 <div className="text-center pb-4">
                                     <div
-                                        className="font-extrabold text-2xl sm:text-3xl text-[#F97316]"
+                                        className="font-extrabold text-2xl sm:text-3xl text-cp"
                                         style={{
                                             fontFamily:
                                                 "Plus Jakarta Sans, sans-serif",
@@ -862,7 +993,7 @@ function FirstVoteScreen({ goTo }) {
                                         {
                                             label: "No — release us 😭",
                                             pct: 61,
-                                            color: "#F97316",
+                                            color: "var(--cp)",
                                         },
                                         {
                                             label: "Yes — more time 🤝",
@@ -881,7 +1012,7 @@ function FirstVoteScreen({ goTo }) {
                                                     {r.label}
                                                 </span>
                                                 <span
-                                                    className={`shrink-0 ${i === 0 ? "font-bold text-[#F97316]" : ""}`}
+                                                    className={`shrink-0 ${i === 0 ? "font-bold text-cp" : ""}`}
                                                 >
                                                     {r.pct}%
                                                 </span>
@@ -903,7 +1034,7 @@ function FirstVoteScreen({ goTo }) {
                             <div className="pb-2 mt-4">
                                 <Link
                                     href="/login"
-                                    className="w-full flex items-center justify-center bg-[#F97316] hover:bg-[#EA580C] active:scale-[0.98] text-white font-bold text-sm sm:text-[15px] py-3 sm:py-3.5 md:py-4 rounded-2xl transition-all cursor-pointer"
+                                    className="w-full flex items-center justify-center btn-primary active:scale-[0.98] text-white font-bold text-sm sm:text-[15px] py-3 sm:py-3.5 md:py-4 rounded-2xl transition-all cursor-pointer"
                                     style={{
                                         fontFamily: "DM Sans, sans-serif",
                                     }}
@@ -924,7 +1055,7 @@ function FirstVoteScreen({ goTo }) {
 export default function OnboardingFlow() {
     const [screen, setScreen] = useState("splash");
     const [selectedCamp, setSelectedCamp] = useState(null);
-    const [username, setUsername] = useState("CampVoice_88");
+    const [username, setUsername] = useState("");
     const [anon, setAnon] = useState(false);
 
     const goTo = (s) => {
@@ -934,7 +1065,7 @@ export default function OnboardingFlow() {
 
     return (
         <div className="min-h-screen bg-[#111] flex justify-center">
-            <div className="w-full max-w-full min-h-screen bg-[#FDF6EF] relative overflow-x-hidden">
+            <div className="w-full max-w-full min-h-screen bg-page relative overflow-x-hidden">
                 {screen === "splash" && <SplashScreen goTo={goTo} />}
                 {screen === "feed-preview" && <FeedPreviewScreen goTo={goTo} />}
                 {screen === "camp-select" && (

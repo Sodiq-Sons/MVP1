@@ -21,9 +21,10 @@ import {
     setDoc,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged, signOut, signInAnonymously } from "firebase/auth";
+import { onAuthStateChanged, signOut, signInAnonymously, updateProfile } from "firebase/auth";
 import { toast } from "sonner";
 import Image from "next/image";
+import { isProfileComplete } from "@/lib/profileCompletion";
 
 // ── Icons
 const LocationIcon = () => (
@@ -347,21 +348,21 @@ function getCategoryEmoji(cat) {
 function getCategoryBg(cat) {
     return (
         {
-            infrastructure: "bg-orange-50",
+            infrastructure: "bg-cp-tint",
             education: "bg-blue-50",
             healthcare: "bg-rose-50",
             security: "bg-red-50",
             environment: "bg-green-50",
             water: "bg-cyan-50",
             electricity: "bg-yellow-50",
-            other: "bg-gray-50",
-        }[cat] || "bg-gray-50"
+            other: "bg-subtle",
+        }[cat] || "bg-subtle"
     );
 }
 function getCategoryColor(cat) {
     return (
         {
-            infrastructure: "text-orange-700",
+            infrastructure: "text-cp",
             education: "text-blue-700",
             healthcare: "text-rose-700",
             security: "text-red-700",
@@ -383,7 +384,7 @@ function getLevelData(points) {
 function LevelProgress({ stats }) {
     if (!stats) return null;
     return (
-        <div className="bg-gradient-to-br from-[#EA580C] to-[#F97316] rounded-2xl p-4 text-white relative overflow-hidden">
+        <div className="bg-gradient-to-br from-[color:var(--cp-deeper)] to-[color:var(--cp)] rounded-2xl p-4 text-white relative overflow-hidden">
             <div
                 className="absolute inset-0 opacity-10"
                 style={{
@@ -422,13 +423,13 @@ function LevelProgress({ stats }) {
 
 function StatCard({ icon, value, label, color = "orange" }) {
     const colors = {
-        orange: "bg-orange-50 text-orange-600",
+        orange: "bg-cp-tint text-cp",
         blue: "bg-blue-50 text-blue-600",
         green: "bg-green-50 text-green-600",
         purple: "bg-purple-50 text-purple-600",
     };
     return (
-        <div className="text-center bg-gray-50 rounded-xl py-3 px-2">
+        <div className="text-center bg-subtle rounded-xl py-3 px-2">
             <div
                 className={`w-8 h-8 rounded-lg ${colors[color]} flex items-center justify-center mx-auto mb-1.5`}
             >
@@ -447,9 +448,9 @@ function StatCard({ icon, value, label, color = "orange" }) {
 
 function LoginPrompt({ onLogin }) {
     return (
-        <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
-            <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-8 max-w-md w-full text-center">
-                <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="min-h-screen bg-page flex items-center justify-center px-4">
+            <div className="bg-card rounded-3xl shadow-lg border border-subtle p-8 max-w-md w-full text-center">
+                <div className="w-20 h-20 bg-cp-tint rounded-full flex items-center justify-center mx-auto mb-4">
                     <LockIcon />
                 </div>
                 <h2
@@ -466,10 +467,10 @@ function LoginPrompt({ onLogin }) {
                 </p>
                 <button
                     onClick={onLogin}
-                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98] transition-all duration-200 cursor-pointer"
+                    className="w-full py-3.5 rounded-2xl font-bold text-base btn-primary shadow-lg active:scale-[0.98] transition-all duration-200 cursor-pointer"
                     style={{
                         fontFamily: "DM Sans, sans-serif",
-                        boxShadow: "0 4px 20px rgba(232,97,26,0.35)",
+                        boxShadow: "0 4px 20px var(--cp-glow)",
                     }}
                 >
                     Log In to Continue
@@ -481,7 +482,7 @@ function LoginPrompt({ onLogin }) {
                     Don&apos;t have an account?{" "}
                     <Link
                         href="/register"
-                        className="text-[#F97316] font-semibold hover:underline"
+                        className="text-cp font-semibold hover:underline"
                     >
                         Sign up
                     </Link>
@@ -521,6 +522,9 @@ export default function ProfilePage() {
     });
     const [gamificationStats, setGamificationStats] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [photoUploading, setPhotoUploading] = useState(false);
+    const [profileVerified, setProfileVerified] = useState(false);
+    const photoInputRef = useRef(null);
 
     // ── Subscriptions in a ref so cleanup never causes re-renders ────────────
     const subscriptionsRef = useRef([]);
@@ -624,7 +628,20 @@ export default function ProfilePage() {
                                 joinedAt: data.createdAt?.toDate
                                     ? data.createdAt.toDate()
                                     : new Date(),
+                                streak: data.streak || 0,
+                                maxStreak: data.maxStreak || 0,
+                                platoon: data.platoon || null,
                             });
+                            setProfileVerified(isProfileComplete({
+                                email: data.email,
+                                phone: data.phoneNumber,
+                                stateOfOrigin: data.stateOfOrigin,
+                                gender: data.gender,
+                                institutionType: data.institutionType,
+                                campLocation: data.campLocation,
+                                religion: data.religion,
+                                bio: data.bio,
+                            }));
                         }
                         setLoading(false);
                     },
@@ -855,6 +872,35 @@ export default function ProfilePage() {
         }
     };
 
+    const handlePhotoUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file || !currentUser) return;
+        if (!file.type.startsWith("image/")) { toast.error("Please select an image file."); return; }
+        if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB."); return; }
+
+        setPhotoUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            const res = await fetch("/api/upload", { method: "POST", body: formData });
+            if (!res.ok) throw new Error("Upload failed");
+            const { url } = await res.json();
+
+            await updateProfile(currentUser, { photoURL: url });
+            await updateDoc(doc(db, "users", currentUser.uid), { photoURL: url, updatedAt: serverTimestamp() });
+
+            // Refresh authProfile locally
+            setAuthProfile((prev) => prev ? { ...prev, photoURL: url } : prev);
+            toast.success("Profile photo updated!");
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to upload photo. Please try again.");
+        } finally {
+            setPhotoUploading(false);
+            if (photoInputRef.current) photoInputRef.current.value = "";
+        }
+    };
+
     const handleLoginClick = () => {
         router.push(
             `/login?redirect=${encodeURIComponent(window.location.pathname)}`,
@@ -869,7 +915,7 @@ export default function ProfilePage() {
                 style={{ background: "#FDF6EF" }}
             >
                 <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 border-4 border-orange-200 border-t-[#F97316] rounded-full animate-spin" />
+                    <div className="w-8 h-8 border-4 border-theme spinner-cp rounded-full animate-spin" />
                     <p
                         className="text-sm text-gray-500"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
@@ -891,7 +937,7 @@ export default function ProfilePage() {
                 className="min-h-screen flex items-center justify-center"
                 style={{ background: "#FDF6EF" }}
             >
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#F97316]" />
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cp" />
             </div>
         );
     }
@@ -942,6 +988,52 @@ export default function ProfilePage() {
             ],
         },
         {
+            title: "Community",
+            items: [
+                {
+                    icon: (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" className="w-4 h-4">
+                            <circle cx="10" cy="8" r="4"/>
+                            <path d="M2 20c0-3.314 3.582-6 8-6"/>
+                            <circle cx="18.5" cy="17.5" r="2.5"/>
+                            <line x1="20.5" y1="19.5" x2="22" y2="21"/>
+                        </svg>
+                    ),
+                    label: "Find Campers",
+                    desc: "Search and connect with other campers",
+                    href: "/search-users",
+                },
+                {
+                    icon: <ShareIcon />,
+                    label: "Invite Friends",
+                    desc: "Grow the community",
+                    href: "/profile/invite",
+                },
+                {
+                    icon: (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" className="w-4 h-4">
+                            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                        </svg>
+                    ),
+                    label: "Group Chats",
+                    desc: "Chat with 3+ fellow campers",
+                    href: "/chat",
+                },
+                {
+                    icon: <span className="text-base">🥇</span>,
+                    label: "Platoon Leaderboard",
+                    desc: "See which platoon is leading",
+                    href: "/platoons",
+                },
+                {
+                    icon: <span className="text-base">🎬</span>,
+                    label: "My Camp Wrap",
+                    desc: "Your camp experience in one page",
+                    href: "/wrap",
+                },
+            ],
+        },
+        {
             title: "Support",
             items: [
                 {
@@ -949,12 +1041,6 @@ export default function ProfilePage() {
                     label: "Help & FAQ",
                     desc: "Get answers to common questions",
                     href: "/profile/help",
-                },
-                {
-                    icon: <ShareIcon />,
-                    label: "Invite Friends",
-                    desc: "Grow the community",
-                    href: "/profile/invite",
                 },
             ],
         },
@@ -964,10 +1050,10 @@ export default function ProfilePage() {
     return (
         <div
             className="min-h-screen pb-24 md:pb-8"
-            style={{ background: "#FDF6EF" }}
+            style={{ background: "var(--bg)" }}
         >
             {/* Mobile Header */}
-            <header className="md:hidden sticky top-0 z-40 bg-[#F97316] px-4 pt-4 pb-4 mb-6">
+            <header className="md:hidden sticky top-0 z-40 bg-cp px-4 pt-4 pb-4 mb-6">
                 <div className="flex items-center justify-between">
                     <h1
                         className="text-white font-bold text-lg"
@@ -1008,13 +1094,13 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={handleShareProfile}
-                        className="flex items-center gap-2 text-xs font-semibold text-gray-600 bg-white border border-gray-100 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors shadow-sm cursor-pointer"
+                        className="flex items-center gap-2 text-xs font-semibold text-gray-600 bg-white border border-subtle px-3 py-2 rounded-xl hover:bg-subtle transition-colors shadow-sm cursor-pointer"
                     >
                         <ShareIcon /> Share Profile
                     </button>
                     <Link
                         href="/profile/edit"
-                        className="flex items-center gap-2 text-xs font-semibold text-white bg-[#F97316] px-3 py-2 rounded-xl hover:bg-[#C2410C] transition-colors shadow-sm"
+                        className="flex items-center gap-2 text-xs font-semibold text-white bg-cp px-3 py-2 rounded-xl  transition-colors shadow-sm"
                     >
                         <EditIcon /> Edit Profile
                     </Link>
@@ -1023,10 +1109,10 @@ export default function ProfilePage() {
 
             <div className="px-4 md:px-6 space-y-4">
                 {/* Profile Card */}
-                <div className="bg-white rounded-2xl overflow-hidden border border-gray-50 shadow-sm">
+                <div className="bg-card rounded-2xl overflow-hidden border border-subtle shadow-sm">
                     <div
                         className="h-24 md:h-32 relative"
-                        style={{ background: "#EA580C" }}
+                        style={{ background: "var(--cp-deeper)" }}
                     >
                         <div
                             className="absolute inset-0 opacity-10"
@@ -1040,27 +1126,68 @@ export default function ProfilePage() {
                     <div className="px-4 md:px-5 pb-4 md:pb-5">
                         <div className="flex items-end justify-between -mt-10 mb-3">
                             <div className="relative">
-                                <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl border-4 border-white shadow-lg flex items-center justify-center text-white text-3xl font-black bg-[#EA580C]">
-                                    {displayPhoto ? (
-                                        <Image
-                                            src={displayPhoto}
-                                            alt={displayName}
-                                            width={96}
-                                            height={96}
-                                            className="w-full h-full object-cover rounded-2xl"
-                                        />
-                                    ) : (
-                                        displayName.charAt(0).toUpperCase()
-                                    )}
-                                </div>
-                                <div
-                                    className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-white"
-                                    title="Online"
+                                {/* Hidden file input */}
+                                <input
+                                    ref={photoInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={handlePhotoUpload}
                                 />
+                                {/* Avatar with camera overlay */}
+                                <button
+                                    onClick={() => !isAnonymous && photoInputRef.current?.click()}
+                                    className="relative w-20 h-20 md:w-24 md:h-24 rounded-2xl border-4 border-white shadow-lg flex items-center justify-center text-white text-3xl font-black bg-cp-deeper overflow-hidden group cursor-pointer"
+                                    title="Change profile photo"
+                                >
+                                    {photoUploading ? (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl">
+                                            <svg className="w-6 h-6 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                                            </svg>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {displayPhoto ? (
+                                                <Image
+                                                    src={displayPhoto}
+                                                    alt={displayName}
+                                                    width={96}
+                                                    height={96}
+                                                    className="w-full h-full object-cover rounded-2xl"
+                                                />
+                                            ) : (
+                                                displayName.charAt(0).toUpperCase()
+                                            )}
+                                            {/* Camera hover overlay */}
+                                            {!isAnonymous && (
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" className="w-7 h-7">
+                                                        <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                                                        <circle cx="12" cy="13" r="4"/>
+                                                    </svg>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </button>
+                                {/* Verified badge */}
+                                {profileVerified && (
+                                    <div
+                                        className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 border-white"
+                                        style={{ background: "var(--cp)" }}
+                                        title="Profile complete"
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" className="w-2.5 h-2.5">
+                                            <polyline points="20 6 9 17 4 12"/>
+                                        </svg>
+                                    </div>
+                                )}
                             </div>
                             <Link
                                 href="/profile/edit"
-                                className="md:hidden flex items-center gap-1.5 text-xs font-semibold text-[#F97316] bg-orange-50 border border-orange-100 px-3 py-1.5 rounded-xl"
+                                className="md:hidden flex items-center gap-1.5 text-xs font-semibold text-cp bg-cp-tint border border-cp/20 px-3 py-1.5 rounded-xl"
                             >
                                 <EditIcon /> Edit
                             </Link>
@@ -1078,7 +1205,7 @@ export default function ProfilePage() {
                                     {displayName}
                                 </h2>
                                 {displayRole === "top_reporter" && (
-                                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#F97316]/10 text-[#F97316]">
+                                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-cp/10 text-cp">
                                         🔥 Top Reporter
                                     </span>
                                 )}
@@ -1105,9 +1232,22 @@ export default function ProfilePage() {
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
                                 Online
                             </span>
+                            {(firestoreProfile?.streak || 0) >= 2 && (
+                                <span className="flex items-center gap-1 font-bold text-orange-500">
+                                    🔥 {firestoreProfile.streak}-day streak
+                                </span>
+                            )}
+                            {firestoreProfile?.platoon && (
+                                <Link
+                                    href="/platoons"
+                                    className="flex items-center gap-1 font-semibold text-cp hover:underline"
+                                >
+                                    👥 {firestoreProfile.platoon}
+                                </Link>
+                            )}
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                             <StatCard
                                 icon={<span className="text-lg">📋</span>}
                                 value={formatNum(stats.issuesCount)}
@@ -1115,9 +1255,9 @@ export default function ProfilePage() {
                                 color="orange"
                             />
                             <StatCard
-                                icon={<span className="text-lg">⬆️</span>}
+                                icon={<span className="text-lg">👍</span>}
                                 value={formatNum(stats.upvotesReceived)}
-                                label="Upvotes"
+                                label="Likes"
                                 color="green"
                             />
                             <StatCard
@@ -1125,6 +1265,12 @@ export default function ProfilePage() {
                                 value={formatNum(stats.badgesCount)}
                                 label="Badges"
                                 color="purple"
+                            />
+                            <StatCard
+                                icon={<span className="text-lg">🔥</span>}
+                                value={firestoreProfile?.streak || 0}
+                                label="Day Streak"
+                                color="orange"
                             />
                         </div>
                     </div>
@@ -1134,17 +1280,17 @@ export default function ProfilePage() {
                 <LevelProgress stats={gamificationStats} />
 
                 {/* Tabs */}
-                <div className="bg-white rounded-2xl border border-gray-50 shadow-sm overflow-hidden">
-                    <div className="flex border-b border-gray-100">
+                <div className="bg-card rounded-2xl border border-subtle shadow-sm overflow-hidden">
+                    <div className="flex border-b border-subtle">
                         {tabs.map((t) => (
                             <button
                                 key={t.key}
                                 onClick={() => setActiveTab(t.key)}
-                                className={`flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold transition-all border-b-2 cursor-pointer ${activeTab === t.key ? "border-[#F97316] text-[#F97316]" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold transition-all border-b-2 cursor-pointer ${activeTab === t.key ? "border-cp text-cp" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                             >
                                 {t.label}
                                 <span
-                                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeTab === t.key ? "bg-[#F97316]/10 text-[#F97316]" : "bg-gray-100 text-gray-400"}`}
+                                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeTab === t.key ? "bg-cp/10 text-cp" : "bg-muted text-gray-400"}`}
                                 >
                                     {t.count}
                                 </span>
@@ -1166,7 +1312,7 @@ export default function ProfilePage() {
                                         </p>
                                         <Link
                                             href="/create-issue"
-                                            className="inline-block mt-4 text-xs font-semibold text-[#F97316] bg-orange-50 px-4 py-2 rounded-xl hover:bg-orange-100 transition-colors"
+                                            className="inline-block mt-4 text-xs font-semibold text-cp bg-cp-tint px-4 py-2 rounded-xl hover:bg-cp-tint transition-colors"
                                         >
                                             Post to Camp
                                         </Link>
@@ -1179,7 +1325,7 @@ export default function ProfilePage() {
                                                     href={`/issue/${issue.id}`}
                                                     key={issue.id}
                                                 >
-                                                    <div className="flex gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100 hover:border-[#F97316]/20 hover:bg-orange-50/30 transition-all cursor-pointer">
+                                                    <div className="flex gap-3 p-3 rounded-xl bg-subtle border border-subtle hover:border-cp/20 hover:bg-cp-tint/30 transition-all cursor-pointer">
                                                         <div
                                                             className={`w-9 h-9 rounded-xl ${issue.categoryBg} flex items-center justify-center text-lg shrink-0`}
                                                         >
@@ -1223,7 +1369,7 @@ export default function ProfilePage() {
                                         })}
                                         <Link
                                             href="/create-issue"
-                                            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-[#F97316]/30 text-[#F97316] text-sm font-semibold hover:bg-orange-50 transition-colors"
+                                            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-cp/30 text-cp text-sm font-semibold hover:bg-cp-tint transition-colors"
                                         >
                                             <span className="text-lg">+</span>{" "}
                                             Post to Camp
@@ -1256,7 +1402,7 @@ export default function ProfilePage() {
                                     badges.map((b) => (
                                         <div
                                             key={b.id}
-                                            className="p-3.5 rounded-xl text-center transition-all bg-gradient-to-br from-gray-50 to-white border border-gray-100 hover:border-[#F97316]/30 hover:shadow-sm"
+                                            className="p-3.5 rounded-xl text-center transition-all bg-gradient-to-br from-gray-50 to-white border border-subtle hover:border-cp/30 hover:shadow-sm"
                                         >
                                             <div className="text-3xl mb-2">
                                                 {b.emoji}
@@ -1273,7 +1419,7 @@ export default function ProfilePage() {
                                             <div className="text-[10px] text-gray-400 leading-snug mb-2">
                                                 {b.desc}
                                             </div>
-                                            <div className="text-[10px] font-bold text-[#F97316] bg-orange-50 rounded-full py-1">
+                                            <div className="text-[10px] font-bold text-cp bg-cp-tint rounded-full py-1">
                                                 ✓ Earned
                                                 {b.earnedAt && (
                                                     <span className="font-normal text-gray-400 ml-1">
@@ -1297,7 +1443,7 @@ export default function ProfilePage() {
                     {settingsGroups.map((group) => (
                         <div
                             key={group.title}
-                            className="bg-white rounded-2xl border border-gray-50 shadow-sm overflow-hidden"
+                            className="bg-card rounded-2xl border border-subtle shadow-sm overflow-hidden"
                         >
                             <div className="px-4 pt-3 pb-1">
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
@@ -1308,9 +1454,9 @@ export default function ProfilePage() {
                                 <Link
                                     key={i}
                                     href={item.href}
-                                    className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors border-t border-gray-50 first:border-t-0"
+                                    className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-subtle transition-colors border-t border-subtle first:border-t-0"
                                 >
-                                    <div className="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center text-black shrink-0">
+                                    <div className="w-8 h-8 bg-muted rounded-xl flex items-center justify-center text-black shrink-0">
                                         {item.icon}
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -1340,8 +1486,8 @@ export default function ProfilePage() {
                     disabled={isSigningOut}
                     className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-red-100 text-sm font-semibold transition-colors cursor-pointer ${
                         isSigningOut
-                            ? "bg-orange-300 cursor-not-allowed"
-                            : "bg-[#EA580C] text-white hover:bg-[#F97316]"
+                            ? "bg-gray-300 cursor-not-allowed"
+                            : "bg-cp-deeper text-white hover:bg-cp"
                     }`}
                 >
                     {isSigningOut ? (

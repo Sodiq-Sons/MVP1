@@ -1,9 +1,9 @@
 import Link from "next/link";
 
 export const metadata = {
-    title: "About Us | We The People NG",
+    title: "About Camp Connect",
     description:
-        "Learn about We The People NG - Nigeria's platform for civic engagement and community-driven change",
+        "Learn about Camp Connect — the social platform built for NYSC corps members to share gists, report camp issues, and connect with platoon mates.",
 };
 
 const teamMembers = [
@@ -69,9 +69,9 @@ const features = [
 
 export default function AboutPage() {
     return (
-        <div className="min-h-screen bg-[#FDF6EF]">
+        <div className="min-h-screen bg-page">
             {/* Header */}
-            <header className="bg-[#F97316] px-4 py-4">
+            <header className="bg-cp px-4 py-4">
                 <div className="max-w-3xl mx-auto flex items-center justify-between">
                     <Link href="/" className="flex items-center gap-2.5">
                         <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
@@ -90,7 +90,7 @@ export default function AboutPage() {
             </header>
 
             {/* Hero Section */}
-            <section className="bg-[#F97316] px-4 pb-12 pt-6">
+            <section className="bg-cp px-4 pb-12 pt-6">
                 <div className="max-w-3xl mx-auto text-center">
                     <h1
                         className="text-3xl md:text-4xl font-bold text-white mb-4"
@@ -112,10 +112,10 @@ export default function AboutPage() {
             {/* Stats Section */}
             <section className="px-4 -mt-6">
                 <div className="max-w-3xl mx-auto">
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 grid grid-cols-3 gap-4">
+                    <div className="bg-card rounded-2xl border border-subtle shadow-sm p-6 grid grid-cols-3 gap-4">
                         <div className="text-center">
                             <div
-                                className="text-2xl font-bold text-[#F97316]"
+                                className="text-2xl font-bold text-cp"
                                 style={{
                                     fontFamily: "Plus Jakarta Sans, sans-serif",
                                 }}
@@ -159,7 +159,7 @@ export default function AboutPage() {
             {/* Mission Section */}
             <section className="px-4 py-12">
                 <div className="max-w-3xl mx-auto">
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8">
+                    <div className="bg-card rounded-2xl border border-subtle shadow-sm p-6 md:p-8">
                         <div className="flex items-center gap-2 mb-4">
                             <span className="text-2xl">🎯</span>
                             <h2
@@ -199,10 +199,10 @@ export default function AboutPage() {
                         {features.map((feature, index) => (
                             <div
                                 key={index}
-                                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:border-[#F97316]/30 transition-colors"
+                                className="bg-card rounded-2xl border border-subtle shadow-sm p-5 hover:border-cp/30 transition-colors"
                             >
                                 <div className="flex items-start gap-3">
-                                    <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-xl shrink-0">
+                                    <div className="w-10 h-10 bg-cp-tint rounded-xl flex items-center justify-center text-xl shrink-0">
                                         {feature.icon}
                                     </div>
                                     <div>
@@ -245,7 +245,7 @@ export default function AboutPage() {
                         {values.map((value, index) => (
                             <div
                                 key={index}
-                                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"
+                                className="bg-card rounded-2xl border border-subtle shadow-sm p-5"
                             >
                                 <div className="flex items-center gap-2 mb-3">
                                     <span className="text-xl">
@@ -288,9 +288,9 @@ export default function AboutPage() {
                         {teamMembers.map((member, index) => (
                             <div
                                 key={index}
-                                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center"
+                                className="bg-card rounded-2xl border border-subtle shadow-sm p-4 text-center"
                             >
-                                <div className="w-16 h-16 bg-linear-to-br from-orange-300 to-orange-500 rounded-full flex items-center justify-center text-2xl mx-auto mb-3">
+                                <div className="w-16 h-16 bg-cp rounded-full flex items-center justify-center text-2xl mx-auto mb-3">
                                     {member.emoji}
                                 </div>
                                 <h3
@@ -319,7 +319,7 @@ export default function AboutPage() {
             {/* CTA Section */}
             <section className="px-4 pb-12">
                 <div className="max-w-3xl mx-auto">
-                    <div className="bg-[#F97316] rounded-2xl p-6 md:p-8 text-center">
+                    <div className="bg-cp rounded-2xl p-6 md:p-8 text-center">
                         <h2
                             className="text-2xl font-bold text-white mb-3"
                             style={{
@@ -339,7 +339,7 @@ export default function AboutPage() {
                         <div className="flex flex-col sm:flex-row gap-3 justify-center">
                             <Link
                                 href="/create-issue"
-                                className="bg-white text-[#F97316] px-6 py-3 rounded-xl font-bold text-sm hover:bg-gray-50 transition-colors"
+                                className="bg-white text-cp px-6 py-3 rounded-xl font-bold text-sm hover:bg-subtle transition-colors"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
                                 Report an Issue
@@ -357,7 +357,7 @@ export default function AboutPage() {
             </section>
 
             {/* Footer */}
-            <footer className="px-4 py-6 border-t border-gray-200">
+            <footer className="px-4 py-6 border-t border-theme">
                 <div className="max-w-3xl mx-auto text-center">
                     <p
                         className="text-sm text-gray-400"
@@ -368,19 +368,19 @@ export default function AboutPage() {
                     <div className="flex items-center justify-center gap-4 mt-3">
                         <Link
                             href="/"
-                            className="text-xs text-gray-400 hover:text-[#F97316] transition-colors"
+                            className="text-xs text-gray-400 hover:text-cp transition-colors"
                         >
                             Home
                         </Link>
                         <Link
                             href="/create-issue"
-                            className="text-xs text-gray-400 hover:text-[#F97316] transition-colors"
+                            className="text-xs text-gray-400 hover:text-cp transition-colors"
                         >
                             Report Issue
                         </Link>
                         <Link
                             href="/about"
-                            className="text-xs text-gray-400 hover:text-[#F97316] transition-colors"
+                            className="text-xs text-gray-400 hover:text-cp transition-colors"
                         >
                             About
                         </Link>

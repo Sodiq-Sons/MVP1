@@ -9,9 +9,9 @@ export const metadata = {
 
 export default function PrivacyPolicyPage() {
     return (
-        <div className="min-h-screen bg-[#FDF6EF]">
+        <div className="min-h-screen bg-page">
             {/* Header */}
-            <header className="bg-[#F97316] px-4 py-4">
+            <header className="bg-cp px-4 py-4">
                 <div className="max-w-3xl mx-auto flex items-center justify-between">
                     <Link href="/" className="flex items-center gap-2.5">
                         <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
@@ -31,7 +31,7 @@ export default function PrivacyPolicyPage() {
 
             {/* Content */}
             <main className="max-w-3xl mx-auto px-4 py-8">
-                <div className="bg-white rounded-2xl border border-gray-100 p-6 md:p-8 shadow-sm">
+                <div className="bg-card rounded-2xl border border-subtle p-6 md:p-8 shadow-sm">
                     <h1
                         className="text-2xl font-bold text-gray-900 mb-6"
                         style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
@@ -217,7 +217,7 @@ export default function PrivacyPolicyPage() {
                                 Policy, please contact us at:{" "}
                                 <a
                                     href="mailto:privacy@wethepeople.ng"
-                                    className="text-[#F97316] hover:underline"
+                                    className="text-cp hover:underline"
                                 >
                                     privacy@wethepeople.ng
                                 </a>
@@ -230,7 +230,7 @@ export default function PrivacyPolicyPage() {
                 <div className="mt-6 text-center">
                     <Link
                         href="/"
-                        className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[#F97316] transition-colors"
+                        className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-cp transition-colors"
                     >
                         <svg
                             viewBox="0 0 24 24"

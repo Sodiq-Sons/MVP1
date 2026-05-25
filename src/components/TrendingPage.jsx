@@ -1,7 +1,7 @@
 // app/trending/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
     collection,
     onSnapshot,
@@ -20,8 +20,8 @@ import Link from "next/link";
 const CATEGORY_META = {
     infrastructure: {
         emoji: "🏗️",
-        color: "text-orange-700",
-        bg: "bg-orange-50",
+        color: "text-cp",
+        bg: "bg-cp-tint",
         label: "Infrastructure",
     },
     education: {
@@ -88,7 +88,7 @@ const CATEGORY_META = {
     other: {
         emoji: "📌",
         color: "text-gray-700",
-        bg: "bg-gray-100",
+        bg: "bg-muted",
         label: "Other",
     },
 };
@@ -146,7 +146,7 @@ function getAvatarCount(upvotes) {
 
 const AVATAR_LETTERS = ["A", "B", "C", "D"];
 const avatarColors = [
-    "bg-orange-400",
+    "bg-amber-400",
     "bg-blue-400",
     "bg-green-500",
     "bg-purple-400",
@@ -239,8 +239,8 @@ function StatusBadge({ status }) {
         viral: { label: "🔥 Viral", bg: "bg-red-50", text: "text-red-600" },
         trending: {
             label: "📈 Trending",
-            bg: "bg-orange-50",
-            text: "text-orange-600",
+            bg: "bg-cp-tint",
+            text: "text-cp",
         },
         rising: {
             label: "⚡ Rising",
@@ -278,9 +278,9 @@ function LoginPromptModal({ isOpen, onClose, onLogin }) {
                 className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                 onClick={onClose}
             />
-            <div className="relative bg-white rounded-2xl p-6 mx-4 max-w-sm w-full z-10 shadow-2xl">
+            <div className="relative bg-card rounded-2xl p-6 mx-4 max-w-sm w-full z-10 shadow-2xl">
                 <div className="text-center">
-                    <div className="w-16 h-16 bg-[#FFF7F2] rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div className="w-16 h-16 bg-cp-tint rounded-full flex items-center justify-center mx-auto mb-4">
                         <span className="text-3xl">🔒</span>
                     </div>
                     <h3
@@ -293,20 +293,20 @@ function LoginPromptModal({ isOpen, onClose, onLogin }) {
                         className="text-sm text-gray-500 mb-6"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     >
-                        Please sign in to upvote issues and join the
+                        Please sign in to like posts and join the
                         conversation.
                     </p>
                     <div className="flex gap-3">
                         <button
                             onClick={onClose}
-                            className="flex-1 py-3 rounded-xl font-semibold text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                            className="flex-1 py-3 rounded-xl font-semibold text-sm border border-theme text-gray-600 hover:bg-subtle transition-colors cursor-pointer"
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
                             Cancel
                         </button>
                         <button
                             onClick={onLogin}
-                            className="flex-1 py-3 rounded-xl font-bold text-sm bg-[#F97316] text-white hover:bg-[#C2410C] transition-colors cursor-pointer"
+                            className="flex-1 py-3 rounded-xl font-bold text-sm btn-primary transition-colors cursor-pointer"
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
                             Sign In
@@ -321,18 +321,18 @@ function LoginPromptModal({ isOpen, onClose, onLogin }) {
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 function SkeletonCard() {
     return (
-        <div className="bg-white rounded-2xl p-4 border border-[#FED7AA] animate-pulse">
+        <div className="bg-card rounded-2xl p-4 border border-cp-border animate-pulse">
             <div className="flex items-center justify-between mb-3">
-                <div className="h-5 w-24 bg-gray-100 rounded-full" />
-                <div className="h-4 w-12 bg-gray-100 rounded" />
+                <div className="h-5 w-24 bg-muted rounded-full" />
+                <div className="h-4 w-12 bg-muted rounded" />
             </div>
             <div className="flex gap-3">
                 <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-gray-100 rounded w-3/4" />
-                    <div className="h-3 bg-gray-100 rounded w-full" />
-                    <div className="h-3 bg-gray-100 rounded w-2/3" />
+                    <div className="h-4 bg-muted rounded w-3/4" />
+                    <div className="h-3 bg-muted rounded w-full" />
+                    <div className="h-3 bg-muted rounded w-2/3" />
                 </div>
-                <div className="w-14 h-16 bg-gray-100 rounded-xl shrink-0" />
+                <div className="w-14 h-16 bg-muted rounded-xl shrink-0" />
             </div>
         </div>
     );
@@ -438,7 +438,7 @@ function TrendingCard({
                         actorPhotoURL: currentUser.photoURL,
                         issueId: issue.id,
                         issueTitle: issue.title,
-                        meta: `${newCount} total upvotes`,
+                        meta: `${newCount} total likes`,
                     });
                 }
                 const milestones = [10, 25, 50, 100, 250, 500];
@@ -450,7 +450,7 @@ function TrendingCard({
                         actorName: "Camp Voice",
                         issueId: issue.id,
                         issueTitle: issue.title,
-                        meta: `🎉 ${newCount} upvotes reached!`,
+                        meta: `🎉 ${newCount} likes reached!`,
                     });
                 }
             }
@@ -540,7 +540,7 @@ function TrendingCard({
     return (
         <>
             <Link href={`/issue/${issue.id}`} className="block">
-                <div className="issue-card bg-white rounded-2xl p-4 shadow-card border border-[#FED7AA] hover:shadow-lg hover:border-orange-300 transition-all cursor-pointer relative">
+                <div className="issue-card bg-card rounded-2xl p-4 shadow-card border border-cp-border hover:shadow-lg hover:border-cp/40 transition-all cursor-pointer relative">
                     <div
                         className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white ${
                             rank === 1
@@ -548,8 +548,8 @@ function TrendingCard({
                                 : rank === 2
                                   ? "bg-gradient-to-br from-gray-300 to-gray-500 text-white"
                                   : rank === 3
-                                    ? "bg-gradient-to-br from-orange-400 to-orange-600 text-white"
-                                    : "bg-gray-100 text-gray-600"
+                                    ? "bg-cp text-white"
+                                    : "bg-muted text-gray-600"
                         }`}
                     >
                         {rank}
@@ -573,7 +573,7 @@ function TrendingCard({
                             {issue.categoryLabel}
                         </span>
                         <span className="text-xs text-gray-400 flex items-center gap-1">
-                            <span className="font-bold text-[#F97316]">
+                            <span className="font-bold text-cp">
                                 #{rank}
                             </span>
                             <span>· {issue.timeAgo}</span>
@@ -615,7 +615,7 @@ function TrendingCard({
                                     downvoted
                                         ? "border-red-500 bg-red-50"
                                         : isAnonymous || upvoted
-                                          ? "border-gray-200 bg-gray-50"
+                                          ? "border-theme bg-subtle"
                                           : "border-red-200 bg-white hover:border-red-400 hover:bg-red-50"
                                 }`}
                             >
@@ -646,7 +646,7 @@ function TrendingCard({
                                     upvoted
                                         ? "border-green-500 bg-green-50"
                                         : isAnonymous || downvoted
-                                          ? "border-gray-200 bg-gray-50"
+                                          ? "border-theme bg-subtle"
                                           : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50"
                                 }`}
                             >
@@ -667,7 +667,7 @@ function TrendingCard({
                             </button>
                         </div>
                     </div>
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-subtle">
                         <div className="flex items-center gap-2 flex-wrap">
                             <span className="flex items-center gap-1 text-xs text-black">
                                 <PlatoonIcon />
@@ -703,7 +703,7 @@ function TrendingCard({
                                 className="text-xs text-gray-400"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
-                                {count} {count === 1 ? "upvote" : "upvotes"}
+                                {count} {count === 1 ? "like" : "likes"}
                             </span>
                         </div>
                     )}
@@ -725,6 +725,8 @@ export default function TrendingPage() {
     const [error, setError] = useState("");
     const [activeFilter, setActiveFilter] = useState("all");
     const [search, setSearch] = useState("");
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const searchWrapperRef = useRef(null);
     const [timeRange, setTimeRange] = useState("24h");
     const [currentUser, setCurrentUser] = useState(null);
     const [authReady, setAuthReady] = useState(false);
@@ -791,6 +793,28 @@ export default function TrendingPage() {
         window.location.href = "/login";
     };
 
+    useEffect(() => {
+        const handler = (e) => {
+            if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
+
+    const suggestions = search.trim().length >= 2
+        ? issues
+            .filter((issue) => {
+                const q = search.toLowerCase();
+                return (
+                    issue.title.toLowerCase().includes(q) ||
+                    issue.description.toLowerCase().includes(q)
+                );
+            })
+            .slice(0, 6)
+        : [];
+
     const filters = [
         { key: "all", label: "All" },
         { key: "gist", label: "💬 Gist" },
@@ -837,9 +861,10 @@ export default function TrendingPage() {
                         .slice(-1);
                     platoonNum = parseInt(lastDigit) || 1;
                 } else if (issue.author?.uid) {
-                    const seconds =
-                        issue.createdAt?.seconds || Date.now() / 1000;
-                    platoonNum = (Math.floor(seconds) % 10) + 1;
+                    // Use the uid's last char code as a stable, render-safe
+                    // fallback (avoids calling impure Date.now() during render).
+                    const seed = issue.author.uid.charCodeAt(issue.author.uid.length - 1);
+                    platoonNum = (seed % 10) + 1;
                 }
             }
             if (platoonNum) {
@@ -866,7 +891,7 @@ export default function TrendingPage() {
             style={{ background: "#FDF6EF" }}
         >
             {/* ── Mobile Header ── */}
-            <header className="md:hidden sticky top-0 z-40 bg-[#F97316] px-4 pt-4 pb-4 mb-4">
+            <header className="md:hidden sticky top-0 z-40 bg-cp px-4 pt-4 pb-4 mb-4">
                 <div className="flex items-center justify-between">
                     <div>
                         <h1
@@ -906,12 +931,12 @@ export default function TrendingPage() {
                             Browse and discover trending posts across Camp
                         </p>
                     </div>
-                    <div className="flex items-center gap-2 bg-white rounded-xl p-1 border border-gray-100 shadow-sm">
+                    <div className="flex items-center gap-2 bg-white rounded-xl p-1 border border-subtle shadow-sm">
                         {["24h", "7d", "30d"].map((t) => (
                             <button
                                 key={t}
                                 onClick={() => setTimeRange(t)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${timeRange === t ? "bg-[#F97316] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${timeRange === t ? "bg-cp text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                             >
                                 {t}
                             </button>
@@ -936,7 +961,7 @@ export default function TrendingPage() {
                             label: "Most Active",
                             value: loading ? "…" : mostActivePlatoon,
                             icon: "🔥",
-                            color: "text-[#F97316]",
+                            color: "text-cp",
                         },
                         {
                             label: "Time Range",
@@ -947,7 +972,7 @@ export default function TrendingPage() {
                     ].map((s) => (
                         <div
                             key={s.label}
-                            className="bg-white rounded-xl p-3 border border-gray-50 shadow-card text-center"
+                            className="bg-white rounded-xl p-3 border border-subtle shadow-card text-center"
                         >
                             <div className="text-lg mb-0.5">{s.icon}</div>
                             <div
@@ -968,17 +993,47 @@ export default function TrendingPage() {
 
             {/* ── Search ── */}
             <div className="px-4 md:px-6 mb-3">
-                <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                <div className="relative" ref={searchWrapperRef}>
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10">
                         <SearchIcon />
                     </div>
                     <input
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => { setSearch(e.target.value); setShowSuggestions(true); }}
+                        onFocus={() => setShowSuggestions(true)}
+                        onKeyDown={(e) => e.key === "Escape" && setShowSuggestions(false)}
                         placeholder="Search trending posts..."
-                        className="w-full bg-white rounded-xl pl-9 pr-4 py-3 text-sm text-gray-700 placeholder-gray-400 border border-gray-100 shadow-card focus:outline-none focus:ring-2 focus:ring-[#F97316]/20 focus:border-[#F97316]/40 transition-all"
+                        className="w-full bg-white rounded-xl pl-9 pr-4 py-3 text-sm text-gray-700 placeholder-gray-400 border border-subtle shadow-card focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-cp/40 transition-all"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     />
+                    {showSuggestions && suggestions.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1.5 bg-card rounded-xl border border-subtle shadow-lg z-50 overflow-hidden">
+                            {suggestions.map((issue) => {
+                                const meta = CATEGORY_META[issue.category] ?? CATEGORY_META.other;
+                                return (
+                                    <button
+                                        key={issue.id}
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            setSearch(issue.title);
+                                            setShowSuggestions(false);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-subtle transition-colors text-left cursor-pointer border-b border-subtle last:border-b-0"
+                                    >
+                                        <span className="text-base shrink-0">{meta.emoji}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-black truncate" style={{ fontFamily: "DM Sans, sans-serif" }}>
+                                                {issue.title}
+                                            </p>
+                                            <p className="text-xs text-muted truncate" style={{ fontFamily: "DM Sans, sans-serif" }}>
+                                                {meta.label}
+                                            </p>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -991,8 +1046,8 @@ export default function TrendingPage() {
                             onClick={() => setActiveFilter(f.key)}
                             className={`shrink-0 snap-start px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${
                                 activeFilter === f.key
-                                    ? "bg-[#F97316] text-white shadow-sm"
-                                    : "bg-white text-black border border-gray-200 hover:border-[#F97316]/40 hover:text-[#F97316]"
+                                    ? "bg-cp text-white shadow-sm"
+                                    : "bg-white text-black border border-theme hover:border-cp/40 hover:text-cp"
                             }`}
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
@@ -1004,12 +1059,12 @@ export default function TrendingPage() {
 
             {/* ── Time Range — mobile ── */}
             <div className="md:hidden px-4 mb-4">
-                <div className="flex items-center gap-2 bg-white rounded-xl p-1 border border-gray-100 shadow-sm w-fit">
+                <div className="flex items-center gap-2 bg-white rounded-xl p-1 border border-subtle shadow-sm w-fit">
                     {["24h", "7d", "30d"].map((t) => (
                         <button
                             key={t}
                             onClick={() => setTimeRange(t)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${timeRange === t ? "bg-[#F97316] text-white" : "text-gray-500"}`}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${timeRange === t ? "bg-cp text-white" : "text-gray-500"}`}
                         >
                             {t}
                         </button>
@@ -1019,7 +1074,7 @@ export default function TrendingPage() {
 
             {/* ── Section Header ── */}
             <div className="px-4 md:px-6 mb-3 flex items-center gap-2">
-                <div className="flex items-center gap-1.5 text-[#F97316]">
+                <div className="flex items-center gap-1.5 text-cp">
                     <FireIcon className="w-4 h-4" />
                     <span
                         className="text-sm font-bold"
@@ -1073,7 +1128,7 @@ export default function TrendingPage() {
                         />
                     ))
                 ) : (
-                    <div className="col-span-2 text-center py-16 bg-white rounded-2xl border border-gray-50">
+                    <div className="col-span-2 text-center py-16 bg-card rounded-2xl border border-subtle">
                         <div className="text-4xl mb-3">🔍</div>
                         <p
                             className="font-semibold text-gray-700"

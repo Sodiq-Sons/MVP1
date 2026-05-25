@@ -109,7 +109,7 @@ export default function ProfileIncompleteModal({
                             padding: "11px",
                             border: "none",
                             borderRadius: "12px",
-                            background: "#F97316",
+                            background: "var(--cp)",
                             color: "#fff",
                             fontSize: "13px",
                             fontWeight: 700,

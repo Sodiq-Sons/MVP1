@@ -2,27 +2,259 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-    --background: #ffffff;
-    --foreground: #171717;
+/* ─── Theme: Camp Orange (default) ──────────────────────────────────────────── */
+:root,
+[data-theme="orange"] {
+    --cp:           #F97316;   /* primary accent             */
+    --cp-dark:      #C2410C;   /* hover / pressed state      */
+    --cp-deeper:    #EA580C;   /* FAB / emphasis             */
+    --cp-light:     #FFF4EE;   /* active nav bg              */
+    --cp-tint:      #FFF7F2;   /* subtle tint                */
+    --cp-border:    #FED7AA;   /* card borders               */
+    --cp-glow:      rgba(249,115,22,0.40);  /* shadow glow   */
+    --bg:           #FDF6EF;   /* page background            */
+    --layout-bg:    #F5F0EB;   /* layout wrapper bg          */
+    --card-bg:      #FFFFFF;   /* card background            */
+    --nav-bg:       #FFFFFF;   /* sidebar/navbar bg          */
+    --text:         #111827;
+    --text-muted:   #6B7280;
+    --header-bg:    #F97316;   /* mobile header              */
+    --input-bg:     #FFF7F2;   /* form input / icon bg       */
+    --subtle-bg:    #FFF4EE;   /* subtle section bg          */
+    --muted-bg:     #FDEBD5;   /* muted / secondary bg       */
+    --border-subtle:#FED7AA;   /* very subtle borders        */
+    --border:       #FBBF82;   /* standard borders           */
+    --divide:       #FED7AA;   /* dividers                   */
 }
 
-@theme inline {
-    --color-background: var(--background);
-    --color-foreground: var(--foreground);
-    --font-sans: var(--font-geist-sans);
-    --font-mono: var(--font-geist-mono);
+/* ─── Theme: Earth / Military ───────────────────────────────────────────────── */
+[data-theme="earth"] {
+    --cp:           #556B2F;
+    --cp-dark:      #3E5F44;
+    --cp-deeper:    #4A5E28;
+    --cp-light:     #EDF2E8;
+    --cp-tint:      #F4F7EF;
+    --cp-border:    #C8D9B0;
+    --cp-glow:      rgba(85,107,47,0.35);
+    --bg:           #F8F5EE;
+    --layout-bg:    #F3F0E8;
+    --card-bg:      #FFFDF8;
+    --nav-bg:       #FFFDF8;
+    --text:         #1F2937;
+    --text-muted:   #6B7280;
+    --header-bg:    #556B2F;
+    --input-bg:     #F4F7EF;
+    --subtle-bg:    #EDF2E8;
+    --muted-bg:     #E0EAD3;
+    --border-subtle:#C8D9B0;
+    --border:       #B0C896;
+    --divide:       #C8D9B0;
 }
 
-@media (prefers-color-scheme: dark) {
-    :root {
-        --background: #0a0a0a;
-        --foreground: #ededed;
-    }
+/* ─── Theme: Ocean Blue ─────────────────────────────────────────────────────── */
+[data-theme="ocean"] {
+    --cp:           #2563EB;
+    --cp-dark:      #1D4ED8;
+    --cp-deeper:    #1E40AF;
+    --cp-light:     #EFF6FF;
+    --cp-tint:      #F0F7FF;
+    --cp-border:    #BFDBFE;
+    --cp-glow:      rgba(37,99,235,0.35);
+    --bg:           #F0F7FF;
+    --layout-bg:    #E8F2FF;
+    --card-bg:      #FFFFFF;
+    --nav-bg:       #FFFFFF;
+    --text:         #1E3A5F;
+    --text-muted:   #64748B;
+    --header-bg:    #2563EB;
+    --input-bg:     #F0F7FF;
+    --subtle-bg:    #EFF6FF;
+    --muted-bg:     #DBEAFE;
+    --border-subtle:#BFDBFE;
+    --border:       #93C5FD;
+    --divide:       #BFDBFE;
 }
 
 body {
-    background: var(--background);
-    color: var(--foreground);
-    font-family: Arial, Helvetica, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}
+
+/* ─── Smooth theme transitions ───────────────────────────────────────────────── */
+/* Scope to interactive/structural elements only — applying to * causes
+   layout thrashing and fights Tailwind/CSS animations on every element. */
+body,
+header, nav, aside, main, footer, section, article,
+.bg-card, .bg-page, .bg-nav, .bg-subtle, .bg-muted,
+a, button, input, textarea, select,
+[class*="border-"], [class*="text-"] {
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-duration: 200ms;
+    transition-timing-function: ease;
+}
+
+/* Animated elements must never inherit the theme transition */
+.no-theme-transition,
+.animate-pulse,
+.animate-spin,
+[class*="animate-"],
+[style*="transition"] {
+    transition: none !important;
+}
+
+/* ─── Auth / interactive theme utilities ────────────────────────────────────── */
+.btn-primary {
+    background: var(--cp);
+    color: white;
+}
+.btn-primary:hover:not(:disabled) {
+    filter: brightness(0.88);
+}
+.btn-primary:active:not(:disabled) {
+    transform: scale(0.98);
+}
+.text-cp { color: var(--cp); }
+.text-cp:hover { color: var(--cp-dark); }
+.option-selected {
+    border-color: var(--cp) !important;
+    background: var(--cp-tint) !important;
+    color: var(--cp) !important;
+}
+.checkbox-cp {
+    background: var(--cp);
+    border-color: var(--cp);
+}
+.hover-cp:hover {
+    border-color: var(--cp);
+    color: var(--cp);
+    opacity: 0.85;
+}
+
+/* ─── Background / colour shorthand utilities ────────────────────────────────── */
+.bg-cp        { background: var(--cp); }
+.bg-cp-tint   { background: var(--cp-tint); }
+.bg-cp-light  { background: var(--cp-light); }
+.bg-page      { background: var(--bg); }
+.bg-layout    { background: var(--layout-bg); }
+.border-cp    { border-color: var(--cp); }
+.fill-cp      { fill: var(--cp); }
+.stroke-cp    { stroke: var(--cp); }
+.bg-cp-deeper { background: var(--cp-deeper); }
+.spinner-cp   { border-top-color: var(--cp) !important; }
+.border-cp-border { border-color: var(--cp-border); }
+.bg-card          { background: var(--card-bg); }
+.bg-nav           { background: var(--nav-bg); }
+
+/* ─── Additional theme-aware utilities ──────────────────────────────────────── */
+.ring-cp          { --tw-ring-color: var(--cp); }
+.shadow-cp-border { --tw-shadow-color: var(--cp-border); box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), 0 4px 6px -1px var(--cp-border); }
+
+/* ─── Theme-aware gray replacement utilities ─────────────────────────────────── */
+.bg-subtle        { background: var(--input-bg); }
+.bg-muted         { background: var(--muted-bg); }
+.border-subtle    { border-color: var(--border-subtle); }
+.border-theme     { border-color: var(--border); }
+.divide-subtle > * + * { border-color: var(--divide); }
+.text-muted       { color: var(--text-muted); }
+
+/* ─── Opacity variant utilities (cp/ modifiers Tailwind can't resolve) ───────── */
+.border-cp\/20, .border-cp\/30, .border-cp\/50 { border-color: var(--cp-border); }
+.hover\:border-cp\/20:hover, .hover\:border-cp\/30:hover,
+.hover\:border-cp\/40:hover, .hover\:border-cp\/50:hover { border-color: var(--cp-border); }
+.hover\:bg-cp-tint\/30:hover, .hover\:bg-cp-tint\/50:hover { background: var(--cp-tint); }
+.bg-cp-tint\/30 { background: var(--cp-tint); }
+.focus\:border-cp:focus { border-color: var(--cp); }
+.focus-within\:border-cp\/50:focus-within { border-color: var(--cp-border); }
+
+/* ─── Skip-to-content link (accessibility) ──────────────────────────────────── */
+.skip-link {
+    position: absolute;
+    top: -100%;
+    left: 0.75rem;
+    z-index: 9999;
+    padding: 0.5rem 1rem;
+    background: var(--cp);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.875rem;
+    border-radius: 0 0 0.75rem 0.75rem;
+    text-decoration: none;
+    transition: top 0.15s ease;
+}
+.skip-link:focus {
+    top: 0;
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+}
+
+/* ─── Focus visible ring (global keyboard nav) ───────────────────────────────── */
+:focus-visible {
+    outline: 2px solid var(--cp);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+/* Suppress mouse-click outlines on buttons/links */
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* ─── Reduced motion support ─────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ─── Skeleton loading shimmer ───────────────────────────────────────────────── */
+@keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+}
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--muted-bg) 25%,
+        var(--input-bg) 50%,
+        var(--muted-bg) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 0.5rem;
+}
+
+/* ─── Visually hidden (screen-reader only) ───────────────────────────────────── */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* ─── Scroll snap for carousels ──────────────────────────────────────────────── */
+.snap-x-mandatory {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+}
+.snap-start { scroll-snap-align: start; }
+
+/* ─── Line-clamp utilities (cross-browser) ───────────────────────────────────── */
+.line-clamp-1 { -webkit-line-clamp: 1; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.line-clamp-2 { -webkit-line-clamp: 2; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.line-clamp-3 { -webkit-line-clamp: 3; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ─── Print styles (basic) ───────────────────────────────────────────────────── */
+@media print {
+    nav, aside, .no-print { display: none !important; }
+    body { background: white; color: black; }
+    a[href]::after { content: " (" attr(href) ")"; }
 }

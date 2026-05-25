@@ -85,7 +85,7 @@ export default function ProfileCompletionBar() {
             {/* Orange top bar */}
             <div
                 style={{
-                    background: "#F97316",
+                    background: "var(--cp)",
                     padding: "10px 14px 8px",
                     position: "relative",
                 }}
@@ -192,7 +192,7 @@ export default function ProfileCompletionBar() {
                     }}
                 >
                     Your profile is{" "}
-                    <span style={{ fontWeight: 700, color: "#F97316" }}>
+                    <span style={{ fontWeight: 700, color: "var(--cp)" }}>
                         {pct}% complete
                     </span>
                 </p>
@@ -215,7 +215,7 @@ export default function ProfileCompletionBar() {
                                         width: "6px",
                                         height: "6px",
                                         borderRadius: "50%",
-                                        background: "#F97316",
+                                        background: "var(--cp)",
                                         flexShrink: 0,
                                     }}
                                 />
@@ -248,7 +248,7 @@ export default function ProfileCompletionBar() {
                     style={{
                         width: "100%",
                         padding: "8px",
-                        background: "#F97316",
+                        background: "var(--cp)",
                         color: "#fff",
                         border: "none",
                         borderRadius: "10px",

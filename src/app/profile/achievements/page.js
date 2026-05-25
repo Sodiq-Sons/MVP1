@@ -159,8 +159,8 @@ function formatTimeAgo(date) {
 
 const RARITY_STYLES = {
     common: {
-        card: "bg-gray-50 border-gray-200",
-        badge: "bg-gray-100 text-gray-500",
+        card: "bg-subtle border-theme",
+        badge: "bg-muted text-gray-500",
         label: "Common",
         glow: "",
     },
@@ -177,10 +177,10 @@ const RARITY_STYLES = {
         glow: "shadow-purple-100",
     },
     epic: {
-        card: "bg-orange-50 border-orange-200",
-        badge: "bg-orange-100 text-orange-600",
+        card: "bg-cp-tint border-theme",
+        badge: "bg-cp-tint text-cp",
         label: "Epic",
-        glow: "shadow-orange-100",
+        glow: "shadow-cp-border",
     },
     legendary: {
         card: "bg-yellow-50 border-yellow-200",
@@ -193,13 +193,13 @@ const RARITY_STYLES = {
 // ─── Login Prompt ──────────────────────────────────────────────────────────────
 function LoginPrompt() {
     return (
-        <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
-            <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-8 max-w-md w-full text-center">
-                <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="min-h-screen bg-page flex items-center justify-center px-4">
+            <div className="bg-card rounded-3xl shadow-lg border border-subtle p-8 max-w-md w-full text-center">
+                <div className="w-20 h-20 bg-cp-tint rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg
                         viewBox="0 0 24 24"
                         fill="none"
-                        stroke="#F97316"
+                        stroke="var(--cp)"
                         strokeWidth="2"
                         strokeLinecap="round"
                         className="w-8 h-8"
@@ -229,7 +229,7 @@ function LoginPrompt() {
                 </p>
                 <Link
                     href="/login"
-                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#F97316] text-white hover:bg-[#C2410C] transition-all inline-block text-center"
+                    className="w-full py-3.5 rounded-2xl font-bold text-base btn-primary transition-all inline-block text-center"
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
                     Log In to Continue
@@ -247,13 +247,13 @@ function BadgeCard({ badge, earned, earnedData }) {
     if (earned) {
         return (
             <div
-                className={`p-4 rounded-2xl border-2 transition-all cursor-default ${rarity.card} ${rarity.glow ? `shadow-md ${rarity.glow}` : ""} ${isSpecial ? "ring-2 ring-orange-300 border-orange-300 bg-orange-50" : ""}`}
+                className={`p-4 rounded-2xl border-2 transition-all cursor-default ${rarity.card} ${rarity.glow ? `shadow-md ${rarity.glow}` : ""} ${isSpecial ? "ring-2 ring-cp border-theme bg-cp-tint" : ""}`}
             >
                 <div className="text-center">
                     <div className="text-4xl md:text-5xl mb-2 relative inline-block">
                         {badge.emoji}
                         {isSpecial && (
-                            <span className="absolute -top-1 -right-1 text-xs bg-orange-500 text-white rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                            <span className="absolute -top-1 -right-1 text-xs bg-cp-deeper text-white rounded-full w-4 h-4 flex items-center justify-center font-bold">
                                 ✓
                             </span>
                         )}
@@ -265,7 +265,7 @@ function BadgeCard({ badge, earned, earnedData }) {
                         {badge.label}
                     </h3>
                     <p
-                        className={`text-[10px] md:text-xs leading-snug mb-2 line-clamp-2 ${isSpecial ? "text-orange-600" : "text-gray-500"}`}
+                        className={`text-[10px] md:text-xs leading-snug mb-2 line-clamp-2 ${isSpecial ? "text-cp" : "text-gray-500"}`}
                     >
                         {badge.description}
                     </p>
@@ -285,7 +285,7 @@ function BadgeCard({ badge, earned, earnedData }) {
     }
 
     return (
-        <div className="p-4 rounded-2xl border-2 bg-gray-50 border-gray-200 opacity-60">
+        <div className="p-4 rounded-2xl border-2 bg-subtle border-theme opacity-60">
             <div className="text-center">
                 <div className="text-4xl md:text-5xl mb-2 grayscale">
                     {badge.emoji}
@@ -401,7 +401,7 @@ export default function AchievementsPage() {
                 style={{ background: "#FDF6EF" }}
             >
                 <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 border-4 border-orange-200 border-t-[#F97316] rounded-full animate-spin" />
+                    <div className="w-8 h-8 border-4 border-theme spinner-cp rounded-full animate-spin" />
                     <p
                         className="text-sm text-gray-500"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
@@ -440,11 +440,11 @@ export default function AchievementsPage() {
             style={{ background: "#FDF6EF" }}
         >
             {/* Header */}
-            <div className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 md:px-6 py-4">
+            <div className="sticky top-0 z-40 bg-white border-b border-subtle px-4 md:px-6 py-4">
                 <div className="flex items-center gap-3 mb-4">
                     <button
                         onClick={() => router.back()}
-                        className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition-colors cursor-pointer"
+                        className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center hover:bg-gray-200 transition-colors cursor-pointer"
                     >
                         <svg
                             viewBox="0 0 24 24"
@@ -468,7 +468,7 @@ export default function AchievementsPage() {
                                 Achievements & Badges
                             </h1>
                             {isVerified && (
-                                <span className="flex items-center gap-1 text-xs font-bold text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full shrink-0">
+                                <span className="flex items-center gap-1 text-xs font-bold text-cp bg-cp-tint border border-theme px-2 py-0.5 rounded-full shrink-0">
                                     ✅ Verified
                                 </span>
                             )}
@@ -479,9 +479,9 @@ export default function AchievementsPage() {
                     </div>
                 </div>
                 {/* Progress bar */}
-                <div className="w-full bg-gray-100 rounded-full h-2">
+                <div className="w-full bg-muted rounded-full h-2">
                     <div
-                        className="bg-[#F97316] h-2 rounded-full transition-all duration-500"
+                        className="bg-cp h-2 rounded-full transition-all duration-500"
                         style={{
                             width: `${(earnedCount / totalCount) * 100}%`,
                         }}
@@ -492,7 +492,7 @@ export default function AchievementsPage() {
             <div className="px-4 md:px-6 py-4 space-y-4">
                 {/* Verified Corper spotlight */}
                 {!verifiedBadgeEarned && (
-                    <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-4 text-white">
+                    <div className="bg-cp rounded-2xl p-4 text-white">
                         <div className="flex items-start gap-3">
                             <div className="text-3xl">🔒</div>
                             <div className="flex-1 min-w-0">
@@ -505,7 +505,7 @@ export default function AchievementsPage() {
                                 >
                                     Unlock: Verified Corper ✅
                                 </h3>
-                                <p className="text-orange-100 text-xs leading-relaxed">
+                                <p className="text-white/80 text-xs leading-relaxed">
                                     Complete your profile to earn this badge,
                                     get verified, unlock voting & posting, and
                                     earn 20 bonus points!
@@ -513,7 +513,7 @@ export default function AchievementsPage() {
                             </div>
                             <Link
                                 href="/profile/edit"
-                                className="shrink-0 bg-white text-orange-600 font-bold text-xs px-3 py-2 rounded-xl hover:bg-orange-50 transition-colors"
+                                className="shrink-0 bg-white text-cp font-bold text-xs px-3 py-2 rounded-xl hover:bg-cp-tint transition-colors"
                             >
                                 Complete →
                             </Link>
@@ -536,7 +536,7 @@ export default function AchievementsPage() {
                                     Verified Corper!
                                 </h3>
                                 <p className="text-green-100 text-xs">
-                                    Your profile is complete. You're verified
+                                    Your profile is complete. You&apos;re verified
                                     and unlocked!
                                 </p>
                             </div>
@@ -550,23 +550,23 @@ export default function AchievementsPage() {
                         {
                             id: "all",
                             label: "All",
-                            active: "bg-[#F97316] text-white",
+                            active: "bg-cp text-white",
                             inactive:
-                                "bg-white border border-gray-200 text-gray-600",
+                                "bg-white border border-theme text-gray-600",
                         },
                         {
                             id: "earned",
                             label: `Earned (${earnedCount})`,
                             active: "bg-green-500 text-white",
                             inactive:
-                                "bg-white border border-gray-200 text-gray-600",
+                                "bg-white border border-theme text-gray-600",
                         },
                         {
                             id: "locked",
                             label: `Locked (${totalCount - earnedCount})`,
                             active: "bg-gray-500 text-white",
                             inactive:
-                                "bg-white border border-gray-200 text-gray-600",
+                                "bg-white border border-theme text-gray-600",
                         },
                     ].map((tab) => (
                         <button
@@ -607,7 +607,7 @@ export default function AchievementsPage() {
                 )}
 
                 {/* Stats Overview */}
-                <div className="bg-white rounded-2xl border border-gray-50 p-4 md:p-6">
+                <div className="bg-card rounded-2xl border border-subtle p-4 md:p-6">
                     <h2
                         className="text-lg font-bold text-gray-900 mb-4"
                         style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
@@ -616,7 +616,7 @@ export default function AchievementsPage() {
                     </h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="text-center">
-                            <div className="text-2xl md:text-3xl font-black text-[#F97316]">
+                            <div className="text-2xl md:text-3xl font-black text-cp">
                                 {stats?.issuesCount || 0}
                             </div>
                             <p className="text-xs md:text-sm text-gray-500 mt-1">

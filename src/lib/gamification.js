@@ -7,12 +7,15 @@ import {
     serverTimestamp,
     collection,
     query,
-    where,
     getDocs,
     writeBatch,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { createNotification, NOTIFICATION_TYPES } from "./notifications";
+import {
+    createNotification,
+    createNotificationsBatch,
+    NOTIFICATION_TYPES,
+} from "./notifications";
 
 // ─── Points Configuration ──────────────────────────────────────────────────────
 export const POINTS_CONFIG = {
@@ -221,6 +224,56 @@ export const BADGES = {
         rarity: "rare",
         condition: (stats) => stats.trendingIssues >= 1,
     },
+
+    // ── Camp-Specific ──
+    GIST_LORD: {
+        id: "gist_lord",
+        emoji: "🏆",
+        label: "Gist Lord",
+        description: "Posted 20+ times — the ultimate gist master",
+        rarity: "rare",
+        condition: (stats) => (stats.issuesCount || 0) >= 20,
+    },
+    AGBA_REPORTER: {
+        id: "agba_reporter",
+        emoji: "📰",
+        label: "Agba Reporter",
+        description: "Received 100 upvotes — the camp's top reporter",
+        rarity: "rare",
+        condition: (stats) => (stats.upvotesReceived || 0) >= 100,
+    },
+    FIRE_STARTER: {
+        id: "fire_starter",
+        emoji: "🔥",
+        label: "Fire Starter",
+        description: "Maintained a 7-day login streak",
+        rarity: "uncommon",
+        condition: (stats) => (stats.streak || 0) >= 7,
+    },
+    CAMP_LEGEND: {
+        id: "camp_legend",
+        emoji: "🌟",
+        label: "Camp Legend",
+        description: "Maintained a 30-day login streak",
+        rarity: "legendary",
+        condition: (stats) => (stats.streak || 0) >= 30,
+    },
+    VIRAL_STAR: {
+        id: "viral_star",
+        emoji: "⚡",
+        label: "Viral Star",
+        description: "Had a post go viral (50+ upvotes)",
+        rarity: "rare",
+        condition: (stats) => (stats.viralIssues || 0) >= 1,
+    },
+    PLATOON_CHAMP: {
+        id: "platoon_champ",
+        emoji: "🥇",
+        label: "Platoon Champion",
+        description: "Member of the leading platoon this week",
+        rarity: "special",
+        condition: (stats) => !!stats.isPlatoonChampion,
+    },
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -345,7 +398,7 @@ export async function awardPoints(userId, action, metadata = {}) {
 }
 
 // ─── Stats Management ──────────────────────────────────────────────────────────
-export async function updateUserStats(userId, action, metadata = {}) {
+export async function updateUserStats(userId, action) {
     const statsRef = doc(db, "users", userId, "stats", "overview");
     const statsSnap = await getDoc(statsRef);
     const updates = {};
@@ -443,6 +496,8 @@ export async function checkAndAwardBadges(userId) {
         const combinedStats = {
             ...stats,
             completedReferrals: referralStats.completedReferrals || 0,
+            streak: userData.streak || 0,
+            isPlatoonChampion: userData.isPlatoonChampion || false,
         };
 
         const badgesQuery = query(collection(db, "users", userId, "badges"));
@@ -468,7 +523,12 @@ export async function checkAndAwardBadges(userId) {
                     description: badge.description,
                     earnedAt: serverTimestamp(),
                 });
-                await createNotification({
+            }
+            await batch.commit();
+
+            // Send notifications only after the batch has committed successfully
+            await createNotificationsBatch(
+                newBadges.map((badge) => ({
                     type: NOTIFICATION_TYPES.MILESTONE,
                     recipientId: userId,
                     actorId: "system",
@@ -476,9 +536,9 @@ export async function checkAndAwardBadges(userId) {
                     issueId: null,
                     issueTitle: "New Badge Earned!",
                     meta: { type: "badge_earned", badge },
-                });
-            }
-            await batch.commit();
+                })),
+            );
+
             if (statsSnap.exists()) {
                 await updateDoc(statsRef, {
                     badgesCount: increment(newBadges.length),

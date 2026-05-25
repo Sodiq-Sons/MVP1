@@ -160,8 +160,8 @@ function timeAgo(seconds) {
 const CATEGORY_META = {
     infrastructure: {
         emoji: "🏗️",
-        color: "text-orange-700",
-        bg: "bg-orange-50",
+        color: "text-cp",
+        bg: "bg-cp-tint",
     },
     education: { emoji: "📚", color: "text-blue-700", bg: "bg-blue-50" },
     healthcare: { emoji: "❤️", color: "text-rose-700", bg: "bg-rose-50" },
@@ -174,7 +174,7 @@ const CATEGORY_META = {
     poll: { emoji: "🗳️", color: "text-violet-700", bg: "bg-violet-50" },
     food: { emoji: "🍛", color: "text-amber-700", bg: "bg-amber-50" },
     issue: { emoji: "🚨", color: "text-red-700", bg: "bg-red-50" },
-    other: { emoji: "📌", color: "text-gray-700", bg: "bg-gray-100" },
+    other: { emoji: "📌", color: "text-gray-700", bg: "bg-muted" },
 };
 
 // ── Status Badge ──────────────────────────────────────────────────────────────
@@ -213,7 +213,7 @@ function IssueCard({ issue }) {
     const meta = CATEGORY_META[issue.category] ?? CATEGORY_META.other;
     return (
         <Link href={`/issue/${issue.id}`}>
-            <div className="flex gap-3 p-3.5 rounded-xl bg-gray-50 border border-gray-100 hover:border-[#F97316]/30 hover:bg-orange-50/30 transition-all cursor-pointer">
+            <div className="flex gap-3 p-3.5 rounded-xl bg-subtle border border-subtle hover:border-cp/30 hover:bg-cp-tint/30 transition-all cursor-pointer">
                 <div
                     className={`w-9 h-9 rounded-xl ${meta.bg} flex items-center justify-center text-lg shrink-0`}
                 >
@@ -257,22 +257,22 @@ function IssueCard({ issue }) {
 function SkeletonProfile() {
     return (
         <div className="animate-pulse space-y-4">
-            <div className="bg-white rounded-2xl overflow-hidden border border-gray-100">
-                <div className="h-28 bg-gray-100" />
+            <div className="bg-card rounded-2xl overflow-hidden border border-subtle">
+                <div className="h-28 bg-muted" />
                 <div className="px-4 pb-4">
                     <div className="flex items-end justify-between -mt-10 mb-4">
                         <div className="w-20 h-20 rounded-2xl bg-gray-200 border-4 border-white" />
                     </div>
                     <div className="space-y-2">
-                        <div className="h-5 bg-gray-100 rounded w-1/3" />
-                        <div className="h-3 bg-gray-100 rounded w-2/3" />
-                        <div className="h-3 bg-gray-100 rounded w-1/4" />
+                        <div className="h-5 bg-muted rounded w-1/3" />
+                        <div className="h-3 bg-muted rounded w-2/3" />
+                        <div className="h-3 bg-muted rounded w-1/4" />
                     </div>
                     <div className="grid grid-cols-3 gap-2 mt-4">
                         {[1, 2, 3].map((i) => (
                             <div
                                 key={i}
-                                className="h-16 bg-gray-100 rounded-xl"
+                                className="h-16 bg-muted rounded-xl"
                             />
                         ))}
                     </div>
@@ -415,7 +415,7 @@ export default function PublicProfilePage() {
                 className="min-h-screen pb-24 md:pb-8 px-4 md:px-6"
                 style={{ background: "#FDF6EF" }}
             >
-                <header className="md:hidden sticky top-0 z-40 bg-[#F97316] -mx-4 px-4 pt-6 pb-4 mb-4">
+                <header className="md:hidden sticky top-0 z-40 bg-cp -mx-4 px-4 pt-6 pb-4 mb-4">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => router.back()}
@@ -452,7 +452,7 @@ export default function PublicProfilePage() {
                 </p>
                 <Link
                     href="/search-users"
-                    className="px-6 py-3 bg-[#F97316] text-white rounded-xl font-semibold text-sm hover:bg-[#C2410C] transition-colors"
+                    className="px-6 py-3 bg-cp text-white rounded-xl font-semibold text-sm  transition-colors"
                 >
                     Back to Search
                 </Link>
@@ -490,7 +490,7 @@ export default function PublicProfilePage() {
         profile?.role === "top_reporter"
             ? {
                   label: "🔥 Top Reporter",
-                  cls: "bg-orange-50 text-orange-600 border-orange-100",
+                  cls: "bg-cp-tint text-cp border-cp/20",
               }
             : profile?.role === "admin"
               ? {
@@ -517,15 +517,17 @@ export default function PublicProfilePage() {
 
     return (
         <div
+            id="main-content"
             className="min-h-screen pb-24 md:pb-8"
             style={{ background: "#FDF6EF" }}
         >
             {/* Mobile Header */}
-            <header className="md:hidden sticky top-0 z-40 bg-[#F97316] px-4 pt-6 pb-4">
+            <header className="md:hidden sticky top-0 z-40 bg-cp px-4 pt-6 pb-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => router.back()}
+                            aria-label="Go back"
                             className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center text-white cursor-pointer"
                         >
                             <BackIcon />
@@ -546,6 +548,7 @@ export default function PublicProfilePage() {
                     </div>
                     <button
                         onClick={handleShare}
+                        aria-label={copied ? "Link copied" : "Share profile"}
                         className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center text-white cursor-pointer"
                     >
                         <ShareIcon />
@@ -558,7 +561,8 @@ export default function PublicProfilePage() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => router.back()}
-                        className="w-9 h-9 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer shadow-sm"
+                        aria-label="Go back"
+                        className="w-9 h-9 bg-white border border-theme rounded-xl flex items-center justify-center text-gray-600 hover:bg-subtle transition-colors cursor-pointer shadow-sm"
                     >
                         <BackIcon />
                     </button>
@@ -578,7 +582,7 @@ export default function PublicProfilePage() {
                 </div>
                 <button
                     onClick={handleShare}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors shadow-sm cursor-pointer"
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-theme rounded-xl text-sm font-semibold text-gray-600 hover:bg-subtle transition-colors shadow-sm cursor-pointer"
                 >
                     <ShareIcon /> {copied ? "Copied!" : "Share Profile"}
                 </button>
@@ -586,9 +590,9 @@ export default function PublicProfilePage() {
 
             <div className="px-4 md:px-6 mt-4 space-y-4">
                 {/* Profile Card */}
-                <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                <div className="bg-card rounded-2xl overflow-hidden border border-subtle shadow-sm">
                     {/* Banner */}
-                    <div className="h-28 md:h-36 relative bg-gradient-to-br from-[#EA580C] to-[#F97316]">
+                    <div className="h-28 md:h-36 relative bg-gradient-to-br from-[color:var(--cp-deeper)] to-[color:var(--cp)]">
                         <div
                             className="absolute inset-0 opacity-10"
                             style={{
@@ -602,7 +606,7 @@ export default function PublicProfilePage() {
                     <div className="px-4 md:px-5 pb-4 md:pb-5">
                         <div className="flex items-end justify-between -mt-11 mb-3">
                             <div className="relative">
-                                <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl border-4 border-white shadow-lg bg-gradient-to-br from-orange-300 to-orange-500 flex items-center justify-center text-white text-3xl font-black overflow-hidden">
+                                <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl border-4 border-white shadow-lg bg-cp flex items-center justify-center text-white text-3xl font-black overflow-hidden">
                                     {displayPhoto ? (
                                         <Image
                                             src={displayPhoto}
@@ -680,7 +684,7 @@ export default function PublicProfilePage() {
                                         stats?.issuesCount || issues.length,
                                     ),
                                     emoji: "📋",
-                                    bg: "bg-orange-50",
+                                    bg: "bg-cp-tint",
                                 },
                                 {
                                     label: "Upvotes",
@@ -729,7 +733,7 @@ export default function PublicProfilePage() {
                 </div>
 
                 {/* Level Progress */}
-                <div className="bg-gradient-to-br from-[#EA580C] to-[#F97316] rounded-2xl p-4 text-white relative overflow-hidden">
+                <div className="bg-gradient-to-br from-[color:var(--cp-deeper)] to-[color:var(--cp)] rounded-2xl p-4 text-white relative overflow-hidden">
                     <div
                         className="absolute inset-0 opacity-10"
                         style={{
@@ -765,19 +769,22 @@ export default function PublicProfilePage() {
                 </div>
 
                 {/* Tabs */}
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="flex border-b border-gray-100">
+                <div className="bg-card rounded-2xl border border-subtle shadow-sm overflow-hidden">
+                    <div role="tablist" aria-label="Profile sections" className="flex border-b border-subtle">
                         {tabs.map((t) => (
                             <button
                                 key={t.key}
+                                role="tab"
+                                aria-selected={activeTab === t.key}
+                                aria-controls={`tabpanel-${t.key}`}
                                 onClick={() => setActiveTab(t.key)}
-                                className={`flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold transition-all border-b-2 cursor-pointer ${activeTab === t.key ? "border-[#F97316] text-[#F97316]" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold transition-all border-b-2 cursor-pointer ${activeTab === t.key ? "border-cp text-cp" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
                                 {t.label}
                                 {t.count !== null && (
                                     <span
-                                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeTab === t.key ? "bg-[#F97316]/10 text-[#F97316]" : "bg-gray-100 text-gray-400"}`}
+                                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeTab === t.key ? "bg-cp/10 text-cp" : "bg-muted text-gray-400"}`}
                                     >
                                         {t.count}
                                     </span>
@@ -854,7 +861,7 @@ export default function PublicProfilePage() {
                                     badges.map((b) => (
                                         <div
                                             key={b.id}
-                                            className="p-3.5 rounded-xl text-center bg-gradient-to-br from-gray-50 to-white border border-gray-100 hover:border-[#F97316]/30 hover:shadow-sm transition-all"
+                                            className="p-3.5 rounded-xl text-center bg-gradient-to-br from-gray-50 to-white border border-subtle hover:border-cp/30 hover:shadow-sm transition-all"
                                         >
                                             <div className="text-3xl mb-2">
                                                 {b.emoji}
@@ -871,7 +878,7 @@ export default function PublicProfilePage() {
                                             <div className="text-[10px] text-gray-400 leading-snug mb-2">
                                                 {b.description}
                                             </div>
-                                            <div className="text-[10px] font-bold text-[#F97316] bg-orange-50 rounded-full py-1">
+                                            <div className="text-[10px] font-bold text-cp bg-cp-tint rounded-full py-1">
                                                 ✓ Earned
                                                 {b.earnedAt && (
                                                     <span className="font-normal text-gray-400 ml-1">
@@ -951,7 +958,7 @@ export default function PublicProfilePage() {
                                         ].map((item) => (
                                             <div
                                                 key={item.label}
-                                                className="bg-gray-50 rounded-xl p-3"
+                                                className="bg-subtle rounded-xl p-3"
                                             >
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <span className="text-xl">

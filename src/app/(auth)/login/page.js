@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { authErrorMessage } from "@/lib/authErrors";
+import AuthErrorBanner from "@/components/AuthErrorBanner";
 import Link from "next/link";
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -80,19 +82,8 @@ const EyeClosedIcon = () => (
 
 const SpinnerIcon = () => (
     <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
-        <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-        />
-        <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-        />
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
     </svg>
 );
 
@@ -101,7 +92,6 @@ const SpinnerIcon = () => (
 export default function LoginPage() {
     const router = useRouter();
 
-    // ── Auth State ────────────────────────────────────────────────────────────
     const [checkingAuth, setCheckingAuth] = useState(true);
 
     useEffect(() => {
@@ -115,58 +105,35 @@ export default function LoginPage() {
         return () => unsubscribe();
     }, [router]);
 
-    // ── Form State ──────────────────────────────────────────────────────────────
     const [fullName, setFullName] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+    const [error, setError] = useState(null);
 
-    // ── Validation ──────────────────────────────────────────────────────────────
     const formValid = fullName.trim().length >= 2 && password.length >= 6;
 
-    // ── Login Handler ───────────────────────────────────────────────────────────
     const handleLogin = async (e) => {
         e.preventDefault();
         if (!formValid || loading) return;
 
         setLoading(true);
-        setError("");
+        setError(null);
 
-        // Generate camp email from name
         const campEmail = `${fullName.toLowerCase().replace(/\s+/g, ".")}@camp.local`;
 
         try {
             await signInWithEmailAndPassword(auth, campEmail, password);
         } catch (err) {
             console.error("Login error:", err);
-            let errorMessage = "Login failed. Try again.";
-
-            switch (err.code) {
-                case "auth/user-not-found":
-                    errorMessage =
-                        "No camper found with that name. Check your name or sign up.";
-                    break;
-                case "auth/wrong-password":
-                case "auth/invalid-credential":
-                    errorMessage = "Wrong password. Try again.";
-                    break;
-                case "auth/too-many-requests":
-                    errorMessage = "Too many tries. Chill for a bit.";
-                    break;
-                default:
-                    errorMessage = err.message || "Failed to sign in.";
-            }
-
-            setError(errorMessage);
+            setError(authErrorMessage(err.code));
             setLoading(false);
         }
     };
 
-    // ── Loading State ───────────────────────────────────────────────────────────
     if (checkingAuth) {
         return (
-            <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
+            <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "var(--bg)" }}>
                 <div className="text-center">
                     <SpinnerIcon />
                     <p className="text-gray-500 mt-2">Loading...</p>
@@ -175,11 +142,10 @@ export default function LoginPage() {
         );
     }
 
-    // ── Render ──────────────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-[#FDF6EF] pb-24 md:pb-8">
+        <div className="min-h-screen pb-24 md:pb-8" style={{ background: "var(--bg)" }}>
             {/* Header */}
-            <header className="sticky top-0 z-40 bg-[#F97316] px-4 pt-6 md:pt-4 pb-3">
+            <header className="sticky top-0 z-40 px-4 pt-6 md:pt-4 pb-3" style={{ background: "var(--cp)" }}>
                 <div className="flex items-center gap-3 max-w-2xl mx-auto">
                     <button
                         onClick={() => router.push("/")}
@@ -190,15 +156,13 @@ export default function LoginPage() {
                     <div>
                         <h1
                             className="text-white font-bold text-base leading-tight"
-                            style={{
-                                fontFamily: "Plus Jakarta Sans, sans-serif",
-                            }}
+                            style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                         >
                             Welcome Back 🏕️
                         </h1>
                         <p
-                            className="text-orange-100 text-xs"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                            className="text-xs"
+                            style={{ fontFamily: "DM Sans, sans-serif", color: "rgba(255,255,255,0.8)" }}
                         >
                             Sign in to your camp
                         </p>
@@ -209,14 +173,15 @@ export default function LoginPage() {
             <div className="max-w-2xl mx-auto px-4 md:px-6">
                 {/* Hero */}
                 <div className="flex flex-col items-center pt-8 pb-6">
-                    <div className="w-24 h-24 bg-[#FFF7F2] rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
+                    <div
+                        className="w-24 h-24 rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md"
+                        style={{ background: "var(--cp-tint)" }}
+                    >
                         <span className="text-4xl">🏕️</span>
                     </div>
                     <h2
                         className="text-xl font-bold text-gray-900 text-center"
-                        style={{
-                            fontFamily: "Plus Jakarta Sans, sans-serif",
-                        }}
+                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                     >
                         Camp Life
                     </h2>
@@ -229,23 +194,16 @@ export default function LoginPage() {
                 </div>
 
                 {/* Error Banner */}
-                {error && (
-                    <div
-                        className="mb-4 px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-500"
-                        style={{ fontFamily: "DM Sans, sans-serif" }}
-                    >
-                        {error}
-                    </div>
-                )}
+                <AuthErrorBanner title={error?.title} message={error?.message} />
 
                 {/* Login Form */}
                 <form
                     onSubmit={handleLogin}
-                    className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden divide-y divide-gray-50"
+                    className="bg-card rounded-2xl shadow-sm border border-subtle overflow-hidden divide-y divide-subtle"
                 >
                     {/* Name */}
                     <div className="px-4 pt-4 pb-3 flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 bg-subtle rounded-lg flex items-center justify-center shrink-0">
                             <UserIcon />
                         </div>
                         <div className="flex-1">
@@ -268,7 +226,7 @@ export default function LoginPage() {
 
                     {/* Password */}
                     <div className="px-4 pt-3 pb-4 flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 bg-subtle rounded-lg flex items-center justify-center shrink-0">
                             <LockIcon />
                         </div>
                         <div className="flex-1">
@@ -282,27 +240,17 @@ export default function LoginPage() {
                                 <input
                                     type={showPassword ? "text" : "password"}
                                     value={password}
-                                    onChange={(e) =>
-                                        setPassword(e.target.value)
-                                    }
+                                    onChange={(e) => setPassword(e.target.value)}
                                     placeholder="Your camp password"
                                     className="flex-1 text-sm text-black placeholder-gray-300 focus:outline-none bg-transparent"
-                                    style={{
-                                        fontFamily: "DM Sans, sans-serif",
-                                    }}
+                                    style={{ fontFamily: "DM Sans, sans-serif" }}
                                 />
                                 <button
                                     type="button"
-                                    onClick={() =>
-                                        setShowPassword(!showPassword)
-                                    }
+                                    onClick={() => setShowPassword(!showPassword)}
                                     className="text-gray-400 hover:text-gray-600 transition-colors p-1"
                                 >
-                                    {showPassword ? (
-                                        <EyeOpenIcon />
-                                    ) : (
-                                        <EyeClosedIcon />
-                                    )}
+                                    {showPassword ? <EyeOpenIcon /> : <EyeClosedIcon />}
                                 </button>
                             </div>
                         </div>
@@ -315,15 +263,12 @@ export default function LoginPage() {
                     disabled={!formValid || loading}
                     className={`w-full mt-6 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 ${
                         formValid && !loading
-                            ? "bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98] cursor-pointer"
-                            : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            ? "btn-primary shadow-lg cursor-pointer"
+                            : "bg-muted text-gray-400 cursor-not-allowed"
                     }`}
                     style={{
                         fontFamily: "DM Sans, sans-serif",
-                        boxShadow:
-                            formValid && !loading
-                                ? "0 4px 20px rgba(232,97,26,0.35)"
-                                : undefined,
+                        boxShadow: formValid && !loading ? "0 4px 20px var(--cp-glow)" : undefined,
                     }}
                 >
                     {loading ? (
@@ -353,16 +298,13 @@ export default function LoginPage() {
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
                     New to camp?{" "}
-                    <Link
-                        href="/register"
-                        className="text-[#F97316] font-semibold hover:underline"
-                    >
+                    <Link href="/register" className="text-cp font-semibold hover:underline">
                         Join now
                     </Link>
                 </p>
 
                 {/* Guest Access */}
-                <div className="mt-8 pt-6 border-t border-gray-200">
+                <div className="mt-8 pt-6 border-t border-theme">
                     <p
                         className="text-xs text-center text-gray-400 mb-3"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
@@ -371,7 +313,7 @@ export default function LoginPage() {
                     </p>
                     <button
                         onClick={() => router.push("/")}
-                        className="w-full py-3 rounded-2xl font-semibold text-sm border-2 border-gray-200 text-gray-700 hover:border-[#F97316]/40 hover:text-[#F97316] transition-all cursor-pointer"
+                        className="w-full py-3 rounded-2xl font-semibold text-sm border-2 border-theme text-gray-700 hover-cp transition-all cursor-pointer"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     >
                         Browse as Visitor 🕵️

@@ -1,9 +1,4 @@
 "use client";
-// app/issues/[id]/page.tsx
-// KEY CHANGE: voting (handleVote, handleUpvote, handleDownvote, handleSubmitComment)
-// now checks isProfileComplete(userData) in addition to auth checks.
-// Users without a complete profile see an "IncompleteProfilePrompt" modal
-// instead of the generic login modal.
 
 import { useState, useEffect, use, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -17,6 +12,8 @@ import {
     runTransaction,
     getDoc,
     getDocs,
+    where,
+    limit,
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
@@ -29,8 +26,8 @@ import Image from "next/image";
 // ─── Category Meta ─────────────────────────────────────────────────────────────
 const CATEGORY_META = {
     infrastructure: {
-        color: "text-orange-700",
-        bg: "bg-orange-50",
+        color: "text-cp",
+        bg: "bg-cp-tint",
         label: "Infrastructure",
     },
     education: { color: "text-blue-700", bg: "bg-blue-50", label: "Education" },
@@ -55,7 +52,7 @@ const CATEGORY_META = {
         bg: "bg-green-50",
         label: "Environment",
     },
-    other: { color: "text-gray-700", bg: "bg-gray-100", label: "Other" },
+    other: { color: "text-gray-700", bg: "bg-muted", label: "Other" },
 };
 
 // ─── Demographic Config ────────────────────────────────────────────────────────
@@ -99,7 +96,7 @@ const DEMOGRAPHIC_CONFIG = {
 };
 
 const DEMO_COLORS = [
-    "#F97316",
+    "var(--cp)",
     "#1D9E75",
     "#7F77DD",
     "#D85A30",
@@ -108,6 +105,11 @@ const DEMO_COLORS = [
 ];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
+function cloudinaryOpt(url, opts = "f_auto,q_auto,w_900") {
+    if (!url?.includes("res.cloudinary.com")) return url;
+    return url.replace("/upload/", `/upload/${opts}/`);
+}
+
 function timeAgo(seconds) {
     const diff = Math.floor(Date.now() / 1000) - seconds;
     if (diff < 60) return "just now";
@@ -119,6 +121,20 @@ function timeAgo(seconds) {
     const months = Math.floor(diff / 2592000);
     if (diff < 31536000) return `${months}mo`;
     return `${Math.floor(diff / 31536000)}y`;
+}
+
+function getDeadlineLabel(deadline, enabled) {
+    if (!enabled || !deadline) return null;
+    const d = deadline?.toDate ? deadline.toDate() : new Date(deadline);
+    const ms = d.getTime() - Date.now();
+    if (ms <= 0) return { label: "Voting closed", closed: true };
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    if (h >= 48) return { label: `${Math.floor(h / 24)}d ${h % 24}h left`, closed: false };
+    if (h >= 1) return { label: `${h}h ${m}m left`, closed: false };
+    if (m >= 1) return { label: `${m}m ${s}s left`, closed: false };
+    return { label: `${s}s left`, closed: false };
 }
 
 function formatNumber(n) {
@@ -134,7 +150,7 @@ function getAvatarCount(n) {
 
 const AVATAR_LETTERS = ["A", "B", "C", "D"];
 const AVATAR_COLORS = [
-    "bg-orange-400",
+    "bg-amber-400",
     "bg-blue-400",
     "bg-green-500",
     "bg-purple-400",
@@ -288,8 +304,8 @@ const SvgReply = () => (
 const SvgHeart = ({ active }) => (
     <svg
         viewBox="0 0 24 24"
-        fill={active ? "#F97316" : "none"}
-        stroke={active ? "#F97316" : "currentColor"}
+        fill={active ? "var(--cp)" : "none"}
+        stroke={active ? "var(--cp)" : "currentColor"}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -557,7 +573,7 @@ function StatusBadge({ status }) {
         },
         viral: {
             label: "Viral",
-            cls: "bg-orange-50 text-orange-600 border-orange-100",
+            cls: "bg-cp-tint text-cp border-cp/20",
         },
     };
     if (!status || !map[status]) return null;
@@ -616,9 +632,9 @@ function IncompleteProfileModal({ isOpen, onClose }) {
                 className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                 onClick={onClose}
             />
-            <div className="relative bg-white rounded-2xl p-6 mx-4 max-w-sm w-full z-10 shadow-2xl">
+            <div className="relative bg-card rounded-2xl p-6 mx-4 max-w-sm w-full z-10 shadow-2xl">
                 <div className="text-center">
-                    <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                    <div className="w-16 h-16 bg-cp-tint rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
                         🔒
                     </div>
                     <h3
@@ -632,7 +648,7 @@ function IncompleteProfileModal({ isOpen, onClose }) {
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     >
                         You need a{" "}
-                        <span className="font-semibold text-orange-500">
+                        <span className="font-semibold text-cp">
                             complete profile
                         </span>{" "}
                         to vote and interact with posts.
@@ -645,7 +661,7 @@ function IncompleteProfileModal({ isOpen, onClose }) {
                     <div className="flex gap-3">
                         <button
                             onClick={onClose}
-                            className="flex-1 py-3 rounded-xl font-semibold text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                            className="flex-1 py-3 rounded-xl font-semibold text-sm border border-theme text-gray-600 hover:bg-subtle transition-colors cursor-pointer"
                         >
                             Cancel
                         </button>
@@ -653,7 +669,7 @@ function IncompleteProfileModal({ isOpen, onClose }) {
                             onClick={() => {
                                 window.location.href = "/profile/edit";
                             }}
-                            className="flex-1 py-3 rounded-xl font-bold text-sm bg-[#F97316] text-white hover:bg-[#C2410C] transition-colors cursor-pointer"
+                            className="flex-1 py-3 rounded-xl font-bold text-sm btn-primary transition-colors cursor-pointer"
                         >
                             Complete Profile →
                         </button>
@@ -673,9 +689,9 @@ function LoginPromptModal({ isOpen, onClose, onLogin }) {
                 className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                 onClick={onClose}
             />
-            <div className="relative bg-white rounded-2xl p-6 mx-4 max-w-sm w-full z-10 shadow-2xl">
+            <div className="relative bg-card rounded-2xl p-6 mx-4 max-w-sm w-full z-10 shadow-2xl">
                 <div className="text-center">
-                    <div className="w-16 h-16 bg-[#FFF7F2] rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                    <div className="w-16 h-16 bg-cp-tint rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
                         🔒
                     </div>
                     <h3
@@ -694,13 +710,13 @@ function LoginPromptModal({ isOpen, onClose, onLogin }) {
                     <div className="flex gap-3">
                         <button
                             onClick={onClose}
-                            className="flex-1 py-3 rounded-xl font-semibold text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                            className="flex-1 py-3 rounded-xl font-semibold text-sm border border-theme text-gray-600 hover:bg-subtle transition-colors cursor-pointer"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={onLogin}
-                            className="flex-1 py-3 rounded-xl font-bold text-sm bg-[#F97316] text-white hover:bg-[#C2410C] transition-colors cursor-pointer"
+                            className="flex-1 py-3 rounded-xl font-bold text-sm btn-primary transition-colors cursor-pointer"
                         >
                             Sign In
                         </button>
@@ -763,8 +779,8 @@ function DemographicInsights({
     );
 
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="bg-[#F97316] px-4 pt-4 pb-4">
+        <div className="bg-card rounded-2xl border border-subtle shadow-sm overflow-hidden">
+            <div className="bg-cp px-4 pt-4 pb-4">
                 <div className="flex items-center justify-between mb-3">
                     <h2
                         className="text-sm font-bold text-white flex items-center gap-2"
@@ -827,7 +843,7 @@ function DemographicInsights({
             </div>
 
             {topGroupName && (
-                <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
+                <div className="grid grid-cols-2 divide-x divide-subtle border-b border-subtle">
                     <div className="px-4 py-3">
                         <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">
                             Leading choice
@@ -840,7 +856,7 @@ function DemographicInsights({
                         >
                             {leadingOpt}
                         </p>
-                        <p className="text-[11px] text-[#F97316] font-semibold mt-0.5">
+                        <p className="text-[11px] text-cp font-semibold mt-0.5">
                             {overallPcts[0]?.pct ?? 0}% of all votes
                         </p>
                     </div>
@@ -856,21 +872,21 @@ function DemographicInsights({
                         >
                             {topGroupName}
                         </p>
-                        <p className="text-[11px] text-[#F97316] font-semibold mt-0.5">
+                        <p className="text-[11px] text-cp font-semibold mt-0.5">
                             {topGroupPct}% chose yes · {strongestDemoLabel}
                         </p>
                     </div>
                 </div>
             )}
 
-            <div className="flex border-b border-gray-100 overflow-x-auto scrollbar-hide">
+            <div className="flex border-b border-subtle overflow-x-auto scrollbar-hide">
                 {demographics.map((demo) => {
                     const cfg = DEMOGRAPHIC_CONFIG[demo];
                     return (
                         <button
                             key={demo}
                             onClick={() => setActiveTab(demo)}
-                            className={`px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-all cursor-pointer ${activeTab === demo ? "border-[#F97316] text-[#F97316]" : "border-transparent text-gray-400 hover:text-gray-600"}`}
+                            className={`px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-all cursor-pointer ${activeTab === demo ? "border-cp text-cp" : "border-transparent text-gray-400 hover:text-gray-600"}`}
                         >
                             {cfg.label}
                         </button>
@@ -886,11 +902,11 @@ function DemographicInsights({
                     </div>
                 ) : totalVotes === 0 ? (
                     <div className="py-8 text-center">
-                        <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <div className="w-12 h-12 bg-cp-tint rounded-full flex items-center justify-center mx-auto mb-3">
                             <svg
                                 viewBox="0 0 24 24"
                                 fill="none"
-                                stroke="#F97316"
+                                stroke="var(--cp)"
                                 strokeWidth="1.5"
                                 className="w-6 h-6"
                             >
@@ -926,7 +942,7 @@ function DemographicInsights({
                                     <span className="text-xs font-bold text-gray-800">
                                         {group}
                                     </span>
-                                    <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                                    <span className="text-[10px] text-gray-400 bg-muted px-2 py-0.5 rounded-full">
                                         {groupTotal} vote
                                         {groupTotal !== 1 ? "s" : ""}
                                     </span>
@@ -1021,6 +1037,46 @@ function ReplyForm({
 }) {
     const [text, setText] = useState("");
     const [saving, setSaving] = useState(false);
+    const [replySuggestions, setReplySuggestions] = useState([]);
+    const [replyMentionQuery, setReplyMentionQuery] = useState(null);
+    const replyInputRef = useRef(null);
+    const replyUserCache = useRef(null);
+
+    const handleReplyChange = async (val) => {
+        setText(val);
+        const el = replyInputRef.current;
+        const caret = el ? el.selectionStart : val.length;
+        const match = val.slice(0, caret).match(/@(\S*)$/);
+        if (!match) { setReplyMentionQuery(null); setReplySuggestions([]); return; }
+        const q = match[1];
+        setReplyMentionQuery(q);
+        if (!replyUserCache.current) {
+            try {
+                const snap = await getDocs(query(collection(db, "users"), limit(40)));
+                replyUserCache.current = snap.docs
+                    .map((d) => ({ uid: d.id, name: d.data().displayName || d.data().name || "", photoURL: d.data().photoURL || null }))
+                    .filter((u) => u.name);
+            } catch { replyUserCache.current = []; }
+        }
+        const lq = q.toLowerCase();
+        setReplySuggestions((replyUserCache.current || []).filter((u) => u.name.toLowerCase().includes(lq)).slice(0, 4));
+    };
+
+    const insertReplyMention = (u) => {
+        const el = replyInputRef.current;
+        const caret = el ? el.selectionStart : text.length;
+        const beforeCaret = text.slice(0, caret).replace(/@(\S*)$/, "@" + u.name + " ");
+        const next = beforeCaret + text.slice(caret);
+        setText(next);
+        setReplyMentionQuery(null);
+        setReplySuggestions([]);
+        requestAnimationFrame(() => {
+            if (replyInputRef.current) {
+                replyInputRef.current.focus();
+                replyInputRef.current.setSelectionRange(beforeCaret.length, beforeCaret.length);
+            }
+        });
+    };
 
     const submit = async () => {
         if (!text.trim() || !authReady || saving) return;
@@ -1075,23 +1131,44 @@ function ReplyForm({
     return (
         <div className="mt-2 flex gap-2 items-start">
             <Avatar name="A" size="sm" />
-            <div className="flex-1 bg-gray-50 rounded-2xl border border-gray-100 focus-within:border-[#F97316]/50 focus-within:ring-2 focus-within:ring-[#F97316]/10 transition-all overflow-hidden">
+            <div className="flex-1">
+                {replySuggestions.length > 0 && (
+                    <div className="mb-1 bg-white border border-subtle rounded-xl shadow-xl overflow-hidden">
+                        {replySuggestions.map((u) => (
+                            <button
+                                key={u.uid}
+                                type="button"
+                                onMouseDown={(e) => { e.preventDefault(); insertReplyMention(u); }}
+                                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-left cursor-pointer border-b border-subtle last:border-0"
+                            >
+                                <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center shrink-0">
+                                    {u.photoURL
+                                        ? <img src={u.photoURL} alt="" className="w-full h-full object-cover" />
+                                        : <span className="text-[10px] font-bold text-gray-600">{u.name?.charAt(0)}</span>}
+                                </div>
+                                <span className="text-xs font-semibold text-gray-800">{u.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            <div className="bg-subtle rounded-2xl border border-subtle focus-within:border-cp/50 focus-within:ring-2 focus-within:ring-gray-200 transition-all overflow-hidden">
                 <div className="px-3 pt-2.5">
-                    <span className="text-xs font-bold text-[#F97316]">
+                    <span className="text-xs font-bold text-cp">
                         @{replyingTo}{" "}
                     </span>
                     <input
+                        ref={replyInputRef}
                         autoFocus
                         type="text"
                         value={text}
-                        onChange={(e) => setText(e.target.value)}
+                        onChange={(e) => handleReplyChange(e.target.value)}
                         onKeyDown={(e) => {
                             if (e.key === "Enter" && !e.shiftKey) {
                                 e.preventDefault();
                                 submit();
                             }
                         }}
-                        placeholder="Write a reply..."
+                        placeholder="Write a reply… (@ to mention)"
                         maxLength={280}
                         className="w-full bg-transparent text-sm text-gray-800 placeholder-gray-400 focus:outline-none"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
@@ -1115,12 +1192,13 @@ function ReplyForm({
                         <button
                             onClick={submit}
                             disabled={!text.trim() || saving}
-                            className="flex items-center gap-1.5 text-xs font-bold bg-[#F97316] text-white px-3 py-1.5 rounded-xl hover:bg-[#C2410C] disabled:opacity-40 transition-colors cursor-pointer"
+                            className="flex items-center gap-1.5 text-xs font-bold bg-cp text-white px-3 py-1.5 rounded-xl  disabled:opacity-40 transition-colors cursor-pointer"
                         >
                             {saving ? <SvgSpinner /> : <SvgSend />} Reply
                         </button>
                     </div>
                 </div>
+            </div>
             </div>
         </div>
     );
@@ -1202,7 +1280,7 @@ function CommentItem({
                 <div className="flex flex-col items-center shrink-0">
                     <Avatar name={comment.userName} size={avatarSize} />
                     {hasReplies && showReplies && (
-                        <div className="w-0.5 bg-gray-100 flex-1 min-h-5 mt-1.5 rounded-full" />
+                        <div className="w-0.5 bg-muted flex-1 min-h-5 mt-1.5 rounded-full" />
                     )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -1213,7 +1291,7 @@ function CommentItem({
                         {comment.replyingTo && depth === 0 && (
                             <span className="text-xs text-gray-400">
                                 · replying to{" "}
-                                <span className="text-[#F97316] font-semibold">
+                                <span className="text-cp font-semibold">
                                     @{comment.replyingTo}
                                 </span>
                             </span>
@@ -1230,7 +1308,7 @@ function CommentItem({
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     >
                         {comment.replyingTo && depth > 0 && (
-                            <span className="font-bold text-[#F97316] mr-1">
+                            <span className="font-bold text-cp mr-1">
                                 @{comment.replyingTo}
                             </span>
                         )}
@@ -1239,7 +1317,7 @@ function CommentItem({
                     <div className="flex items-center gap-4 mt-2">
                         <button
                             onClick={toggleLike}
-                            className={`flex items-center gap-1 transition-colors cursor-pointer group ${liked ? "text-[#F97316]" : "text-gray-400 hover:text-[#F97316]"}`}
+                            className={`flex items-center gap-1 transition-colors cursor-pointer group ${liked ? "text-cp" : "text-gray-400 hover:text-cp"}`}
                         >
                             <span className="group-hover:scale-110 transition-transform">
                                 <SvgHeart active={liked} />
@@ -1253,7 +1331,7 @@ function CommentItem({
                         {authReady && !isAnonymous && (
                             <button
                                 onClick={() => setReplying((r) => !r)}
-                                className="flex items-center gap-1 text-gray-400 hover:text-[#F97316] transition-colors cursor-pointer text-xs font-semibold"
+                                className="flex items-center gap-1 text-gray-400 hover:text-cp transition-colors cursor-pointer text-xs font-semibold"
                             >
                                 <SvgReply /> Reply
                             </button>
@@ -1261,7 +1339,7 @@ function CommentItem({
                         {hasReplies && (
                             <button
                                 onClick={() => setShowReplies((s) => !s)}
-                                className="flex items-center gap-1 text-xs font-bold text-[#F97316] hover:text-orange-600 transition-colors cursor-pointer ml-auto"
+                                className="flex items-center gap-1 text-xs font-bold text-cp hover:text-cp transition-colors cursor-pointer ml-auto"
                             >
                                 {showReplies ? (
                                     <SvgChevronUp />
@@ -1295,7 +1373,7 @@ function CommentItem({
                 </div>
             </div>
             {hasReplies && showReplies && (
-                <div className="ml-9 mt-3 pl-3 border-l-2 border-gray-100 space-y-4">
+                <div className="ml-9 mt-3 pl-3 border-l-2 border-subtle space-y-4">
                     {replies.map((reply) => (
                         <CommentItem
                             key={reply.id}
@@ -1318,13 +1396,13 @@ function CommentItem({
 
 function LoadingScreen() {
     return (
-        <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
-            <div className="bg-white rounded-2xl border border-[#FED7AA] p-8 flex flex-col items-center gap-4 max-w-sm w-full shadow-sm">
+        <div className="min-h-screen bg-page flex items-center justify-center px-4">
+            <div className="bg-card rounded-2xl border border-cp-border p-8 flex flex-col items-center gap-4 max-w-sm w-full shadow-sm">
                 <div className="relative">
-                    <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center text-[#F97316]">
+                    <div className="w-16 h-16 bg-cp-tint rounded-full flex items-center justify-center text-cp">
                         <SvgDocument />
                     </div>
-                    <div className="absolute inset-0 w-16 h-16 bg-orange-300/20 rounded-full animate-ping" />
+                    <div className="absolute inset-0 w-16 h-16 bg-gray-300/20 rounded-full animate-ping" />
                 </div>
                 <div className="text-center">
                     <h2
@@ -1340,9 +1418,109 @@ function LoadingScreen() {
                         Fetching details from the community...
                     </p>
                 </div>
-                <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                    <div className="bg-[#F97316] h-full rounded-full animate-pulse w-2/3" />
+                <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-cp h-full rounded-full animate-pulse w-2/3" />
                 </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Deadline Timer ────────────────────────────────────────────────────────────
+function DeadlineTimer({ deadline, enabled }) {
+    const [label, setLabel] = useState(null);
+    const [closed, setClosed] = useState(false);
+
+    useEffect(() => {
+        if (!enabled || !deadline) return;
+        const update = () => {
+            const result = getDeadlineLabel(deadline, enabled);
+            if (result) { setLabel(result.label); setClosed(result.closed); }
+        };
+        update();
+        const interval = setInterval(update, 1000);
+        return () => clearInterval(interval);
+    }, [deadline, enabled]);
+
+    if (!label) return null;
+    return (
+        <span
+            className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                closed
+                    ? "bg-gray-50 text-gray-400 border-gray-200"
+                    : "bg-amber-50 text-amber-700 border-amber-200"
+            }`}
+        >
+            {closed ? "🔒" : "⏱️"} {label}
+        </span>
+    );
+}
+
+// ─── Report Modal ──────────────────────────────────────────────────────────────
+function ReportModal({ isOpen, onClose, issueId, issueTitle, currentUser }) {
+    const [reason, setReason] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+    const [done, setDone] = useState(false);
+    const REASONS = ["Offensive / inappropriate", "Spam or misleading", "Harassment", "False information", "Other"];
+
+    const submit = async () => {
+        if (!reason || submitting) return;
+        setSubmitting(true);
+        try {
+            const { addDoc, collection, serverTimestamp } = await import("firebase/firestore");
+            await addDoc(collection(db, "reports"), {
+                issueId,
+                issueTitle,
+                reason,
+                reportedBy: currentUser?.uid || "anon",
+                reportedAt: serverTimestamp(),
+                status: "pending",
+            });
+            setDone(true);
+        } catch (e) {
+            console.error("Report failed:", e);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative bg-card rounded-2xl p-6 mx-4 max-w-sm w-full z-10 shadow-2xl">
+                {done ? (
+                    <div className="text-center">
+                        <div className="text-4xl mb-3">✅</div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-2" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>Report Submitted</h3>
+                        <p className="text-sm text-gray-500 mb-4" style={{ fontFamily: "DM Sans, sans-serif" }}>Our team will review this post. Thank you for keeping camp safe.</p>
+                        <button onClick={onClose} className="w-full py-3 rounded-xl font-bold text-sm btn-primary cursor-pointer">Close</button>
+                    </div>
+                ) : (
+                    <>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-xl">🚩</div>
+                            <div>
+                                <h3 className="text-base font-bold text-gray-900" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>Report Post</h3>
+                                <p className="text-xs text-gray-400">Help keep Camp Connect safe</p>
+                            </div>
+                        </div>
+                        <div className="space-y-2 mb-4">
+                            {REASONS.map((r) => (
+                                <button key={r} onClick={() => setReason(r)}
+                                    className={`w-full text-left px-3 py-2.5 rounded-xl text-sm border-2 transition-all cursor-pointer ${reason === r ? "border-red-400 bg-red-50 text-red-700 font-semibold" : "border-subtle text-gray-700 hover:border-gray-300"}`}
+                                    style={{ fontFamily: "DM Sans, sans-serif" }}
+                                >{r}</button>
+                            ))}
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={onClose} className="flex-1 py-3 rounded-xl font-semibold text-sm border border-theme text-gray-600 hover:bg-subtle transition-colors cursor-pointer">Cancel</button>
+                            <button onClick={submit} disabled={!reason || submitting}
+                                className="flex-[2] py-3 rounded-xl font-bold text-sm bg-red-500 text-white disabled:opacity-40 hover:bg-red-600 transition-colors cursor-pointer"
+                            >{submitting ? "Sending…" : "Submit Report"}</button>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );
@@ -1407,7 +1585,7 @@ function ShareModal({ isOpen, onClose, imageDataUrl, capturing, issue }) {
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                 onClick={onClose}
             />
-            <div className="relative bg-white rounded-t-3xl sm:rounded-2xl w-full sm:max-w-sm mx-auto z-10 shadow-2xl overflow-hidden">
+            <div className="relative bg-card rounded-t-3xl sm:rounded-2xl w-full sm:max-w-sm mx-auto z-10 shadow-2xl overflow-hidden">
                 <div className="flex justify-center pt-3 pb-1 sm:hidden">
                     <div className="w-10 h-1 bg-gray-200 rounded-full" />
                 </div>
@@ -1420,7 +1598,7 @@ function ShareModal({ isOpen, onClose, imageDataUrl, capturing, issue }) {
                     </h3>
                     <button
                         onClick={onClose}
-                        className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors cursor-pointer"
+                        className="w-8 h-8 bg-muted rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors cursor-pointer"
                     >
                         <svg
                             viewBox="0 0 24 24"
@@ -1437,12 +1615,12 @@ function ShareModal({ isOpen, onClose, imageDataUrl, capturing, issue }) {
                 </div>
                 <div className="px-5 pb-4">
                     <div
-                        className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50 relative"
+                        className="rounded-2xl overflow-hidden border border-subtle shadow-sm bg-subtle relative"
                         style={{ minHeight: "120px" }}
                     >
                         {capturing || !imageDataUrl ? (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-50">
-                                <div className="w-8 h-8 border-2 border-[#F97316] border-t-transparent rounded-full animate-spin" />
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-subtle">
+                                <div className="w-8 h-8 border-2 border-cp border-t-transparent rounded-full animate-spin" />
                                 <span
                                     className="text-xs text-gray-400 font-medium"
                                     style={{
@@ -1566,7 +1744,7 @@ function ShareModal({ isOpen, onClose, imageDataUrl, capturing, issue }) {
                     </button>
                 </div>
                 <div className="px-5 pb-4">
-                    <div className="flex items-center gap-2 bg-gray-50 rounded-2xl border border-gray-100 px-3 py-2.5">
+                    <div className="flex items-center gap-2 bg-subtle rounded-2xl border border-subtle px-3 py-2.5">
                         <svg
                             viewBox="0 0 24 24"
                             fill="none"
@@ -1586,7 +1764,7 @@ function ShareModal({ isOpen, onClose, imageDataUrl, capturing, issue }) {
                         </span>
                         <button
                             onClick={handleCopyLink}
-                            className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all cursor-pointer shrink-0 ${linkCopied ? "bg-green-500 text-white" : "bg-[#F97316] text-white hover:bg-[#C2410C]"}`}
+                            className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all cursor-pointer shrink-0 ${linkCopied ? "bg-green-500 text-white" : "btn-primary"}`}
                         >
                             {linkCopied ? "Copied!" : "Copy"}
                         </button>
@@ -1596,7 +1774,7 @@ function ShareModal({ isOpen, onClose, imageDataUrl, capturing, issue }) {
                     <div className="px-5 pb-6">
                         <button
                             onClick={handleNativeShare}
-                            className="w-full py-3 rounded-2xl bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-colors cursor-pointer flex items-center justify-center gap-2"
+                            className="w-full py-3 rounded-2xl bg-muted text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-colors cursor-pointer flex items-center justify-center gap-2"
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
                             <svg
@@ -1660,14 +1838,22 @@ export default function IssueDetailPage({ params }) {
     const [submittingComment, setSubmittingComment] = useState(false);
     const [commentsLoading, setCommentsLoading] = useState(false);
     const [commentsError, setCommentsError] = useState(null);
+    const [mentionSuggestions, setMentionSuggestions] = useState([]);
+    const [mentionQuery, setMentionQuery] = useState(null);
+    const commentInputRef = useRef(null);
+    const userCacheRef = useRef(null); // populated once on first @ keystroke
     const [demographicData, setDemographicData] = useState({});
     const [demographicsLoading, setDemographicsLoading] = useState(false);
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
     const [showProfilePrompt, setShowProfilePrompt] = useState(false);
     const [isAnonymous, setIsAnonymous] = useState(true);
     const [showShareModal, setShowShareModal] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(false);
     const [shareImageUrl, setShareImageUrl] = useState(null);
     const [capturing, setCapturing] = useState(false);
+    const [carouselIdx, setCarouselIdx] = useState(0);
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+    const carouselTouchStart = useRef(null);
 
     // ── Auth + profile check ──
     useEffect(() => {
@@ -2111,6 +2297,45 @@ export default function IssueDetailPage({ params }) {
         }
     };
 
+    // ── @Mention handling ──
+    const handleCommentChange = async (val) => {
+        setCommentText(val);
+        const el = commentInputRef.current;
+        const caret = el ? el.selectionStart : val.length;
+        const before = val.slice(0, caret);
+        const match = before.match(/@(S*)$/);
+        if (!match) { setMentionQuery(null); setMentionSuggestions([]); return; }
+        const q = match[1];
+        setMentionQuery(q);
+        if (!userCacheRef.current) {
+            try {
+                const snap = await getDocs(query(collection(db, 'users'), limit(40)));
+                userCacheRef.current = snap.docs
+                    .map((d) => ({ uid: d.id, name: d.data().displayName || d.data().name || '', photoURL: d.data().photoURL || null }))
+                    .filter((u) => u.name);
+            } catch { userCacheRef.current = []; }
+        }
+        const lq = q.toLowerCase();
+        setMentionSuggestions((userCacheRef.current || []).filter((u) => u.name.toLowerCase().includes(lq)).slice(0, 5));
+    };
+
+    const insertMention = (user) => {
+        const el = commentInputRef.current;
+        const caret = el ? el.selectionStart : commentText.length;
+        const beforeCaret = commentText.slice(0, caret).replace(/@(S*)$/, '@' + user.name + ' ');
+        const afterCaret = commentText.slice(caret);
+        const next = beforeCaret + afterCaret;
+        setCommentText(next);
+        setMentionQuery(null);
+        setMentionSuggestions([]);
+        requestAnimationFrame(() => {
+            if (commentInputRef.current) {
+                commentInputRef.current.focus();
+                commentInputRef.current.setSelectionRange(beforeCaret.length, beforeCaret.length);
+            }
+        });
+    };
+
     // ── Capture & Share ──
     const captureAndShare = async () => {
         setShowShareModal(true);
@@ -2143,9 +2368,9 @@ export default function IssueDetailPage({ params }) {
     if (loading) return <LoadingScreen />;
     if (error || !issue) {
         return (
-            <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
-                <div className="text-center bg-white rounded-2xl border border-gray-100 p-8 max-w-sm w-full shadow-sm">
-                    <div className="text-[#F97316] mb-4 flex justify-center">
+            <div className="min-h-screen bg-page flex items-center justify-center px-4">
+                <div className="text-center bg-card rounded-2xl border border-subtle p-8 max-w-sm w-full shadow-sm">
+                    <div className="text-cp mb-4 flex justify-center">
                         <SvgSearch />
                     </div>
                     <h1
@@ -2159,7 +2384,7 @@ export default function IssueDetailPage({ params }) {
                     </p>
                     <Link
                         href="/"
-                        className="flex items-center justify-center gap-2 bg-[#F97316] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#C2410C] transition-colors"
+                        className="flex items-center justify-center gap-2 bg-cp text-white px-6 py-3 rounded-xl font-semibold  transition-colors"
                     >
                         <SvgBack /> Back to Home
                     </Link>
@@ -2187,9 +2412,9 @@ export default function IssueDetailPage({ params }) {
     const showProfileBanner = !isAnonymous && currentUser && !profileComplete;
 
     return (
-        <div className="min-h-screen bg-[#FDF6EF] pb-24">
+        <div className="min-h-screen bg-page pb-24">
             {/* Header */}
-            <header className="sticky top-0 z-40 bg-[#F97316] px-4 pt-6 md:pt-4 pb-3">
+            <header className="sticky top-0 z-40 bg-cp px-4 pt-6 md:pt-4 pb-3">
                 <div className="flex items-center justify-between max-w-3xl mx-auto">
                     <div className="flex items-center gap-3">
                         <button
@@ -2208,19 +2433,30 @@ export default function IssueDetailPage({ params }) {
                                 Post Details
                             </h1>
                             <p
-                                className="text-orange-100 text-xs"
+                                className="text-white/80 text-xs"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
                                 {meta.label}
                             </p>
                         </div>
                     </div>
-                    <button
-                        onClick={captureAndShare}
-                        className="w-9 h-9 bg-white/20 text-white hover:bg-white/30 rounded-xl flex items-center justify-center transition-all cursor-pointer"
-                    >
-                        <SvgShare />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowReportModal(true)}
+                            className="flex items-center gap-1.5 px-3 h-9 bg-red-500/80 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
+                            aria-label="Report post"
+                            title="Report this post"
+                        >
+                            🚩 <span>Report</span>
+                        </button>
+                        <button
+                            onClick={captureAndShare}
+                            className="w-9 h-9 bg-white/20 text-white hover:bg-white/30 rounded-xl flex items-center justify-center transition-all cursor-pointer"
+                            aria-label="Share post"
+                        >
+                            <SvgShare />
+                        </button>
+                    </div>
                 </div>
             </header>
 
@@ -2228,73 +2464,135 @@ export default function IssueDetailPage({ params }) {
                 {/* Issue card */}
                 <div
                     ref={postCardRef}
-                    className="bg-white rounded-2xl border border-[#FED7AA] overflow-hidden shadow-sm"
+                    className="bg-card rounded-2xl border border-cp-border overflow-hidden shadow-sm"
                 >
-                    <div className="px-4 pt-4 pb-3 border-b border-gray-50">
+                    {/* ── Title block ── */}
+                    <div className="px-4 pt-4 pb-4">
                         {authorName && (
                             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2.5">
                                 <SvgUser />
-                                <span
-                                    style={{
-                                        fontFamily: "DM Sans, sans-serif",
-                                    }}
-                                >
-                                    {authorName}
-                                </span>
+                                <span style={{ fontFamily: "DM Sans, sans-serif" }}>{authorName}</span>
                             </div>
                         )}
                         <div className="flex items-center justify-between mb-3">
-                            <span
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${meta.bg} ${meta.color}`}
-                            >
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${meta.bg} ${meta.color}`}>
                                 <CategoryIcon category={issue.category} />
                                 {meta.label}
                             </span>
                             <StatusBadge status={issue.status} />
                         </div>
                         <h1
-                            className="text-xl font-bold text-gray-900 leading-tight mb-2"
-                            style={{
-                                fontFamily: "Plus Jakarta Sans, sans-serif",
-                            }}
+                            className="text-xl font-bold text-gray-900 leading-tight mb-3"
+                            style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                         >
                             {issue.title}
                         </h1>
                         <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
-                            <span className="flex items-center gap-1">
-                                <SvgLocation />
-                                {issue.location}
-                            </span>
-                            <span className="flex items-center gap-1">
-                                <SvgClock />
-                                {issue.timeAgo}
-                            </span>
+                            <span className="flex items-center gap-1"><SvgLocation />{issue.location}</span>
+                            <span className="flex items-center gap-1"><SvgClock />{issue.timeAgo}</span>
+                            <DeadlineTimer deadline={issue.pollDeadline} enabled={issue.pollTimerEnabled} />
+                            {issue.locationTag?.label && (
+                                <a
+                                    href={issue.locationTag.lat
+                                        ? `https://maps.google.com/?q=${issue.locationTag.lat},${issue.locationTag.lng}`
+                                        : `https://maps.google.com/?q=${encodeURIComponent(issue.locationTag.label)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1 font-semibold text-blue-600 hover:text-blue-700"
+                                >
+                                    📍 {issue.locationTag.label}
+                                </a>
+                            )}
                         </div>
                     </div>
 
+                    {/* ── Image carousel ── */}
                     {issue.images?.length > 0 && (
-                        <div className="px-4 pb-4">
-                            <div className="grid grid-cols-1 gap-2">
-                                {issue.images.map((img, i) => (
-                                    <div
-                                        key={i}
-                                        className="relative w-full rounded-2xl overflow-hidden bg-gray-100"
-                                    >
-                                        <Image
-                                            loading="lazy"
-                                            src={img}
-                                            alt={`Post image ${i + 1}`}
-                                            width={800}
-                                            height={600}
-                                            className="w-full object-cover rounded-2xl"
-                                        />
+                        <div className="border-t border-subtle">
+                            <div
+                                className="relative overflow-hidden bg-black select-none"
+                                style={{ aspectRatio: "16/9" }}
+                                onTouchStart={(e) => { carouselTouchStart.current = e.touches[0].clientX; }}
+                                onTouchEnd={(e) => {
+                                    const diff = carouselTouchStart.current - e.changedTouches[0].clientX;
+                                    if (Math.abs(diff) > 40) {
+                                        if (diff > 0) setCarouselIdx(i => Math.min(i + 1, issue.images.length - 1));
+                                        else setCarouselIdx(i => Math.max(i - 1, 0));
+                                    }
+                                }}
+                            >
+                                {/* Slides */}
+                                <div
+                                    className="flex h-full transition-transform duration-300 ease-out"
+                                    style={{ transform: `translateX(-${carouselIdx * 100}%)` }}
+                                >
+                                    {issue.images.map((img, i) => (
+                                        <div
+                                            key={i}
+                                            className="relative shrink-0 w-full h-full cursor-zoom-in"
+                                            onClick={() => { setCarouselIdx(i); setLightboxOpen(true); }}
+                                        >
+                                            <Image
+                                                src={cloudinaryOpt(img)}
+                                                alt={`Image ${i + 1}`}
+                                                fill
+                                                sizes="(max-width: 768px) 100vw, 800px"
+                                                className="object-contain"
+                                                priority={i === 0}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Arrows (only if multiple) */}
+                                {issue.images.length > 1 && (
+                                    <>
+                                        <button
+                                            onClick={() => setCarouselIdx(i => Math.max(i - 1, 0))}
+                                            disabled={carouselIdx === 0}
+                                            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center disabled:opacity-20 hover:bg-black/70 transition-all cursor-pointer"
+                                        >
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-4 h-4"><polyline points="15 18 9 12 15 6"/></svg>
+                                        </button>
+                                        <button
+                                            onClick={() => setCarouselIdx(i => Math.min(i + 1, issue.images.length - 1))}
+                                            disabled={carouselIdx === issue.images.length - 1}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center disabled:opacity-20 hover:bg-black/70 transition-all cursor-pointer"
+                                        >
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-4 h-4"><polyline points="9 18 15 12 9 6"/></svg>
+                                        </button>
+                                    </>
+                                )}
+
+                                {/* Expand hint */}
+                                <div className="absolute bottom-2 right-2 bg-black/40 text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                                    Tap to expand
+                                </div>
+
+                                {/* Dot indicators */}
+                                {issue.images.length > 1 && (
+                                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                        {issue.images.map((_, i) => (
+                                            <button
+                                                key={i}
+                                                onClick={() => setCarouselIdx(i)}
+                                                className="rounded-full transition-all cursor-pointer"
+                                                style={{
+                                                    width: i === carouselIdx ? 16 : 6,
+                                                    height: 6,
+                                                    background: i === carouselIdx ? "white" : "rgba(255,255,255,0.45)",
+                                                }}
+                                            />
+                                        ))}
                                     </div>
-                                ))}
+                                )}
                             </div>
                         </div>
                     )}
 
-                    <div className="px-4 pb-4">
+                    {/* ── Description ── */}
+                    <div className="px-4 py-4 border-t border-subtle">
                         <p
                             className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap"
                             style={{ fontFamily: "DM Sans, sans-serif" }}
@@ -2303,8 +2601,63 @@ export default function IssueDetailPage({ params }) {
                         </p>
                     </div>
 
+                    {/* ── Lightbox ── */}
+                    {lightboxOpen && issue.images?.length > 0 && (
+                        <div
+                            className="fixed inset-0 z-[999] bg-black/95 flex items-center justify-center no-theme-transition"
+                            onClick={() => setLightboxOpen(false)}
+                        >
+                            {/* Close */}
+                            <button className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 cursor-pointer z-10">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+
+                            {/* Counter */}
+                            {issue.images.length > 1 && (
+                                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/10 text-white text-xs px-3 py-1.5 rounded-full">
+                                    {carouselIdx + 1} / {issue.images.length}
+                                </div>
+                            )}
+
+                            {/* Image */}
+                            <div
+                                className="relative w-full h-full max-w-5xl mx-auto px-12 flex items-center justify-center"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <Image
+                                    src={cloudinaryOpt(issue.images[carouselIdx], "f_auto,q_auto,w_1600")}
+                                    alt={`Image ${carouselIdx + 1}`}
+                                    fill
+                                    sizes="100vw"
+                                    className="object-contain"
+                                    priority
+                                />
+                            </div>
+
+                            {/* Prev/Next in lightbox */}
+                            {issue.images.length > 1 && (
+                                <>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setCarouselIdx(i => Math.max(i - 1, 0)); }}
+                                        disabled={carouselIdx === 0}
+                                        className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 text-white flex items-center justify-center disabled:opacity-20 hover:bg-white/20 transition-all cursor-pointer"
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-5 h-5"><polyline points="15 18 9 12 15 6"/></svg>
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setCarouselIdx(i => Math.min(i + 1, issue.images.length - 1)); }}
+                                        disabled={carouselIdx === issue.images.length - 1}
+                                        className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 text-white flex items-center justify-center disabled:opacity-20 hover:bg-white/20 transition-all cursor-pointer"
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-5 h-5"><polyline points="9 18 15 12 9 6"/></svg>
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    )}
+
                     {/* Stats row */}
-                    <div className="px-4 py-3 bg-gray-50/80 flex flex-wrap items-center justify-between gap-y-2">
+                    <div className="px-4 py-3 bg-subtle/80 flex flex-wrap items-center justify-between gap-y-2">
                         <div className="flex items-center gap-4 flex-wrap">
                             {[
                                 {
@@ -2320,7 +2673,7 @@ export default function IssueDetailPage({ params }) {
                                 {
                                     val: totalVotes,
                                     label: "Votes",
-                                    color: "text-[#F97316]",
+                                    color: "text-cp",
                                 },
                                 {
                                     val: comments.length,
@@ -2368,7 +2721,7 @@ export default function IssueDetailPage({ params }) {
                     {/* Action row */}
                     <div
                         data-share-ignore
-                        className="px-4 py-3 border-t border-gray-50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2"
+                        className="px-4 py-3 border-t border-subtle flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2"
                     >
                         <p className="hidden sm:block text-xs text-gray-400 shrink-0">
                             React to this post
@@ -2376,7 +2729,7 @@ export default function IssueDetailPage({ params }) {
                         <div className="flex flex-col xs:flex-row sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                             <button
                                 onClick={captureAndShare}
-                                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 font-semibold text-sm transition-all cursor-pointer flex-1 sm:flex-none border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 font-semibold text-sm transition-all cursor-pointer flex-1 sm:flex-none border-theme bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700"
                             >
                                 <svg
                                     viewBox="0 0 24 24"
@@ -2445,19 +2798,19 @@ export default function IssueDetailPage({ params }) {
 
                 {/* Profile complete banner (above voting) */}
                 {showProfileBanner && (
-                    <div className="flex items-center gap-3 px-4 py-3 bg-orange-50 border border-orange-200 rounded-2xl">
+                    <div className="flex items-center gap-3 px-4 py-3 bg-cp-tint border border-theme rounded-2xl">
                         <span className="text-xl">🔒</span>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-orange-700">
+                            <p className="text-sm font-bold text-cp">
                                 Complete your profile to vote
                             </p>
-                            <p className="text-xs text-orange-500">
+                            <p className="text-xs text-cp">
                                 Voting and reacting require a complete profile
                             </p>
                         </div>
                         <Link
                             href="/profile/edit"
-                            className="shrink-0 text-xs font-bold text-white bg-orange-500 hover:bg-orange-600 px-3 py-2 rounded-xl transition-colors"
+                            className="shrink-0 text-xs font-bold text-white bg-cp-deeper  px-3 py-2 rounded-xl transition-colors"
                         >
                             Complete →
                         </Link>
@@ -2465,7 +2818,7 @@ export default function IssueDetailPage({ params }) {
                 )}
 
                 {/* Voting section */}
-                <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+                <div className="bg-card rounded-2xl border border-subtle p-4 shadow-sm">
                     <h2
                         className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2"
                         style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
@@ -2500,7 +2853,7 @@ export default function IssueDetailPage({ params }) {
                                         voteLoading ||
                                         isPollClosed
                                     }
-                                    className={`w-full relative overflow-hidden rounded-xl border-2 transition-all duration-200 text-left ${isPollClosed ? "cursor-not-allowed opacity-75 border-gray-100" : "cursor-pointer disabled:opacity-60"} ${sel && !isPollClosed ? "border-[#F97316] bg-orange-50" : "border-gray-100 hover:border-orange-200"}`}
+                                    className={`w-full relative overflow-hidden rounded-xl border-2 transition-all duration-200 text-left ${isPollClosed ? "cursor-not-allowed opacity-75 border-subtle" : "cursor-pointer disabled:opacity-60"} ${sel && !isPollClosed ? "border-cp bg-cp-tint" : "border-subtle hover:border-cp/30"}`}
                                 >
                                     <div
                                         className={`absolute left-0 top-0 bottom-0 opacity-10 transition-all duration-700 ${BAR_COLORS[idx % BAR_COLORS.length]}`}
@@ -2509,12 +2862,12 @@ export default function IssueDetailPage({ params }) {
                                     <div className="relative px-4 py-3 flex items-center justify-between gap-3">
                                         <div className="flex items-center gap-3">
                                             <div
-                                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${sel ? "border-[#F97316] bg-[#F97316]" : "border-gray-300"}`}
+                                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${sel ? "border-cp bg-cp" : "border-gray-300"}`}
                                             >
                                                 {sel && <SvgCheckFill />}
                                             </div>
                                             <span
-                                                className={`font-semibold text-sm ${sel ? "text-[#F97316]" : "text-gray-700"}`}
+                                                className={`font-semibold text-sm ${sel ? "text-cp" : "text-gray-700"}`}
                                             >
                                                 {option}
                                             </span>
@@ -2564,8 +2917,8 @@ export default function IssueDetailPage({ params }) {
                 )}
 
                 {/* Discussion */}
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="px-4 pt-4 pb-3 border-b border-gray-50 flex items-center justify-between">
+                <div className="bg-card rounded-2xl border border-subtle shadow-sm">
+                    <div className="px-4 pt-4 pb-3 border-b border-subtle flex items-center justify-between">
                         <h2
                             className="text-sm font-bold text-gray-900 flex items-center gap-2"
                             style={{
@@ -2575,7 +2928,7 @@ export default function IssueDetailPage({ params }) {
                             <SvgDiscussion />
                             Discussion
                         </h2>
-                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full flex items-center gap-1">
+                        <span className="text-xs font-bold text-gray-400 bg-muted px-2.5 py-1 rounded-full flex items-center gap-1">
                             <SvgComments className="w-3 h-3" />
                             {comments.length}
                         </span>
@@ -2583,18 +2936,41 @@ export default function IssueDetailPage({ params }) {
 
                     <form
                         onSubmit={handleSubmitComment}
-                        className="px-4 py-3 border-b border-gray-50"
+                        className="px-4 py-3 border-b border-subtle"
                     >
+                        {/* @mention dropdown — sits outside overflow containers */}
+                        {mentionSuggestions.length > 0 && (
+                            <div className="mx-0 mb-2 bg-white border border-subtle rounded-xl shadow-xl overflow-hidden">
+                                {mentionSuggestions.map((u) => (
+                                    <button
+                                        key={u.uid}
+                                        type="button"
+                                        onMouseDown={(e) => { e.preventDefault(); insertMention(u); }}
+                                        className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted transition-colors text-left cursor-pointer border-b border-subtle last:border-0"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                                            {u.photoURL
+                                                ? <img src={u.photoURL} alt="" className="w-full h-full object-cover" />
+                                                : <span className="text-xs font-bold text-gray-600">{u.name?.charAt(0)?.toUpperCase() || "?"}</span>
+                                            }
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-800">{u.name}</p>
+                                            <p className="text-xs text-gray-400">Tap to mention</p>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         <div className="flex gap-2.5 items-start">
                             <Avatar name="A" size="md" />
-                            <div className="flex-1 bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden focus-within:border-[#F97316]/50 focus-within:ring-2 focus-within:ring-[#F97316]/10 transition-all">
+                            <div className="flex-1 bg-subtle rounded-2xl border border-subtle overflow-hidden focus-within:border-cp/50 focus-within:ring-2 focus-within:ring-gray-200 transition-all">
                                 <input
+                                    ref={commentInputRef}
                                     type="text"
                                     value={commentText}
-                                    onChange={(e) =>
-                                        setCommentText(e.target.value)
-                                    }
-                                    placeholder="Share your thoughts..."
+                                    onChange={(e) => handleCommentChange(e.target.value)}
+                                    placeholder="Share your thoughts… (@ to mention)"
                                     maxLength={280}
                                     disabled={!authReady || submittingComment}
                                     className="w-full px-4 py-3 bg-transparent text-sm text-gray-800 placeholder-gray-400 focus:outline-none disabled:opacity-50"
@@ -2614,7 +2990,7 @@ export default function IssueDetailPage({ params }) {
                                                 !authReady ||
                                                 submittingComment
                                             }
-                                            className="flex items-center gap-1.5 text-xs font-bold bg-[#F97316] text-white px-3 py-1.5 rounded-xl hover:bg-[#C2410C] disabled:opacity-40 transition-colors cursor-pointer"
+                                            className="flex items-center gap-1.5 text-xs font-bold bg-cp text-white px-3 py-1.5 rounded-xl  disabled:opacity-40 transition-colors cursor-pointer"
                                         >
                                             {submittingComment ? (
                                                 <SvgSpinner />
@@ -2639,7 +3015,7 @@ export default function IssueDetailPage({ params }) {
                     )}
 
                     {!commentsLoading && !commentsError && (
-                        <div className="px-4 divide-y divide-gray-50">
+                        <div className="px-4 divide-y divide-subtle">
                             {topLevel.length === 0 ? (
                                 <div className="py-12 text-center">
                                     <div className="flex justify-center mb-3">
@@ -2682,7 +3058,7 @@ export default function IssueDetailPage({ params }) {
                             </p>
                             <button
                                 onClick={() => window.location.reload()}
-                                className="mt-2 text-xs text-[#F97316] hover:underline"
+                                className="mt-2 text-xs text-cp hover:underline"
                             >
                                 Retry
                             </button>
@@ -2694,13 +3070,13 @@ export default function IssueDetailPage({ params }) {
                 <div className="flex gap-3">
                     <Link
                         href="/"
-                        className="flex-1 bg-white border border-gray-200 text-gray-700 py-3 rounded-xl font-semibold text-sm text-center hover:border-[#F97316]/40 hover:text-[#F97316] transition-all"
+                        className="flex-1 bg-white border border-theme text-gray-700 py-3 rounded-xl font-semibold text-sm text-center hover:border-cp/40 hover:text-cp transition-all"
                     >
                         Browse Posts
                     </Link>
                     <Link
                         href="/create-issue"
-                        className="flex-1 bg-[#F97316] text-white py-3 rounded-xl font-semibold text-sm text-center hover:bg-[#C2410C] transition-all shadow-sm"
+                        className="flex-1 bg-cp text-white py-3 rounded-xl font-semibold text-sm text-center  transition-all shadow-sm"
                     >
                         Post to Camp
                     </Link>
@@ -2725,6 +3101,13 @@ export default function IssueDetailPage({ params }) {
             <IncompleteProfileModal
                 isOpen={showProfilePrompt}
                 onClose={() => setShowProfilePrompt(false)}
+            />
+            <ReportModal
+                isOpen={showReportModal}
+                onClose={() => setShowReportModal(false)}
+                issueId={id}
+                issueTitle={issue?.title}
+                currentUser={currentUser}
             />
         </div>
     );

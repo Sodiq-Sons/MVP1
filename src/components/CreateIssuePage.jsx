@@ -15,9 +15,8 @@ import {
     getDoc,
     writeBatch,
 } from "firebase/firestore";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
-import { db, auth, storage } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import Link from "next/link";
 import { toast } from "sonner";
 import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
@@ -28,6 +27,19 @@ import { isProfileComplete } from "@/lib/profileCompletion";
 
 // ─── Post Types ───────────────────────────────────────────────────────────────
 const POST_TYPES = [
+    {
+        id: "lost_found",
+        emoji: "🔍",
+        label: "Lost & Found",
+        description: "Post about a lost or found item in camp",
+        color: "#059669",
+        bg: "bg-emerald-50",
+        border: "border-emerald-200",
+        titleLabel: "Item name",
+        titlePlaceholder: "What was lost or found?",
+        descLabel: "More details",
+        descPlaceholder: "Where was it lost/found? Any identifying features?",
+    },
     {
         id: "gist",
         emoji: "💬",
@@ -59,9 +71,9 @@ const POST_TYPES = [
         emoji: "🍛",
         label: "Food",
         description: "Rate camp food or share about meals",
-        color: "#F97316",
-        bg: "bg-orange-50",
-        border: "border-orange-200",
+        color: "var(--cp)",
+        bg: "bg-cp-tint",
+        border: "border-theme",
         titleLabel: "Food name",
         titlePlaceholder: "What did you eat?",
         descLabel: "Your review",
@@ -70,12 +82,12 @@ const POST_TYPES = [
     {
         id: "issue",
         emoji: "🚨",
-        label: "Issue",
+        label: "Problem",
         description: "Report problems or concerns in camp",
         color: "#EF4444",
         bg: "bg-red-50",
         border: "border-red-200",
-        titleLabel: "What's the issue?",
+        titleLabel: "What's the problem?",
         titlePlaceholder: "Brief title of the problem",
         descLabel: "Describe in detail",
         descPlaceholder: "Give us all the details...",
@@ -101,13 +113,13 @@ const ISSUE_SUBCATEGORIES = [
         emoji: "🏗️",
         label: "Infrastructure",
         description: "Roads, buildings, facilities, repairs needed",
-        color: "#EA580C",
-        bg: "bg-orange-50",
-        border: "border-orange-200",
-        selectedBg: "bg-orange-50",
-        selectedText: "text-orange-700",
-        selectedBorder: "border-orange-500",
-        dotColor: "#EA580C",
+        color: "var(--cp-deeper)",
+        bg: "bg-cp-tint",
+        border: "border-theme",
+        selectedBg: "bg-cp-tint",
+        selectedText: "text-cp",
+        selectedBorder: "border-cp",
+        dotColor: "var(--cp-deeper)",
     },
     {
         id: "healthcare",
@@ -167,9 +179,9 @@ const ISSUE_SUBCATEGORIES = [
         label: "Other",
         description: "Anything else that doesn't fit above",
         color: "#4B5563",
-        bg: "bg-gray-50",
-        border: "border-gray-200",
-        selectedBg: "bg-gray-50",
+        bg: "bg-subtle",
+        border: "border-theme",
+        selectedBg: "bg-subtle",
         selectedText: "text-gray-700",
         selectedBorder: "border-gray-500",
         dotColor: "#4B5563",
@@ -462,13 +474,13 @@ function StepIndicator({ step, totalSteps }) {
             {Array.from({ length: totalSteps }).map((_, i) => (
                 <div key={i} className="flex items-center gap-2">
                     <div
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${step === i + 1 ? "bg-[#F97316] text-white shadow-md shadow-orange-200" : step > i + 1 ? "bg-green-500 text-white" : "bg-gray-100 text-gray-400"}`}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${step === i + 1 ? "bg-cp text-white shadow-md " : step > i + 1 ? "bg-green-500 text-white" : "bg-muted text-gray-400"}`}
                     >
                         {step > i + 1 ? "✓" : i + 1}
                     </div>
                     {i < totalSteps - 1 && (
                         <div
-                            className={`w-8 h-0.5 rounded-full transition-all duration-500 ${step > i + 1 ? "bg-green-400" : "bg-gray-100"}`}
+                            className={`w-8 h-0.5 rounded-full transition-all duration-500 ${step > i + 1 ? "bg-green-400" : "bg-muted"}`}
                         />
                     )}
                 </div>
@@ -481,11 +493,11 @@ function IssueSubcategoryCard({ subcategory, selected, onSelect }) {
     return (
         <button
             onClick={() => onSelect(subcategory.id)}
-            className={`w-full text-left p-3.5 rounded-2xl border-2 transition-all duration-200 cursor-pointer relative ${selected ? `${subcategory.selectedBg} ${subcategory.selectedBorder}` : "border-gray-100 bg-white hover:border-gray-200"}`}
+            className={`w-full text-left p-3.5 rounded-2xl border-2 transition-all duration-200 cursor-pointer relative ${selected ? `${subcategory.selectedBg} ${subcategory.selectedBorder}` : "border-subtle bg-white hover:border-theme"}`}
         >
             <div className="flex items-center gap-3">
                 <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl transition-colors ${selected ? "bg-white shadow-sm" : "bg-gray-50"}`}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl transition-colors ${selected ? "bg-white shadow-sm" : "bg-subtle"}`}
                 >
                     {subcategory.emoji}
                 </div>
@@ -559,7 +571,7 @@ function ImageUploadSection({ images, onImagesChange, maxImages = 3 }) {
     };
 
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+        <div className="bg-card rounded-2xl border border-subtle p-4">
             <label
                 className="block text-sm font-semibold text-gray-800 mb-3"
                 style={{ fontFamily: "DM Sans, sans-serif" }}
@@ -574,7 +586,7 @@ function ImageUploadSection({ images, onImagesChange, maxImages = 3 }) {
                     {images.map((img) => (
                         <div
                             key={img.id}
-                            className="relative aspect-square rounded-xl overflow-hidden bg-gray-100"
+                            className="relative aspect-square rounded-xl overflow-hidden bg-muted"
                         >
                             <Image
                                 src={img.preview}
@@ -606,10 +618,10 @@ function ImageUploadSection({ images, onImagesChange, maxImages = 3 }) {
                         setDragOver(false);
                         handleFiles(e.dataTransfer.files);
                     }}
-                    className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all duration-200 ${dragOver ? "border-[#F97316] bg-orange-50" : "border-gray-200 hover:border-orange-300 hover:bg-orange-50/30"}`}
+                    className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all duration-200 ${dragOver ? "border-cp bg-cp-tint" : "border-theme hover:border-cp/40 hover:bg-cp-tint/30"}`}
                 >
                     <div
-                        className={`${dragOver ? "text-[#F97316]" : "text-gray-300"} transition-colors`}
+                        className={`${dragOver ? "text-cp" : "text-gray-300"} transition-colors`}
                     >
                         <ImageUploadIcon />
                     </div>
@@ -643,11 +655,11 @@ function DemographicCard({ option, selected, onToggle }) {
     return (
         <button
             onClick={() => onToggle(option.id)}
-            className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer relative ${selected ? "border-[#F97316] bg-[#FFF7F2]" : "border-gray-100 bg-white hover:border-orange-200"}`}
+            className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer relative ${selected ? "border-cp bg-cp-tint" : "border-subtle bg-white hover:border-cp/30"}`}
         >
             <div className="flex items-start gap-3">
                 <div
-                    className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-colors ${selected ? "bg-[#F97316]" : "bg-gray-100"}`}
+                    className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-colors ${selected ? "bg-cp" : "bg-muted"}`}
                 >
                     {selected ? (
                         <CheckIcon />
@@ -659,7 +671,7 @@ function DemographicCard({ option, selected, onToggle }) {
                     <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-xl">{option.emoji}</span>
                         <span
-                            className={`font-bold text-sm ${selected ? "text-[#F97316]" : "text-gray-900"}`}
+                            className={`font-bold text-sm ${selected ? "text-cp" : "text-gray-900"}`}
                             style={{
                                 fontFamily: "Plus Jakarta Sans, sans-serif",
                             }}
@@ -688,18 +700,18 @@ function ResponseTypeCard({ type, selected, onSelect }) {
     return (
         <button
             onClick={() => onSelect(type.id)}
-            className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${selected ? "border-[#F97316] bg-[#FFF7F2] ring-2 ring-[#F97316]/20" : "border-gray-100 bg-white hover:border-orange-200"}`}
+            className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${selected ? "border-cp bg-cp-tint ring-2 ring-gray-200" : "border-subtle bg-white hover:border-cp/30"}`}
         >
             <div className="flex items-start gap-3">
                 <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${selected ? "bg-[#F97316] text-white" : "bg-gray-100 text-gray-500"}`}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${selected ? "bg-cp text-white" : "bg-muted text-gray-500"}`}
                 >
                     {icons[type.id]}
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                         <span
-                            className={`font-bold text-sm ${selected ? "text-[#F97316]" : "text-gray-900"}`}
+                            className={`font-bold text-sm ${selected ? "text-cp" : "text-gray-900"}`}
                             style={{
                                 fontFamily: "Plus Jakarta Sans, sans-serif",
                             }}
@@ -718,7 +730,7 @@ function ResponseTypeCard({ type, selected, onSelect }) {
                             {type.options.map((opt, i) => (
                                 <span
                                     key={i}
-                                    className={`text-[10px] px-2 py-0.5 rounded-full ${selected ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-500"}`}
+                                    className={`text-[10px] px-2 py-0.5 rounded-full ${selected ? "bg-cp-tint text-cp" : "bg-muted text-gray-500"}`}
                                 >
                                     {opt}
                                 </span>
@@ -733,8 +745,8 @@ function ResponseTypeCard({ type, selected, onSelect }) {
 
 function AuthErrorPrompt({ error, onRetry }) {
     return (
-        <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
-            <div className="bg-white rounded-3xl shadow-lg border border-red-100 p-8 max-w-md w-full text-center">
+        <div className="min-h-screen bg-page flex items-center justify-center px-4">
+            <div className="bg-card rounded-3xl shadow-lg border border-red-100 p-8 max-w-md w-full text-center">
                 <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
                     <span className="text-4xl">🔒</span>
                 </div>
@@ -752,7 +764,7 @@ function AuthErrorPrompt({ error, onRetry }) {
                 </p>
                 <button
                     onClick={onRetry}
-                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#F97316] text-white cursor-pointer mb-3"
+                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-cp text-white cursor-pointer mb-3"
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
                     Retry
@@ -764,7 +776,7 @@ function AuthErrorPrompt({ error, onRetry }) {
                     If the problem persists, try{" "}
                     <Link
                         href="/login"
-                        className="text-[#F97316] font-semibold hover:underline cursor-pointer"
+                        className="text-cp font-semibold hover:underline cursor-pointer"
                     >
                         signing in manually
                     </Link>
@@ -776,9 +788,9 @@ function AuthErrorPrompt({ error, onRetry }) {
 
 function LoginPrompt({ onLogin }) {
     return (
-        <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
-            <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-8 max-w-md w-full text-center">
-                <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="min-h-screen bg-page flex items-center justify-center px-4">
+            <div className="bg-card rounded-3xl shadow-lg border border-subtle p-8 max-w-md w-full text-center">
+                <div className="w-20 h-20 bg-cp-tint rounded-full flex items-center justify-center mx-auto mb-4">
                     <span className="text-4xl">🔒</span>
                 </div>
                 <h2
@@ -795,7 +807,7 @@ function LoginPrompt({ onLogin }) {
                 </p>
                 <button
                     onClick={onLogin}
-                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#F97316] text-white cursor-pointer"
+                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-cp text-white cursor-pointer"
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
                     Sign In
@@ -807,7 +819,7 @@ function LoginPrompt({ onLogin }) {
                     Don&apos;t have an account?{" "}
                     <Link
                         href="/register"
-                        className="text-[#F97316] font-semibold hover:underline cursor-pointer"
+                        className="text-cp font-semibold hover:underline cursor-pointer"
                     >
                         Sign up
                     </Link>
@@ -934,7 +946,7 @@ export default function CreatePostPage() {
 
     if (isInitializing && !authReady) {
         return (
-            <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center">
+            <div className="min-h-screen bg-page flex items-center justify-center">
                 <div className="flex flex-col items-center gap-3">
                     <SpinnerIcon />
                     <p
@@ -971,24 +983,26 @@ export default function CreatePostPage() {
     );
 }
 
-async function uploadImages(images, uid, postId) {
-    const urls = [];
-    for (const img of images) {
-        const ext = img.file.name.split(".").pop();
-        const storageRef = ref(
-            storage,
-            `post-images/${uid}/${postId}/${img.id}.${ext}`,
-        );
-        await new Promise((resolve, reject) => {
-            const task = uploadBytesResumable(storageRef, img.file);
-            task.on("state_changed", null, reject, async () => {
-                const url = await getDownloadURL(task.snapshot.ref);
-                urls.push(url);
-                resolve(null);
-            });
+async function uploadImages(images) {
+    const uploads = images.map(async (img) => {
+        const formData = new FormData();
+        formData.append("file", img.file);
+
+        const res = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
         });
-    }
-    return urls;
+
+        if (!res.ok) {
+            const { error } = await res.json().catch(() => ({}));
+            throw new Error(error || "Image upload failed");
+        }
+
+        const { url } = await res.json();
+        return url;
+    });
+
+    return Promise.all(uploads);
 }
 
 function CreatePostForm({
@@ -1017,6 +1031,34 @@ function CreatePostForm({
     const [pollTimerUnit, setPollTimerUnit] = useState("hours");
     const [pollTimerCustomVal, setPollTimerCustomVal] = useState("");
     const [images, setImages] = useState([]);
+    const [locationLabel, setLocationLabel] = useState("");
+    const [locationCoords, setLocationCoords] = useState(null);
+    const [locating, setLocating] = useState(false);
+    const preUploadRef = useRef(null);
+    const preUploadedUrlsRef = useRef(null);
+    const preUploadImagesRef = useRef([]);
+
+    // Start uploading images in the background as soon as they are selected
+    useEffect(() => {
+        const shouldUpload = images.length > 0 && (postType === "food" || postType === "issue" || postType === "lost_found");
+        if (!shouldUpload) {
+            preUploadRef.current = null;
+            preUploadedUrlsRef.current = null;
+            preUploadImagesRef.current = [];
+            return;
+        }
+        // Don't re-upload if the same set of images is already pending/done
+        if (preUploadImagesRef.current === images) return;
+        preUploadImagesRef.current = images;
+        preUploadedUrlsRef.current = null;
+        const promise = uploadImages(images).then((urls) => {
+            if (preUploadImagesRef.current === images) {
+                preUploadedUrlsRef.current = urls;
+            }
+            return urls;
+        }).catch(() => null);
+        preUploadRef.current = promise;
+    }, [images, postType]);
 
     const selectedType = POST_TYPES.find((t) => t.id === postType);
     const selectedResponseType = RESPONSE_TYPES.find(
@@ -1046,6 +1088,8 @@ function CreatePostForm({
                     description.trim().length > 0 &&
                     issueSubcategory.length > 0
                 );
+            case "lost_found":
+                return baseValid && description.trim().length > 0;
             default:
                 return false;
         }
@@ -1153,15 +1197,21 @@ function CreatePostForm({
             const postId = tempRef.id;
 
             let imageUrls = [];
-            if (
-                images.length > 0 &&
-                (postType === "food" || postType === "issue")
-            ) {
-                setUploadProgress(
-                    `Uploading ${images.length} image${images.length > 1 ? "s" : ""}...`,
-                );
-                imageUrls = await uploadImages(images, currentUser.uid, postId);
-                setUploadProgress("");
+            if (images.length > 0 && (postType === "food" || postType === "issue" || postType === "lost_found")) {
+                if (preUploadedUrlsRef.current) {
+                    // Already uploaded in background — instant!
+                    imageUrls = preUploadedUrlsRef.current;
+                } else if (preUploadRef.current) {
+                    // Upload is in progress — just await it
+                    setUploadProgress("Finalizing images…");
+                    imageUrls = (await preUploadRef.current) ?? [];
+                    setUploadProgress("");
+                } else {
+                    // Fallback: upload now
+                    setUploadProgress(`Uploading ${images.length} image${images.length > 1 ? "s" : ""}…`);
+                    imageUrls = await uploadImages(images);
+                    setUploadProgress("");
+                }
             }
 
             let issueData = {
@@ -1174,10 +1224,14 @@ function CreatePostForm({
                 author: {
                     uid: currentUser.uid,
                     name: isAnonymous ? null : userName,
+                    photoURL: isAnonymous ? null : (currentUser.photoURL || null),
                     isAnonymous,
                     showDetails: !isAnonymous && showDetails,
                     platoon: userPlatoon,
                 },
+                locationTag: locationLabel.trim()
+                    ? { label: locationLabel.trim(), lat: locationCoords?.lat || null, lng: locationCoords?.lng || null }
+                    : null,
                 reactions: {},
                 commentCount: 0,
                 voteOptions,
@@ -1267,11 +1321,11 @@ function CreatePostForm({
         }
     };
 
-    const showImageUpload = postType === "food" || postType === "issue";
+    const showImageUpload = postType === "food" || postType === "issue" || postType === "lost_found";
 
     return (
-        <div className="min-h-screen bg-[#FDF6EF] pb-24 md:pb-8">
-            <header className="sticky top-0 z-40 bg-[#F97316] px-4 pt-6 md:pt-4 pb-3">
+        <div className="min-h-screen bg-page pb-24 md:pb-8">
+            <header className="sticky top-0 z-40 bg-cp px-4 pt-6 md:pt-4 pb-3">
                 <div className="flex items-center gap-3 max-w-2xl mx-auto">
                     <button
                         onClick={() =>
@@ -1297,7 +1351,7 @@ function CreatePostForm({
                                     : "Demographics"}
                         </h1>
                         <p
-                            className="text-orange-100 text-xs"
+                            className="text-white/80 text-xs"
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
                             Step {step} of {totalSteps}
@@ -1335,7 +1389,7 @@ function CreatePostForm({
                 {step === 1 && (
                     <>
                         <div className="flex flex-col items-center pt-6 pb-6">
-                            <div className="w-24 h-24 bg-[#FFF7F2] rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
+                            <div className="w-24 h-24 bg-cp-tint rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
                                 <span className="text-4xl">🎯</span>
                             </div>
                             <h2
@@ -1358,7 +1412,7 @@ function CreatePostForm({
                                 <button
                                     key={type.id}
                                     onClick={() => setPostType(type.id)}
-                                    className={`p-4 rounded-2xl border-2 text-left transition-all duration-200 cursor-pointer ${postType === type.id ? `${type.bg} ${type.border} ring-2 ring-offset-2` : "bg-white border-gray-100 hover:border-gray-200"}`}
+                                    className={`p-4 rounded-2xl border-2 text-left transition-all duration-200 cursor-pointer ${postType === type.id ? `${type.bg} ${type.border} ring-2 ring-offset-2` : "bg-white border-subtle hover:border-theme"}`}
                                     style={{
                                         fontFamily: "DM Sans, sans-serif",
                                     }}
@@ -1407,11 +1461,11 @@ function CreatePostForm({
                                 step1Valid && setStep(2);
                             }}
                             disabled={!step1Valid}
-                            className={`w-full mt-6 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${step1Valid ? "bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98]" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                            className={`w-full mt-6 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${step1Valid ? "btn-primary shadow-lg active:scale-[0.98]" : "bg-muted text-gray-400 cursor-not-allowed"}`}
                             style={{
                                 fontFamily: "DM Sans, sans-serif",
                                 boxShadow: step1Valid
-                                    ? "0 4px 20px rgba(232,97,26,0.35)"
+                                    ? "0 4px 20px var(--cp-glow)"
                                     : undefined,
                             }}
                         >
@@ -1452,7 +1506,7 @@ function CreatePostForm({
                         </div>
 
                         {postType === "poll" && (
-                            <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
+                            <div className="bg-card rounded-2xl border border-subtle p-4 mb-3">
                                 <div className="flex items-center justify-between mb-1">
                                     <div className="flex items-center gap-2">
                                         <span className="text-base">⏱️</span>
@@ -1472,7 +1526,7 @@ function CreatePostForm({
                                                 !pollTimerEnabled,
                                             )
                                         }
-                                        className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${pollTimerEnabled ? "bg-[#F97316]" : "bg-gray-200"}`}
+                                        className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${pollTimerEnabled ? "bg-cp" : "bg-gray-200"}`}
                                     >
                                         <div
                                             className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${pollTimerEnabled ? "translate-x-5" : "translate-x-0.5"}`}
@@ -1509,7 +1563,7 @@ function CreatePostForm({
                                                             opt.hours,
                                                         )
                                                     }
-                                                    className={`py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${pollTimerHours === opt.hours ? "border-[#F97316] bg-[#FFF7F2] text-[#F97316]" : "border-gray-100 bg-gray-50 text-gray-500 hover:border-orange-200"}`}
+                                                    className={`py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${pollTimerHours === opt.hours ? "border-cp bg-cp-tint text-cp" : "border-subtle bg-subtle text-gray-500 hover:border-cp/30"}`}
                                                     style={{
                                                         fontFamily:
                                                             "DM Sans, sans-serif",
@@ -1525,7 +1579,7 @@ function CreatePostForm({
                                                 min={1}
                                                 value={pollTimerCustomVal}
                                                 placeholder="e.g. 2"
-                                                className="flex-1 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-orange-300"
+                                                className="flex-1 px-3 py-2 rounded-xl border border-subtle bg-subtle text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gray-300"
                                                 style={{
                                                     fontFamily:
                                                         "DM Sans, sans-serif",
@@ -1564,7 +1618,7 @@ function CreatePostForm({
                                                                 : v,
                                                         );
                                                 }}
-                                                className="px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:border-orange-300"
+                                                className="px-3 py-2 rounded-xl border border-subtle bg-subtle text-sm text-gray-700 focus:outline-none focus:border-gray-300"
                                                 style={{
                                                     fontFamily:
                                                         "DM Sans, sans-serif",
@@ -1578,10 +1632,10 @@ function CreatePostForm({
                                                 </option>
                                             </select>
                                         </div>
-                                        <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-xl border border-orange-100">
+                                        <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-cp-tint rounded-xl border border-cp/20">
                                             <span className="text-sm">⏳</span>
                                             <span
-                                                className="text-xs font-semibold text-orange-700"
+                                                className="text-xs font-semibold text-cp"
                                                 style={{
                                                     fontFamily:
                                                         "DM Sans, sans-serif",
@@ -1600,7 +1654,7 @@ function CreatePostForm({
 
                         {postType === "issue" && (
                             <div className="mb-4">
-                                <div className="bg-white rounded-2xl border border-gray-100 p-4">
+                                <div className="bg-card rounded-2xl border border-subtle p-4">
                                     <label
                                         className="block text-sm font-semibold text-gray-800 mb-3"
                                         style={{
@@ -1629,7 +1683,7 @@ function CreatePostForm({
                             </div>
                         )}
 
-                        <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
+                        <div className="bg-card rounded-2xl border border-subtle p-4 mb-3">
                             <label
                                 className="block text-sm font-semibold text-gray-800 mb-2"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
@@ -1643,7 +1697,7 @@ function CreatePostForm({
                                 onChange={(e) => setTitle(e.target.value)}
                                 placeholder={selectedType.titlePlaceholder}
                                 maxLength={MAX_TITLE}
-                                className="w-full p-3 bg-gray-50 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F97316]/20"
+                                className="w-full p-3 bg-subtle rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             />
                             <div
@@ -1654,7 +1708,7 @@ function CreatePostForm({
                         </div>
 
                         {postType === "food" && (
-                            <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
+                            <div className="bg-card rounded-2xl border border-subtle p-4 mb-3">
                                 <label
                                     className="block text-sm font-semibold text-gray-800 mb-3"
                                     style={{
@@ -1694,7 +1748,7 @@ function CreatePostForm({
                         )}
 
                         {postType === "poll" && (
-                            <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
+                            <div className="bg-card rounded-2xl border border-subtle p-4 mb-3">
                                 <label
                                     className="block text-sm font-semibold text-gray-800 mb-2"
                                     style={{
@@ -1727,7 +1781,7 @@ function CreatePostForm({
                                                 }
                                                 placeholder={`Option ${i + 1}`}
                                                 maxLength={60}
-                                                className="flex-1 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-purple-300"
+                                                className="flex-1 px-3 py-2 rounded-xl border border-subtle bg-subtle text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-purple-300"
                                                 style={{
                                                     fontFamily:
                                                         "DM Sans, sans-serif",
@@ -1761,7 +1815,7 @@ function CreatePostForm({
                             </div>
                         )}
 
-                        <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
+                        <div className="bg-card rounded-2xl border border-subtle p-4 mb-3">
                             <label
                                 className="block text-sm font-semibold text-gray-800 mb-2"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
@@ -1784,7 +1838,7 @@ function CreatePostForm({
                                 placeholder={selectedType.descPlaceholder}
                                 rows={postType === "gist" ? 8 : 5}
                                 maxLength={MAX_DESC}
-                                className="w-full p-3 bg-gray-50 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F97316]/20 resize-none"
+                                className="w-full p-3 bg-subtle rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 resize-none"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             />
                             <div
@@ -1792,6 +1846,51 @@ function CreatePostForm({
                             >
                                 {description.length}/{MAX_DESC}
                             </div>
+                        </div>
+
+                        {/* Location tag (optional) */}
+                        <div className="bg-card rounded-2xl border border-subtle p-4 mb-3">
+                            <label className="block text-sm font-semibold text-gray-800 mb-2" style={{ fontFamily: "DM Sans, sans-serif" }}>
+                                📍 Location Tag <span className="text-xs font-normal text-gray-400">(optional)</span>
+                            </label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={locationLabel}
+                                    onChange={(e) => setLocationLabel(e.target.value)}
+                                    placeholder="e.g. Near Mammy Market, Block C"
+                                    maxLength={60}
+                                    className="flex-1 p-3 bg-subtle rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200"
+                                    style={{ fontFamily: "DM Sans, sans-serif" }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (!navigator.geolocation) return;
+                                        setLocating(true);
+                                        navigator.geolocation.getCurrentPosition(
+                                            (pos) => {
+                                                setLocationCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                                                if (!locationLabel.trim()) setLocationLabel("Current location");
+                                                setLocating(false);
+                                            },
+                                            () => setLocating(false),
+                                            { timeout: 8000 }
+                                        );
+                                    }}
+                                    className="px-3 py-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 text-xs font-semibold hover:bg-blue-100 transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                                    title="Use current GPS location"
+                                >
+                                    {locating ? <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeOpacity="0.25"/><path fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg> : "📡"}
+                                    {locating ? "" : "GPS"}
+                                </button>
+                            </div>
+                            {locationCoords && (
+                                <p className="text-[10px] text-green-600 mt-1 flex items-center gap-1">
+                                    ✓ GPS coordinates captured
+                                    <button type="button" onClick={() => setLocationCoords(null)} className="text-gray-400 hover:text-red-400 ml-1 cursor-pointer">✕</button>
+                                </p>
+                            )}
                         </div>
 
                         {showImageUpload && (
@@ -1804,7 +1903,7 @@ function CreatePostForm({
                             </div>
                         )}
 
-                        <div className="bg-white rounded-2xl border border-gray-100 p-4 mt-1 space-y-3">
+                        <div className="bg-card rounded-2xl border border-subtle p-4 mt-1 space-y-3">
                             <label className="flex items-center justify-between cursor-pointer">
                                 <div className="flex items-center gap-2">
                                     <AnonymousIcon />
@@ -1818,7 +1917,7 @@ function CreatePostForm({
                                     </span>
                                 </div>
                                 <div
-                                    className={`w-11 h-6 rounded-full transition-colors ${isAnonymous ? "bg-[#F97316]" : "bg-gray-200"} relative cursor-pointer`}
+                                    className={`w-11 h-6 rounded-full transition-colors ${isAnonymous ? "bg-cp" : "bg-gray-200"} relative cursor-pointer`}
                                 >
                                     <input
                                         type="checkbox"
@@ -1850,7 +1949,7 @@ function CreatePostForm({
                                         </span>
                                     </div>
                                     <div
-                                        className={`w-11 h-6 rounded-full transition-colors ${showDetails ? "bg-[#F97316]" : "bg-gray-200"} relative cursor-pointer`}
+                                        className={`w-11 h-6 rounded-full transition-colors ${showDetails ? "bg-cp" : "bg-gray-200"} relative cursor-pointer`}
                                     >
                                         <input
                                             type="checkbox"
@@ -1871,7 +1970,7 @@ function CreatePostForm({
                         <div className="flex gap-3 mt-6">
                             <button
                                 onClick={() => setStep(1)}
-                                className="flex-1 py-4 rounded-2xl font-bold text-sm text-gray-500 hover:text-gray-700 border-2 border-gray-200 hover:border-gray-300 transition-all duration-200 cursor-pointer"
+                                className="flex-1 py-4 rounded-2xl font-bold text-sm text-gray-500 hover:text-gray-700 border-2 border-theme hover:border-gray-300 transition-all duration-200 cursor-pointer"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
                                 ← Back
@@ -1879,11 +1978,11 @@ function CreatePostForm({
                             <button
                                 onClick={() => step2Valid() && setStep(3)}
                                 disabled={!step2Valid()}
-                                className={`flex-2 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${step2Valid() ? "bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98]" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                className={`flex-[3] py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${step2Valid() ? "btn-primary shadow-lg active:scale-[0.98]" : "bg-muted text-gray-400 cursor-not-allowed"}`}
                                 style={{
                                     fontFamily: "DM Sans, sans-serif",
                                     boxShadow: step2Valid()
-                                        ? "0 4px 20px rgba(232,97,26,0.35)"
+                                        ? "0 4px 20px var(--cp-glow)"
                                         : undefined,
                                 }}
                             >
@@ -1907,7 +2006,7 @@ function CreatePostForm({
                 {step === 3 && (
                     <>
                         <div className="flex flex-col items-center pt-6 pb-5">
-                            <div className="w-20 h-20 bg-[#FFF7F2] rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
+                            <div className="w-20 h-20 bg-cp-tint rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
                                 <span className="text-3xl">📊</span>
                             </div>
                             <h2
@@ -1936,7 +2035,7 @@ function CreatePostForm({
                             ))}
                         </div>
                         {responseType === "custom" && (
-                            <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-4">
+                            <div className="bg-card rounded-2xl border border-subtle p-4 mb-4">
                                 <label
                                     className="block text-sm font-semibold text-gray-800 mb-2"
                                     style={{
@@ -1955,7 +2054,7 @@ function CreatePostForm({
                                             key={i}
                                             className="flex items-center gap-2"
                                         >
-                                            <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-bold shrink-0">
+                                            <div className="w-6 h-6 rounded-full bg-cp-tint text-cp flex items-center justify-center text-xs font-bold shrink-0">
                                                 {String.fromCharCode(65 + i)}
                                             </div>
                                             <input
@@ -1969,7 +2068,7 @@ function CreatePostForm({
                                                 }
                                                 placeholder={`Option ${i + 1}`}
                                                 maxLength={MAX_CUSTOM_OPTION}
-                                                className="flex-1 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-orange-300"
+                                                className="flex-1 px-3 py-2 rounded-xl border border-subtle bg-subtle text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gray-300"
                                                 style={{
                                                     fontFamily:
                                                         "DM Sans, sans-serif",
@@ -1991,7 +2090,7 @@ function CreatePostForm({
                                 {customOptions.length < 6 && (
                                     <button
                                         onClick={addCustomOption}
-                                        className="mt-3 w-full py-2 rounded-xl border-2 border-dashed border-orange-200 text-orange-500 text-sm flex items-center justify-center gap-1.5 hover:border-orange-400 hover:text-orange-600 transition-colors cursor-pointer"
+                                        className="mt-3 w-full py-2 rounded-xl border-2 border-dashed border-theme text-cp text-sm flex items-center justify-center gap-1.5 hover:border-gray-400 hover:text-cp transition-colors cursor-pointer"
                                         style={{
                                             fontFamily: "DM Sans, sans-serif",
                                         }}
@@ -2003,7 +2102,7 @@ function CreatePostForm({
                             </div>
                         )}
                         {responseType && (
-                            <div className="bg-orange-50 rounded-xl p-4 mb-4">
+                            <div className="bg-cp-tint rounded-xl p-4 mb-4">
                                 <div className="flex items-center gap-2 mb-2">
                                     <span className="text-sm">👀</span>
                                     <span
@@ -2020,7 +2119,7 @@ function CreatePostForm({
                                     {getVoteOptions().map((opt, i) => (
                                         <span
                                             key={i}
-                                            className="text-xs px-3 py-1.5 bg-white rounded-lg border border-orange-200 text-gray-700"
+                                            className="text-xs px-3 py-1.5 bg-white rounded-lg border border-theme text-gray-700"
                                         >
                                             {opt}
                                         </span>
@@ -2031,7 +2130,7 @@ function CreatePostForm({
                         <div className="flex gap-3 mt-5">
                             <button
                                 onClick={() => setStep(2)}
-                                className="flex-1 py-4 rounded-2xl font-bold text-sm text-gray-500 hover:text-gray-700 border-2 border-gray-200 hover:border-gray-300 transition-all duration-200 cursor-pointer"
+                                className="flex-1 py-4 rounded-2xl font-bold text-sm text-gray-500 hover:text-gray-700 border-2 border-theme hover:border-gray-300 transition-all duration-200 cursor-pointer"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
                                 ← Back
@@ -2039,11 +2138,11 @@ function CreatePostForm({
                             <button
                                 onClick={() => step3Valid() && setStep(4)}
                                 disabled={!step3Valid()}
-                                className={`flex-2 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${step3Valid() ? "bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98]" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                className={`flex-[3] py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${step3Valid() ? "btn-primary shadow-lg active:scale-[0.98]" : "bg-muted text-gray-400 cursor-not-allowed"}`}
                                 style={{
                                     fontFamily: "DM Sans, sans-serif",
                                     boxShadow: step3Valid()
-                                        ? "0 4px 20px rgba(232,97,26,0.35)"
+                                        ? "0 4px 20px var(--cp-glow)"
                                         : undefined,
                                 }}
                             >
@@ -2067,7 +2166,7 @@ function CreatePostForm({
                 {step === 4 && (
                     <>
                         <div className="flex flex-col items-center pt-6 pb-5">
-                            <div className="w-20 h-20 bg-[#FFF7F2] rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
+                            <div className="w-20 h-20 bg-cp-tint rounded-full flex items-center justify-center mb-3 border-4 border-white shadow-md">
                                 <span className="text-3xl">📊</span>
                             </div>
                             <h2
@@ -2086,7 +2185,7 @@ function CreatePostForm({
                             </p>
                         </div>
 
-                        <div className="bg-white rounded-xl px-4 py-3 mb-4 border border-orange-100">
+                        <div className="bg-white rounded-xl px-4 py-3 mb-4 border border-cp/20">
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="text-2xl">
                                     {postType === "issue" && selectedSubcategory
@@ -2169,7 +2268,7 @@ function CreatePostForm({
                             ))}
                         </div>
 
-                        <div className="bg-orange-50 rounded-xl p-4 mb-4">
+                        <div className="bg-cp-tint rounded-xl p-4 mb-4">
                             <div className="flex items-center gap-2 mb-2">
                                 <UsersIcon />
                                 <span
@@ -2202,7 +2301,7 @@ function CreatePostForm({
                         )}
                         {uploadProgress && (
                             <div
-                                className="mb-4 px-4 py-3 bg-orange-50 border border-orange-100 rounded-xl text-sm text-orange-600 flex items-center gap-2"
+                                className="mb-4 px-4 py-3 bg-cp-tint border border-cp/20 rounded-xl text-sm text-cp flex items-center gap-2"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
                                 <svg
@@ -2232,7 +2331,7 @@ function CreatePostForm({
                             <button
                                 onClick={() => setStep(3)}
                                 disabled={saving}
-                                className="flex-1 py-4 rounded-2xl font-bold text-sm text-gray-500 hover:text-gray-700 border-2 border-gray-200 hover:border-gray-300 transition-all duration-200 disabled:opacity-50 cursor-pointer"
+                                className="flex-1 py-4 rounded-2xl font-bold text-sm text-gray-500 hover:text-gray-700 border-2 border-theme hover:border-gray-300 transition-all duration-200 disabled:opacity-50 cursor-pointer"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
                                 ← Back
@@ -2240,12 +2339,12 @@ function CreatePostForm({
                             <button
                                 onClick={handleSubmit}
                                 disabled={!step4Valid || saving}
-                                className={`flex-2 py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${step4Valid && !saving ? "bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98]" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                className={`flex-[3] py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${step4Valid && !saving ? "btn-primary shadow-lg active:scale-[0.98]" : "bg-muted text-gray-400 cursor-not-allowed"}`}
                                 style={{
                                     fontFamily: "DM Sans, sans-serif",
                                     boxShadow:
                                         step4Valid && !saving
-                                            ? "0 4px 20px rgba(232,97,26,0.35)"
+                                            ? "0 4px 20px var(--cp-glow)"
                                             : undefined,
                                 }}
                             >

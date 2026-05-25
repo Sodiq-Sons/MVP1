@@ -102,14 +102,14 @@ export default function InvitePage() {
     const [referralCount, setReferralCount] = useState(0);
     const [referralPoints, setReferralPoints] = useState(0);
     const [referralLink, setReferralLink] = useState("");
+    // Initialize to true only on client — avoids calling setState inside the effect body.
     const [isClient, setIsClient] = useState(false);
     const [statsLoading, setStatsLoading] = useState(true);
 
-    // FIX (Bug 5): Previously referralCount and referralPoints were initialized
-    // to 0 and never updated — getReferralStats was never called so the hero
-    // card always showed "0 Friends Joined / 0 Points Earned" for every user.
+    useEffect(() => { setIsClient(true); }, []);
+
     useEffect(() => {
-        setIsClient(true);
+        if (!isClient) return;
 
         if (auth.currentUser) {
             const code = auth.currentUser.uid.slice(0, 8).toUpperCase();
@@ -133,7 +133,7 @@ export default function InvitePage() {
             setReferralCode("WTP2026");
             setStatsLoading(false);
         }
-    }, []);
+    }, [isClient]);
 
     useEffect(() => {
         if (isClient && referralCode && referralCode !== "LOADING") {
@@ -210,7 +210,7 @@ export default function InvitePage() {
     return (
         <div className="min-h-screen pb-24" style={{ background: "#FDF6EF" }}>
             {/* Header */}
-            <header className="sticky top-0 z-40 bg-[#F97316] px-4 pt-4 pb-4">
+            <header className="sticky top-0 z-40 bg-cp px-4 pt-4 pb-4">
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => router.back()}
@@ -229,7 +229,7 @@ export default function InvitePage() {
 
             <div className="px-4 space-y-4 mt-4">
                 {/* Hero Card */}
-                <div className="bg-[#EA580C] rounded-2xl p-5 text-white relative overflow-hidden">
+                <div className="bg-cp-deeper rounded-2xl p-5 text-white relative overflow-hidden">
                     <div
                         className="absolute inset-0 opacity-10"
                         style={{
@@ -284,12 +284,12 @@ export default function InvitePage() {
                 </div>
 
                 {/* Referral Link */}
-                <div className="bg-white rounded-2xl border border-gray-50 shadow-sm p-4">
+                <div className="bg-card rounded-2xl border border-subtle shadow-sm p-4">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">
                         Your Referral Link
                     </label>
                     <div className="flex gap-2">
-                        <div className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 text-sm text-gray-600 truncate font-mono">
+                        <div className="flex-1 bg-subtle rounded-xl px-3 py-2.5 text-sm text-gray-600 truncate font-mono">
                             {isClient && referralLink
                                 ? referralLink
                                 : "/register?ref=LOADING..."}
@@ -297,21 +297,21 @@ export default function InvitePage() {
                         <button
                             onClick={handleCopy}
                             disabled={!isClient || !referralLink}
-                            className="flex items-center gap-1.5 bg-[#F97316] text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-[#EA580C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-1.5 bg-cp text-white px-4 py-2.5 rounded-xl text-xs font-bold  transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <CopyIcon />
                             Copy
                         </button>
                     </div>
                     <div className="mt-3 text-center">
-                        <span className="inline-block bg-orange-50 text-[#F97316] text-xs font-bold px-3 py-1.5 rounded-lg">
+                        <span className="inline-block bg-cp-tint text-cp text-xs font-bold px-3 py-1.5 rounded-lg">
                             Code: {referralCode}
                         </span>
                     </div>
                 </div>
 
                 {/* Share Options */}
-                <div className="bg-white rounded-2xl border border-gray-50 shadow-sm p-4">
+                <div className="bg-card rounded-2xl border border-subtle shadow-sm p-4">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-3">
                         Share via
                     </label>
@@ -333,7 +333,7 @@ export default function InvitePage() {
                 </div>
 
                 {/* How It Works */}
-                <div className="bg-white rounded-2xl border border-gray-50 shadow-sm overflow-hidden">
+                <div className="bg-card rounded-2xl border border-subtle shadow-sm overflow-hidden">
                     <div className="px-4 pt-3 pb-1">
                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                             How It Works
@@ -356,7 +356,7 @@ export default function InvitePage() {
                             },
                         ].map((item, i) => (
                             <div key={i} className="flex items-center gap-3">
-                                <div className="w-6 h-6 bg-[#F97316] text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">
+                                <div className="w-6 h-6 bg-cp text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">
                                     {item.step}
                                 </div>
                                 <span className="text-sm text-gray-700">
@@ -368,9 +368,9 @@ export default function InvitePage() {
                 </div>
 
                 {/* Leaderboard Teaser */}
-                <div className="bg-linear-to-r from-orange-50 to-amber-50 rounded-2xl border border-orange-100 p-4">
+                <div className="bg-linear-to-r from-cp-tint to-cp-light rounded-2xl border border-cp/20 p-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-[#F97316] rounded-xl flex items-center justify-center text-white">
+                        <div className="w-10 h-10 bg-cp rounded-xl flex items-center justify-center text-white">
                             <UsersIcon />
                         </div>
                         <div className="flex-1">
@@ -385,7 +385,7 @@ export default function InvitePage() {
                             onClick={() =>
                                 toast.success("Leaderboard coming soon!")
                             }
-                            className="text-xs font-bold text-[#F97316] bg-white px-3 py-1.5 rounded-lg shadow-sm"
+                            className="text-xs font-bold text-cp bg-white px-3 py-1.5 rounded-lg shadow-sm"
                         >
                             View
                         </button>

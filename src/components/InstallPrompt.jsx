@@ -47,8 +47,8 @@ export default function InstallPrompt() {
 
     return (
         <div className="fixed bottom-4 left-4 right-4 z-50 sm:left-auto sm:right-4 sm:w-80">
-            <div className="bg-white rounded-2xl shadow-xl border border-black/8 p-4 flex gap-3 items-start">
-                <div className="w-10 h-10 bg-[#FFF0E6] rounded-[13px] flex items-center justify-center text-xl shrink-0">
+            <div className="bg-card rounded-2xl shadow-xl border border-black/8 p-4 flex gap-3 items-start">
+                <div className="w-10 h-10 bg-cp-tint rounded-[13px] flex items-center justify-center text-xl shrink-0">
                     🛡️
                 </div>
 
@@ -71,7 +71,7 @@ export default function InstallPrompt() {
                     {!isIOS && (
                         <button
                             onClick={handleInstall}
-                            className="mt-2.5 bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-bold px-4 py-2 rounded-xl"
+                            className="mt-2.5 btn-primary text-white text-xs font-bold px-4 py-2 rounded-xl"
                         >
                             Install →
                         </button>

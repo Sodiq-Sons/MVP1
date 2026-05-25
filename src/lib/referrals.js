@@ -9,6 +9,8 @@ import {
     query,
     where,
     getDocs,
+    orderBy,
+    limit,
     writeBatch,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -356,39 +358,33 @@ export async function getReferralStats(userId) {
 
 // ─── Get Referral Leaderboard ──
 
-export async function getReferralLeaderboard(limit = 10) {
+export async function getReferralLeaderboard(topN = 10) {
     try {
-        const q = query(collection(db, "referrals"));
+        const q = query(
+            collection(db, "referrals"),
+            orderBy("pointsEarned", "desc"),
+            limit(topN),
+        );
         const snapshot = await getDocs(q);
 
-        const leaderboard = [];
-
-        // FIX (Bug 1): was `for (const doc of snapshot.docs)` which shadowed
-        // the Firestore `doc` import, causing a runtime crash when calling
-        // doc(db, "users", doc.id) inside the loop.
-        for (const refDoc of snapshot.docs) {
-            const referralData = refDoc.data();
-
-            const userRef = doc(db, "users", refDoc.id);
-            const userSnap = await getDoc(userRef);
-
-            if (userSnap.exists()) {
+        const leaderboard = await Promise.all(
+            snapshot.docs.map(async (refDoc) => {
+                const referralData = refDoc.data();
+                const userSnap = await getDoc(doc(db, "users", refDoc.id));
+                if (!userSnap.exists()) return null;
                 const userData = userSnap.data();
-
-                leaderboard.push({
+                return {
                     userId: refDoc.id,
                     userName: userData.fullName || userData.displayName,
                     referralCode: referralData.referralCode,
                     completedReferralsCount:
                         referralData.completedReferralsCount || 0,
                     pointsEarned: referralData.pointsEarned || 0,
-                });
-            }
-        }
+                };
+            }),
+        );
 
-        return leaderboard
-            .sort((a, b) => b.pointsEarned - a.pointsEarned)
-            .slice(0, limit);
+        return leaderboard.filter(Boolean);
     } catch (error) {
         console.error("Error getting referral leaderboard:", error);
         return [];

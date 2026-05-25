@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp } from "firebase/firestore";
 import { useNotifications } from "@/hooks/useNotifications";
 import Image from "next/image";
 import { formatMetaDisplay } from "@/hooks/useNotifications";
@@ -161,7 +162,7 @@ const typeConfigData = {
     upvote: {
         bg: "bg-green-50",
         color: "text-green-600",
-        label: "Upvotes",
+        label: "Likes",
     },
     comment: {
         bg: "bg-blue-50",
@@ -176,7 +177,7 @@ const typeConfigData = {
     like_comment: {
         bg: "bg-pink-50",
         color: "text-pink-600",
-        label: "Likes",
+        label: "Comment Likes",
     },
     vote: {
         bg: "bg-purple-50",
@@ -199,8 +200,8 @@ const typeConfigData = {
         label: "Milestones",
     },
     update: {
-        bg: "bg-orange-50",
-        color: "text-[#F97316]",
+        bg: "bg-cp-tint",
+        color: "text-cp",
         label: "Updates",
     },
 };
@@ -270,7 +271,7 @@ function ActivityItem({ item, isLast, onMarkAsRead }) {
         <div className="relative flex gap-3 pb-4" onClick={handleClick}>
             {/* Timeline line */}
             {!isLast && (
-                <div className="absolute left-4 top-9 bottom-0 w-px bg-gray-100" />
+                <div className="absolute left-4 top-9 bottom-0 w-px bg-muted" />
             )}
 
             {/* Actor avatar */}
@@ -296,8 +297,8 @@ function ActivityItem({ item, isLast, onMarkAsRead }) {
             <div
                 className={`flex-1 min-w-0 bg-white rounded-xl p-3 border transition-all cursor-pointer ${
                     !item.read
-                        ? "border-[#F97316]/20 shadow-sm"
-                        : "border-gray-50"
+                        ? "border-cp/20 shadow-sm"
+                        : "border-subtle"
                 }`}
             >
                 <div className="flex items-start justify-between gap-2">
@@ -311,7 +312,7 @@ function ActivityItem({ item, isLast, onMarkAsRead }) {
                                 {cfg.label}
                             </span>
                             {!item.read && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#F97316] shrink-0" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-cp shrink-0" />
                             )}
                         </div>
 
@@ -320,7 +321,7 @@ function ActivityItem({ item, isLast, onMarkAsRead }) {
                                 {item.actor}
                             </span>{" "}
                             {item.message}{" "}
-                            <span className="font-semibold text-[#F97316] hover:underline">
+                            <span className="font-semibold text-cp hover:underline">
                                 &quot;{item.issue}&quot;
                             </span>
                         </p>
@@ -334,7 +335,7 @@ function ActivityItem({ item, isLast, onMarkAsRead }) {
                             (() => {
                                 const display = formatMetaDisplay(item.meta);
                                 return display ? (
-                                    <p className="text-[11px] text-gray-400 mt-1 bg-gray-50 px-2 py-1 rounded-md">
+                                    <p className="text-[11px] text-gray-400 mt-1 bg-subtle px-2 py-1 rounded-md">
                                         {display}
                                     </p>
                                 ) : null;
@@ -366,9 +367,9 @@ function UserProfileCard({ user, userStats }) {
     };
 
     return (
-        <div className="bg-white rounded-2xl p-4 border border-gray-50 shadow-card mb-4">
+        <div className="bg-card rounded-2xl p-4 border border-subtle shadow-card mb-4">
             <div className="flex items-center gap-3">
-                <div className="w-14 h-14 rounded-full bg-[#F97316] flex items-center justify-center text-white text-lg font-bold overflow-hidden">
+                <div className="w-14 h-14 rounded-full bg-cp flex items-center justify-center text-white text-lg font-bold overflow-hidden">
                     {user.photoURL ? (
                         <Image
                             src={user.photoURL}
@@ -392,7 +393,7 @@ function UserProfileCard({ user, userStats }) {
                         {user.email}
                     </p>
                     {userStats && (
-                        <p className="text-[11px] text-[#F97316] font-semibold mt-0.5">
+                        <p className="text-[11px] text-cp font-semibold mt-0.5">
                             {userStats.issuesPosted} posts dropped •{" "}
                             {userStats.totalUpvotes} upvotes
                         </p>
@@ -406,9 +407,9 @@ function UserProfileCard({ user, userStats }) {
 // ── Login Prompt Component ───────────────────────────────────────────────
 function LoginPrompt({ onLogin }) {
     return (
-        <div className="min-h-screen bg-[#FDF6EF] flex items-center justify-center px-4">
-            <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-8 max-w-md w-full text-center">
-                <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="min-h-screen bg-page flex items-center justify-center px-4">
+            <div className="bg-card rounded-3xl shadow-lg border border-subtle p-8 max-w-md w-full text-center">
+                <div className="w-20 h-20 bg-cp-tint rounded-full flex items-center justify-center mx-auto mb-4">
                     <span className="text-4xl">🔒</span>
                 </div>
                 <h2
@@ -426,10 +427,10 @@ function LoginPrompt({ onLogin }) {
                 </p>
                 <button
                     onClick={onLogin}
-                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#F97316] text-white hover:bg-[#C2410C] shadow-lg active:scale-[0.98] transition-all duration-200 cursor-pointer"
+                    className="w-full py-3.5 rounded-2xl font-bold text-base btn-primary shadow-lg active:scale-[0.98] transition-all duration-200 cursor-pointer"
                     style={{
                         fontFamily: "DM Sans, sans-serif",
-                        boxShadow: "0 4px 20px rgba(232,97,26,0.35)",
+                        boxShadow: "0 4px 20px var(--cp-glow)",
                     }}
                 >
                     Log In to Continue
@@ -441,11 +442,96 @@ function LoginPrompt({ onLogin }) {
                     Don&apos;t have an account?{" "}
                     <Link
                         href="/register"
-                        className="text-[#F97316] font-semibold hover:underline"
+                        className="text-cp font-semibold hover:underline"
                     >
                         Sign up
                     </Link>
                 </p>
+            </div>
+        </div>
+    );
+}
+
+// ── Group Chat Invite Card ────────────────────────────────────────────────
+function GroupChatInviteCard({ invite, user }) {
+    const [busy, setBusy] = useState(false);
+    const [done, setDone] = useState(false);
+    const uid = user?.uid;
+
+    const handleAccept = async () => {
+        setBusy(true);
+        try {
+            const chatRef = doc(db, "groupChats", invite.chatId);
+            await updateDoc(chatRef, {
+                memberIds: arrayUnion(uid),
+                members: arrayUnion({ uid, name: user?.displayName || "Camper", photoURL: user?.photoURL || null }),
+                updatedAt: serverTimestamp(),
+            });
+            await updateDoc(doc(db, "groupChatInvites", invite.id), { status: "accepted" });
+            setDone("accepted");
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const handleDecline = async () => {
+        setBusy(true);
+        try {
+            await updateDoc(doc(db, "groupChatInvites", invite.id), { status: "declined" });
+            setDone("declined");
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    if (done === "declined") return null;
+
+    return (
+        <div className="bg-white border border-cp/20 rounded-2xl p-4 mb-3 shadow-sm">
+            <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--cp-tint)" }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--cp)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                    </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-cp/10 text-cp">GROUP INVITE</span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-cp shrink-0" />
+                    </div>
+                    <p className="text-xs text-gray-700 leading-relaxed">
+                        <span className="font-semibold text-gray-900">{invite.invitedByName}</span>{" "}
+                        invited you to join{" "}
+                        <span className="font-semibold text-cp">&quot;{invite.chatName}&quot;</span>
+                    </p>
+                    {done === "accepted" ? (
+                        <Link href={`/chat/${invite.chatId}`} className="inline-block mt-2 text-xs font-bold text-cp underline">
+                            Open chat →
+                        </Link>
+                    ) : (
+                        <div className="flex gap-2 mt-3">
+                            <button
+                                onClick={handleAccept}
+                                disabled={busy}
+                                className="flex-1 py-2 rounded-xl text-xs font-bold text-white transition-all active:scale-95 disabled:opacity-60"
+                                style={{ background: "var(--cp)" }}
+                            >
+                                {busy ? "..." : "Accept"}
+                            </button>
+                            <button
+                                onClick={handleDecline}
+                                disabled={busy}
+                                className="flex-1 py-2 rounded-xl text-xs font-bold text-gray-600 bg-gray-100 transition-all active:scale-95 disabled:opacity-60"
+                            >
+                                Decline
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -457,6 +543,7 @@ export default function ActivityPage() {
     const [currentUser, setCurrentUser] = useState(null);
     const [authReady, setAuthReady] = useState(false);
     const [isAnonymous, setIsAnonymous] = useState(true);
+    const [groupInvites, setGroupInvites] = useState([]);
 
     const {
         notifications,
@@ -482,6 +569,20 @@ export default function ActivityPage() {
         return () => unsubscribe();
     }, []);
 
+    // Listen for pending group chat invites
+    useEffect(() => {
+        if (!currentUser?.uid || isAnonymous) { setGroupInvites([]); return; }
+        const q = query(
+            collection(db, "groupChatInvites"),
+            where("invitedUid", "==", currentUser.uid),
+            where("status", "==", "pending")
+        );
+        const unsub = onSnapshot(q, (snap) => {
+            setGroupInvites(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        });
+        return () => unsub();
+    }, [currentUser?.uid, isAnonymous]);
+
     const handleLoginClick = () => {
         const currentPath = window.location.pathname;
         router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
@@ -495,7 +596,7 @@ export default function ActivityPage() {
                 style={{ background: "#FDF6EF" }}
             >
                 <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 border-4 border-orange-200 border-t-[#F97316] rounded-full animate-spin" />
+                    <div className="w-8 h-8 border-4 border-theme spinner-cp rounded-full animate-spin" />
                     <p
                         className="text-sm text-gray-500"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
@@ -530,7 +631,7 @@ export default function ActivityPage() {
     // Tab configuration
     const tabs = [
         { key: "all", label: "All", emoji: "📬" },
-        { key: "upvote", label: "Upvotes", emoji: "⬆️" },
+        { key: "upvote", label: "Likes", emoji: "👍" },
         { key: "comment", label: "Comments", emoji: "💬" },
         { key: "reply", label: "Replies", emoji: "↩️" },
         { key: "vote", label: "Votes", emoji: "🗳️" },
@@ -546,11 +647,11 @@ export default function ActivityPage() {
             trend: `${unreadCount} unread`,
         },
         {
-            label: "Upvotes",
+            label: "Post Likes",
             value: notifications
                 .filter((n) => n.type === "upvote")
                 .length.toString(),
-            icon: "⬆️",
+            icon: "👍",
             trend: "On your posts",
         },
         {
@@ -562,7 +663,7 @@ export default function ActivityPage() {
             trend: "Replies to you",
         },
         {
-            label: "Likes",
+            label: "Comment Likes",
             value: notifications
                 .filter((n) => n.type === "like_comment")
                 .length.toString(),
@@ -577,7 +678,7 @@ export default function ActivityPage() {
             style={{ background: "#FDF6EF" }}
         >
             {/* Mobile Header */}
-            <header className="md:hidden sticky top-0 z-40 bg-[#F97316] px-4 pt-4 pb-4 mb-6">
+            <header className="md:hidden sticky top-0 z-40 bg-cp px-4 pt-4 pb-4 mb-6">
                 <div className="flex items-center justify-between">
                     <div>
                         <h1
@@ -595,7 +696,7 @@ export default function ActivityPage() {
                     {unreadCount > 0 && (
                         <button
                             onClick={markAllAsRead}
-                            className="flex items-center gap-1.5 bg-white text-[#F97316] rounded-xl px-3 py-1.5 active:scale-95 transition-transform"
+                            className="flex items-center gap-1.5 bg-white text-cp rounded-xl px-3 py-1.5 active:scale-95 transition-transform"
                         >
                             <BellIcon />
                             <span className="text-xs font-bold">
@@ -623,7 +724,7 @@ export default function ActivityPage() {
                     {unreadCount > 0 && (
                         <button
                             onClick={markAllAsRead}
-                            className="flex items-center gap-2 text-xs font-semibold text-[#F97316] bg-orange-50 border border-orange-100 px-3 py-2 rounded-xl hover:bg-orange-100 transition-colors cursor-pointer"
+                            className="flex items-center gap-2 text-xs font-semibold text-cp bg-cp-tint border border-cp/20 px-3 py-2 rounded-xl hover:bg-cp-tint transition-colors cursor-pointer"
                         >
                             <CheckIcon />
                             Mark all read
@@ -633,8 +734,8 @@ export default function ActivityPage() {
                         onClick={() => setShowUnreadOnly((u) => !u)}
                         className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border transition-colors cursor-pointer ${
                             showUnreadOnly
-                                ? "bg-[#F97316] text-white border-[#F97316]"
-                                : "bg-white text-gray-600 border-gray-100 hover:bg-gray-50"
+                                ? "bg-cp text-white border-cp"
+                                : "bg-white text-gray-600 border-subtle hover:bg-subtle"
                         }`}
                     >
                         <FilterIcon />
@@ -648,13 +749,31 @@ export default function ActivityPage() {
                 <UserProfileCard user={currentUser} userStats={null} />
             </div>
 
+            {/* Group Chat Invites */}
+            {groupInvites.length > 0 && (
+                <div className="px-4 md:px-6 mb-4">
+                    <div className="flex items-center gap-2 mb-3">
+                        <span className="text-[11px] font-bold text-cp uppercase tracking-wider">
+                            Group Chat Invites
+                        </span>
+                        <span className="min-w-[18px] h-[18px] px-1 bg-cp text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                            {groupInvites.length}
+                        </span>
+                        <div className="flex-1 h-px bg-cp/20" />
+                    </div>
+                    {groupInvites.map((inv) => (
+                        <GroupChatInviteCard key={inv.id} invite={inv} user={currentUser} />
+                    ))}
+                </div>
+            )}
+
             {/* Stats Grid */}
             <div className="px-4 md:px-6 mb-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {stats.map((s) => (
                         <div
                             key={s.label}
-                            className="bg-white rounded-2xl p-3.5 border border-gray-50 shadow-card"
+                            className="bg-card rounded-2xl p-3.5 border border-subtle shadow-card"
                         >
                             <div className="flex items-center justify-between mb-2">
                                 <span className="text-xl">{s.icon}</span>
@@ -690,8 +809,8 @@ export default function ActivityPage() {
                             onClick={() => setActiveTab(t.key)}
                             className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                                 activeTab === t.key
-                                    ? "bg-[#F97316] text-white shadow-sm"
-                                    : "bg-white text-gray-600 border border-gray-100 hover:border-[#FED7AA] shadow-card"
+                                    ? "bg-cp text-white shadow-sm"
+                                    : "bg-white text-gray-600 border border-subtle hover:border-[#FED7AA] shadow-card"
                             }`}
                         >
                             <span>{t.emoji}</span>
@@ -710,8 +829,8 @@ export default function ActivityPage() {
                     onClick={() => setShowUnreadOnly((u) => !u)}
                     className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${
                         showUnreadOnly
-                            ? "bg-[#F97316] text-white border-[#F97316]"
-                            : "bg-white text-gray-600 border-gray-100"
+                            ? "bg-cp text-white border-cp"
+                            : "bg-white text-gray-600 border-subtle"
                     }`}
                 >
                     <FilterIcon />
@@ -722,14 +841,14 @@ export default function ActivityPage() {
             {/* Activity Feed */}
             <div className="px-4 md:px-6 md:max-w-2xl md:mx-auto">
                 {notificationsLoading ? (
-                    <div className="text-center py-16 bg-white rounded-2xl border border-gray-50">
-                        <div className="w-8 h-8 border-4 border-orange-200 border-t-[#F97316] rounded-full animate-spin mx-auto mb-3" />
+                    <div className="text-center py-16 bg-card rounded-2xl border border-subtle">
+                        <div className="w-8 h-8 border-4 border-theme spinner-cp rounded-full animate-spin mx-auto mb-3" />
                         <p className="text-gray-500 text-sm">
                             Loading activity...
                         </p>
                     </div>
                 ) : filtered.length === 0 ? (
-                    <div className="text-center py-16 bg-white rounded-2xl border border-gray-50">
+                    <div className="text-center py-16 bg-card rounded-2xl border border-subtle">
                         <div className="text-4xl mb-3">🎉</div>
                         <p className="font-semibold text-gray-700">
                             All caught up!
