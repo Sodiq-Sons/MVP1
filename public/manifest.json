@@ -2,7 +2,8 @@
     "name": "Camp Connect",
     "short_name": "Camp Connect",
     "description": "Stay updated with camp life. Share gists, vote in polls, rate food, and report issues with fellow corpers in camp.",
-    "start_url": "/onboarding",
+    "start_url": "/",
+    "scope": "/",
     "display": "standalone",
     "background_color": "#FDF6EF",
     "theme_color": "#F97316",
@@ -56,15 +57,6 @@
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "maskable any"
-        }
-    ],
-    "screenshots": [
-        {
-            "src": "/screenshots/splash.png",
-            "sizes": "390x844",
-            "type": "image/png",
-            "form_factor": "narrow",
-            "label": "Camp Connect home screen"
         }
     ]
 }
