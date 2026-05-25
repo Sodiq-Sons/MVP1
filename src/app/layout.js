@@ -57,7 +57,7 @@ export const metadata = {
             "The real-time social platform for NYSC corps members. Share camp gists, report issues, vote in polls, and connect with your platoon.",
         images: [
             {
-                url: "/icons/icon-512x512.png",
+                url: "/icons/icon-512x512.webp",
                 width: 512,
                 height: 512,
                 alt: "Camp Connect — NYSC social platform",
@@ -69,7 +69,7 @@ export const metadata = {
         title: "Camp Connect — NYSC Camp Gists, Issues & Polls",
         description:
             "The real-time social platform for NYSC corps members. Share camp gists, report issues, and connect with your platoon.",
-        images: ["/icons/icon-512x512.png"],
+        images: ["/icons/icon-512x512.webp"],
     },
     manifest: "/manifest.json",
     appleWebApp: {
@@ -94,7 +94,7 @@ export default function RootLayout({ children }) {
             className={`${plusJakarta.variable} ${dmSans.variable} h-full antialiased font-sans`}
         >
             <head>
-                <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+                <link rel="apple-touch-icon" href="/icons/icon-192x192.webp" />
                 {/* Preconnect to third-party origins to reduce latency */}
                 <link rel="preconnect" href="https://res.cloudinary.com" />
                 <link rel="preconnect" href="https://firestore.googleapis.com" />

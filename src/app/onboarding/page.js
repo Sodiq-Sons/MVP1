@@ -240,9 +240,11 @@ function SplashScreen({ goTo }) {
                 {/* Topbar */}
                 <div className="flex items-center justify-between mb-16 md:mb-7">
                     <div className="flex items-center gap-2 sm:gap-2.5">
-                        <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white/20 rounded-[13px] flex items-center justify-center text-lg sm:text-xl shrink-0">
-                            🛡️
-                        </div>
+                        <img
+                            src="/icons/icon-192x192.webp"
+                            alt="Camp Connect"
+                            className="w-9 h-9 sm:w-10 sm:h-10 rounded-[13px] shrink-0"
+                        />
                         <div>
                             <div
                                 className="text-white font-extrabold text-sm sm:text-base md:text-lg leading-tight"
@@ -250,7 +252,7 @@ function SplashScreen({ goTo }) {
                                     fontFamily: "Plus Jakarta Sans, sans-serif",
                                 }}
                             >
-                                Naija Connect
+                                Camp Connect
                             </div>
                             <div className="text-white/70 text-[10px] sm:text-xs leading-none mt-0.5">
                                 Be the voice. Drive the change.
