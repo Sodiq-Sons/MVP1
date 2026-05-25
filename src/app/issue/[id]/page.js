@@ -1107,17 +1107,40 @@ function ReplyForm({
                     commentCount: currentCount + 1,
                 });
             });
+            const actorName = currentUser?.displayName || currentUser?.email?.split("@")[0] || "Corper";
             if (replyingToUserId && replyingToUserId !== currentUser?.uid) {
                 await createNotification({
                     type: NOTIFICATION_TYPES.REPLY,
                     recipientId: replyingToUserId,
                     actorId: currentUser?.uid || "anon",
-                    actorName: "Anonymous",
+                    actorName,
+                    actorPhotoURL: currentUser?.photoURL || null,
                     issueId,
                     issueTitle,
                     commentId: newReplyRef.id,
                     commentPreview: text.trim(),
                 });
+            }
+            // Notify @mentioned users in the reply text
+            const replyCache = replyUserCache.current || [];
+            if (replyCache.length > 0) {
+                const notified = new Set([currentUser?.uid, replyingToUserId].filter(Boolean));
+                for (const u of replyCache) {
+                    if (!notified.has(u.uid) && text.trim().includes("@" + u.name)) {
+                        notified.add(u.uid);
+                        createNotification({
+                            type: NOTIFICATION_TYPES.MENTION,
+                            recipientId: u.uid,
+                            actorId: currentUser?.uid || "anon",
+                            actorName,
+                            actorPhotoURL: currentUser?.photoURL || null,
+                            issueId,
+                            issueTitle,
+                            commentId: newReplyRef.id,
+                            commentPreview: text.trim(),
+                        }).catch(() => {});
+                    }
+                }
             }
             setText("");
             onSuccess();
@@ -1260,7 +1283,7 @@ function CommentItem({
                     type: NOTIFICATION_TYPES.LIKE_COMMENT,
                     recipientId: comment.userId,
                     actorId: currentUser?.uid || "anon",
-                    actorName: "Anonymous",
+                    actorName: currentUser?.displayName || currentUser?.email?.split("@")[0] || "Corper",
                     issueId,
                     issueTitle,
                     commentId: comment.id,
@@ -2110,7 +2133,7 @@ export default function IssueDetailPage({ params }) {
                         type: NOTIFICATION_TYPES.VOTE,
                         recipientId: issue.author.uid,
                         actorId: currentUser.uid,
-                        actorName: "Anonymous",
+                        actorName: currentUser?.displayName || currentUser?.email?.split("@")[0] || "Corper",
                         issueId: id,
                         issueTitle: issue.title,
                         meta: { option },
@@ -2170,7 +2193,7 @@ export default function IssueDetailPage({ params }) {
                         type: NOTIFICATION_TYPES.UPVOTE,
                         recipientId: issue.author.uid,
                         actorId: currentUser.uid,
-                        actorName: "Anonymous",
+                        actorName: currentUser?.displayName || currentUser?.email?.split("@")[0] || "Corper",
                         issueId: id,
                         issueTitle: issue.title,
                     });
@@ -2280,12 +2303,34 @@ export default function IssueDetailPage({ params }) {
                     type: NOTIFICATION_TYPES.COMMENT,
                     recipientId: issue.author.uid,
                     actorId: currentUser.uid,
-                    actorName: "Anonymous",
+                    actorName: currentUser?.displayName || currentUser?.email?.split("@")[0] || "Corper",
+                    actorPhotoURL: currentUser?.photoURL || null,
                     issueId: id,
                     issueTitle: issue.title,
                     commentId: newCommentRef.id,
                     commentPreview: originalText.trim(),
                 });
+            }
+            // Notify @mentioned users
+            const cache = userCacheRef.current || [];
+            if (cache.length > 0) {
+                const notified = new Set([currentUser.uid, issue.author?.uid].filter(Boolean));
+                for (const u of cache) {
+                    if (!notified.has(u.uid) && originalText.includes("@" + u.name)) {
+                        notified.add(u.uid);
+                        createNotification({
+                            type: NOTIFICATION_TYPES.MENTION,
+                            recipientId: u.uid,
+                            actorId: currentUser.uid,
+                            actorName: currentUser?.displayName || currentUser?.email?.split("@")[0] || "Corper",
+                            actorPhotoURL: currentUser?.photoURL || null,
+                            issueId: id,
+                            issueTitle: issue.title,
+                            commentId: newCommentRef.id,
+                            commentPreview: originalText.trim(),
+                        }).catch(() => {});
+                    }
+                }
             }
         } catch (err) {
             console.error(err);
@@ -2303,7 +2348,7 @@ export default function IssueDetailPage({ params }) {
         const el = commentInputRef.current;
         const caret = el ? el.selectionStart : val.length;
         const before = val.slice(0, caret);
-        const match = before.match(/@(S*)$/);
+        const match = before.match(/@(\S*)$/);
         if (!match) { setMentionQuery(null); setMentionSuggestions([]); return; }
         const q = match[1];
         setMentionQuery(q);
@@ -2322,7 +2367,7 @@ export default function IssueDetailPage({ params }) {
     const insertMention = (user) => {
         const el = commentInputRef.current;
         const caret = el ? el.selectionStart : commentText.length;
-        const beforeCaret = commentText.slice(0, caret).replace(/@(S*)$/, '@' + user.name + ' ');
+        const beforeCaret = commentText.slice(0, caret).replace(/@(\S*)$/, '@' + user.name + ' ');
         const afterCaret = commentText.slice(caret);
         const next = beforeCaret + afterCaret;
         setCommentText(next);

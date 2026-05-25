@@ -19,6 +19,7 @@ import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
 import { useSidebar } from "@/components/SidebarContext";
+import { toast } from "sonner";
 
 const CUTOFF_MS = 3 * 60 * 1000;
 
@@ -79,8 +80,11 @@ export default function GroupChatRoom({ chatId }) {
     const [onlineSet, setOnlineSet] = useState(new Set());
     const [replyingTo, setReplyingTo] = useState(null); // { id, text, senderName }
     const [contextMsg, setContextMsg] = useState(null);  // message shown in bottom sheet
+    const [pendingImage, setPendingImage] = useState(null); // { localUrl, cloudinaryUrl }
+    const [uploading, setUploading] = useState(false);
     const bottomRef = useRef(null);
     const inputRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     const longPress = useLongPress((msg) => setContextMsg(msg));
 
@@ -142,14 +146,43 @@ export default function GroupChatRoom({ chatId }) {
         if (replyingTo) inputRef.current?.focus();
     }, [replyingTo]);
 
+    const handleImageSelect = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = "";
+        if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB"); return; }
+        const localUrl = URL.createObjectURL(file);
+        setPendingImage({ localUrl, cloudinaryUrl: null });
+        setUploading(true);
+        try {
+            const fd = new FormData();
+            fd.append("file", file);
+            const res = await fetch("/api/upload", { method: "POST", body: fd });
+            const data = await res.json();
+            if (!data.url) throw new Error(data.error || "Upload failed");
+            setPendingImage({ localUrl, cloudinaryUrl: data.url });
+        } catch (err) {
+            toast.error(err.message || "Image upload failed");
+            setPendingImage(null);
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const sendMessage = async (e) => {
         e?.preventDefault();
         const msg = text.trim();
-        if (!msg || sending || !uid) return;
+        if ((!msg && !pendingImage?.cloudinaryUrl) || sending || !uid) return;
+        if (pendingImage && !pendingImage.cloudinaryUrl) {
+            toast.error("Image is still uploading, please wait.");
+            return;
+        }
         setSending(true);
         setText("");
         const replySnapshot = replyingTo;
+        const imageSnapshot = pendingImage;
         setReplyingTo(null);
+        setPendingImage(null);
         try {
             const payload = {
                 text: msg,
@@ -158,6 +191,7 @@ export default function GroupChatRoom({ chatId }) {
                 senderPhoto: photoURL || null,
                 createdAt: serverTimestamp(),
             };
+            if (imageSnapshot?.cloudinaryUrl) payload.imageUrl = imageSnapshot.cloudinaryUrl;
             if (replySnapshot) {
                 payload.replyTo = {
                     messageId: replySnapshot.id,
@@ -197,6 +231,7 @@ export default function GroupChatRoom({ chatId }) {
         } catch {
             setText(msg);
             if (replySnapshot) setReplyingTo(replySnapshot);
+            if (imageSnapshot) setPendingImage(imageSnapshot);
         } finally {
             setSending(false);
             inputRef.current?.focus();
@@ -341,27 +376,44 @@ export default function GroupChatRoom({ chatId }) {
                                         )}
 
                                         {/* Bubble */}
-                                        <div className={`px-4 py-2.5 text-sm leading-relaxed break-words ${
+                                        <div className={`text-sm leading-relaxed break-words overflow-hidden ${
                                             isMe
                                                 ? "text-white rounded-2xl rounded-br-md"
                                                 : "text-gray-800 bg-white border border-gray-100 rounded-2xl rounded-bl-md shadow-sm"
                                         }`} style={isMe ? { background: "var(--cp)" } : {}}>
-                                            {/* Reply-to quote */}
-                                            {msg.replyTo && (
-                                                <div className={`mb-2 px-3 py-1.5 rounded-xl text-xs ${
-                                                    isMe
-                                                        ? "bg-white/20 border-l-2 border-white/60"
-                                                        : "bg-gray-100 border-l-2 border-gray-400"
-                                                }`}>
-                                                    <p className={`font-bold truncate mb-0.5 ${isMe ? "text-white/90" : "text-gray-700"}`} style={!isMe ? { color: "var(--cp)" } : {}}>
-                                                        {msg.replyTo.senderName}
-                                                    </p>
-                                                    <p className={`truncate ${isMe ? "text-white/75" : "text-gray-500"}`}>
-                                                        {msg.replyTo.text}
-                                                    </p>
+                                            {/* Image */}
+                                            {msg.imageUrl && (
+                                                <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
+                                                    <img
+                                                        src={msg.imageUrl}
+                                                        alt="Shared image"
+                                                        className="w-full rounded-t-2xl object-cover"
+                                                        style={{ maxHeight: 280 }}
+                                                        loading="lazy"
+                                                    />
+                                                </a>
+                                            )}
+                                            {/* Text / reply quote */}
+                                            {(msg.text || msg.replyTo) && (
+                                                <div className="px-4 py-2.5">
+                                                    {/* Reply-to quote */}
+                                                    {msg.replyTo && (
+                                                        <div className={`mb-2 px-3 py-1.5 rounded-xl text-xs ${
+                                                            isMe
+                                                                ? "bg-white/20 border-l-2 border-white/60"
+                                                                : "bg-gray-100 border-l-2 border-gray-400"
+                                                        }`}>
+                                                            <p className={`font-bold truncate mb-0.5 ${isMe ? "text-white/90" : "text-gray-700"}`} style={!isMe ? { color: "var(--cp)" } : {}}>
+                                                                {msg.replyTo.senderName}
+                                                            </p>
+                                                            <p className={`truncate ${isMe ? "text-white/75" : "text-gray-500"}`}>
+                                                                {msg.replyTo.text}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                    {msg.text}
                                                 </div>
                                             )}
-                                            {msg.text}
                                         </div>
 
                                         {/* Timestamp + quick reply button */}
@@ -389,6 +441,29 @@ export default function GroupChatRoom({ chatId }) {
                 </div>
             </div>
 
+            {/* ── Image preview bar ── */}
+            {pendingImage && (
+                <div className="shrink-0 border-t border-subtle bg-gray-50 px-4 py-2 flex items-center gap-3">
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-200 shrink-0">
+                        <img src={pendingImage.localUrl} alt="preview" className="w-full h-full object-cover" />
+                        {uploading && (
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                <div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-gray-700">{uploading ? "Uploading…" : "Image ready"}</p>
+                        <p className="text-[11px] text-gray-400">You can add a caption below</p>
+                    </div>
+                    <button onClick={() => setPendingImage(null)} className="shrink-0 text-gray-400 hover:text-red-500 transition-colors p-1 cursor-pointer" aria-label="Remove image">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-4 h-4">
+                            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+            )}
+
             {/* ── Reply preview bar ── */}
             {replyingTo && (
                 <div className="shrink-0 border-t border-subtle bg-gray-50 px-4 py-2 flex items-center gap-3">
@@ -413,7 +488,29 @@ export default function GroupChatRoom({ chatId }) {
 
             {/* ── Input bar ── */}
             <div className="shrink-0 bg-white border-t border-subtle">
+                {/* Hidden file input */}
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="hidden"
+                    onChange={handleImageSelect}
+                />
                 <form onSubmit={sendMessage} className="max-w-2xl mx-auto px-3 py-3 flex items-end gap-2">
+                    {/* Image attach button */}
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all active:scale-90 disabled:opacity-40 cursor-pointer"
+                        aria-label="Attach image"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                    </button>
                     <div className="flex-1 bg-gray-100 rounded-2xl flex items-center overflow-hidden focus-within:ring-2 transition-all" style={{ "--tw-ring-color": "var(--cp)" }}>
                         <input
                             ref={inputRef}
@@ -421,14 +518,14 @@ export default function GroupChatRoom({ chatId }) {
                             value={text}
                             onChange={(e) => setText(e.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                            placeholder={replyingTo ? `Reply to ${replyingTo.senderName}…` : "Message…"}
+                            placeholder={replyingTo ? `Reply to ${replyingTo.senderName}…` : pendingImage ? "Add a caption…" : "Message…"}
                             maxLength={1000}
                             className="flex-1 px-4 py-3 bg-transparent text-sm text-gray-800 placeholder-gray-400 focus:outline-none"
                         />
                     </div>
                     <button
                         type="submit"
-                        disabled={!text.trim() || sending}
+                        disabled={(!text.trim() && !pendingImage?.cloudinaryUrl) || sending || uploading}
                         className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 text-white transition-all active:scale-90 disabled:opacity-40 cursor-pointer"
                         style={{ background: "var(--cp)" }}
                         aria-label="Send"
