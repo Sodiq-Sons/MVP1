@@ -190,6 +190,18 @@ const typeConfig = {
         icon: <AlertIcon />,
         accent: "var(--cp)",
     },
+    group_message: {
+        bg: "bg-violet-50",
+        color: "text-violet-600",
+        border: "border-violet-200",
+        label: "Group Chat",
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-4 h-4">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+            </svg>
+        ),
+        accent: "#7C3AED",
+    },
 };
 
 const TOAST_DURATION = 5000; // 5 seconds

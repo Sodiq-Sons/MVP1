@@ -205,6 +205,11 @@ const typeConfigData = {
         color: "text-cp",
         label: "Updates",
     },
+    group_message: {
+        bg: "bg-violet-50",
+        color: "text-violet-600",
+        label: "Group Chat",
+    },
 };
 
 // ── Helper function to get icon component ────────────────────────────────
@@ -219,6 +224,11 @@ const getTypeIcon = (type) => {
         mention: <MegaphoneIcon />,
         milestone: <StarIcon />,
         update: <AlertIcon />,
+        group_message: (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-3.5 h-3.5">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+            </svg>
+        ),
     };
     return iconMap[type] || iconMap.update;
 };
@@ -261,15 +271,17 @@ const getTimestampGroup = (timestamp) => {
 function ActivityItem({ item, isLast, onMarkAsRead }) {
     const cfg = typeConfigData[item.type] || typeConfigData.update;
     const icon = getTypeIcon(item.type);
+    const router = useRouter();
 
     const handleClick = () => {
-        if (!item.read) {
-            onMarkAsRead(item.id);
+        if (!item.read) onMarkAsRead(item.id);
+        if (item.type === "group_message" && item.chatId) {
+            router.push(`/chat/${item.chatId}`);
         }
     };
 
     return (
-        <div className="relative flex gap-3 pb-4" onClick={handleClick}>
+        <div className={`relative flex gap-3 pb-4 ${item.type === "group_message" ? "cursor-pointer" : ""}`} onClick={handleClick}>
             {/* Timeline line */}
             {!isLast && (
                 <div className="absolute left-4 top-9 bottom-0 w-px bg-muted" />

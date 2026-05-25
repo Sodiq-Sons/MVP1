@@ -114,6 +114,21 @@ function CamperPicker({ uid, onNext, onClose }) {
         return a.name.localeCompare(b.name);
     });
 
+    const allSelected = sorted.length > 0 && sorted.every((c) => selected.find((s) => s.uid === c.uid));
+    const selectAll = () => {
+        if (allSelected) {
+            // Deselect all currently visible
+            const visibleUids = new Set(sorted.map((c) => c.uid));
+            setSelected((prev) => prev.filter((s) => !visibleUids.has(s.uid)));
+        } else {
+            // Add all currently visible that aren't already selected
+            setSelected((prev) => {
+                const existing = new Set(prev.map((s) => s.uid));
+                return [...prev, ...sorted.filter((c) => !existing.has(c.uid))];
+            });
+        }
+    };
+
     return (
         <div className="flex flex-col h-full">
             {/* Header */}
@@ -183,6 +198,25 @@ function CamperPicker({ uid, onNext, onClose }) {
                     )}
                 </div>
             </div>
+
+            {/* Select All row */}
+            {!loading && sorted.length > 0 && (
+                <div className="px-4 py-2.5 border-b border-subtle flex items-center justify-between">
+                    <span className="text-xs text-gray-500 font-medium">
+                        {search ? `${sorted.length} result${sorted.length !== 1 ? "s" : ""}` : `${allCampers.length} camp member${allCampers.length !== 1 ? "s" : ""}`}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={selectAll}
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg transition-all active:scale-95"
+                        style={allSelected
+                            ? { background: "var(--cp-tint)", color: "var(--cp)" }
+                            : { background: "#f3f4f6", color: "#374151" }}
+                    >
+                        {allSelected ? "Deselect All" : "Select All"}
+                    </button>
+                </div>
+            )}
 
             {/* Camper list */}
             <div className="flex-1 overflow-y-auto">
@@ -533,26 +567,41 @@ export default function GroupChatList() {
                         <div className="rounded-2xl border border-subtle overflow-hidden bg-white">
                             {chats.map((chat, i) => {
                                 const onlineCount = (chat.memberIds || []).filter((id) => onlineSet.has(id)).length;
+                                // Unread: last message arrived after user last viewed this chat
+                                let hasUnread = false;
+                                try {
+                                    const seen = parseInt(localStorage.getItem(`chat_seen_${uid}_${chat.id}`) || "0", 10);
+                                    const lastMsg = chat.lastMessageAt?.toMillis?.() ?? 0;
+                                    hasUnread = lastMsg > seen && !!chat.lastMessage;
+                                } catch {}
                                 return (
                                     <Link key={chat.id} href={`/chat/${chat.id}`}
                                         className={`flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors ${i < chats.length - 1 ? "border-b border-gray-50" : ""}`}>
-                                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-white font-bold text-lg" style={{ background: "var(--cp)" }}>
+                                        <div className="relative w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-white font-bold text-lg" style={{ background: "var(--cp)" }}>
                                             {chat.name?.charAt(0)?.toUpperCase() || "G"}
+                                            {hasUnread && (
+                                                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 border-2 border-white" />
+                                            )}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-1.5">
-                                                <p className="text-sm font-bold text-gray-900 truncate">{chat.name}</p>
+                                                <p className={`text-sm truncate ${hasUnread ? "font-extrabold text-gray-900" : "font-bold text-gray-900"}`}>{chat.name}</p>
                                                 {onlineCount > 0 && (
                                                     <span className="shrink-0 text-[10px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
                                                         {onlineCount} online
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-xs text-gray-400 truncate mt-0.5">
+                                            <p className={`text-xs truncate mt-0.5 ${hasUnread ? "text-gray-700 font-semibold" : "text-gray-400"}`}>
                                                 {chat.lastMessage || `${chat.memberIds?.length || 0} members`}
                                             </p>
                                         </div>
-                                        <div className="text-xs text-gray-300 shrink-0">{timeAgo(chat.updatedAt)}</div>
+                                        <div className="flex flex-col items-end gap-1 shrink-0">
+                                            <span className="text-xs text-gray-300">{timeAgo(chat.updatedAt)}</span>
+                                            {hasUnread && (
+                                                <span className="w-2 h-2 rounded-full bg-cp" />
+                                            )}
+                                        </div>
                                     </Link>
                                 );
                             })}
