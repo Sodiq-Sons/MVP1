@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, writeBatch } from "firebase/firestore";
+import { toast } from "sonner";
 import { useNotifications } from "@/hooks/useNotifications";
 import Image from "next/image";
 import { formatMetaDisplay } from "@/hooks/useNotifications";
@@ -454,23 +455,32 @@ function LoginPrompt({ onLogin }) {
 
 // ── Group Chat Invite Card ────────────────────────────────────────────────
 function GroupChatInviteCard({ invite, user }) {
+    const router = useRouter();
     const [busy, setBusy] = useState(false);
     const [done, setDone] = useState(false);
     const uid = user?.uid;
 
     const handleAccept = async () => {
+        if (!uid) return;
         setBusy(true);
         try {
-            const chatRef = doc(db, "groupChats", invite.chatId);
-            await updateDoc(chatRef, {
+            const batch = writeBatch(db);
+            batch.update(doc(db, "groupChats", invite.chatId), {
                 memberIds: arrayUnion(uid),
-                members: arrayUnion({ uid, name: user?.displayName || "Camper", photoURL: user?.photoURL || null }),
+                members: arrayUnion({
+                    uid,
+                    name: user?.displayName || user?.email?.split("@")[0] || "Camper",
+                    photoURL: user?.photoURL || null,
+                }),
                 updatedAt: serverTimestamp(),
             });
-            await updateDoc(doc(db, "groupChatInvites", invite.id), { status: "accepted" });
+            batch.update(doc(db, "groupChatInvites", invite.id), { status: "accepted" });
+            await batch.commit();
             setDone("accepted");
+            router.push(`/chat/${invite.chatId}`);
         } catch (e) {
             console.error(e);
+            toast.error("Could not join the group. Please try again.");
         } finally {
             setBusy(false);
         }
@@ -483,6 +493,7 @@ function GroupChatInviteCard({ invite, user }) {
             setDone("declined");
         } catch (e) {
             console.error(e);
+            toast.error("Could not decline. Please try again.");
         } finally {
             setBusy(false);
         }
