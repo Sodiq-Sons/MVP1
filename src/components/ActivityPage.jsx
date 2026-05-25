@@ -461,11 +461,11 @@ function GroupChatInviteCard({ invite, user }) {
     const uid = user?.uid;
 
     const handleAccept = async () => {
-        if (!uid) return;
+        if (!uid || !invite.chatId) return;
         setBusy(true);
         try {
-            const batch = writeBatch(db);
-            batch.update(doc(db, "groupChats", invite.chatId), {
+            // Step 1 — join the group (critical)
+            await updateDoc(doc(db, "groupChats", invite.chatId), {
                 memberIds: arrayUnion(uid),
                 members: arrayUnion({
                     uid,
@@ -474,13 +474,16 @@ function GroupChatInviteCard({ invite, user }) {
                 }),
                 updatedAt: serverTimestamp(),
             });
-            batch.update(doc(db, "groupChatInvites", invite.id), { status: "accepted" });
-            await batch.commit();
-            setDone("accepted");
+
+            // Step 2 — mark invite as accepted (non-critical, don't block navigation)
+            updateDoc(doc(db, "groupChatInvites", invite.id), { status: "accepted" })
+                .catch(() => {});
+
+            // Navigate immediately after joining
             router.push(`/chat/${invite.chatId}`);
         } catch (e) {
-            console.error(e);
-            toast.error("Could not join the group. Please try again.");
+            console.error("Join failed:", e);
+            toast.error("Could not join the group — please ask the admin to re-invite you.");
         } finally {
             setBusy(false);
         }

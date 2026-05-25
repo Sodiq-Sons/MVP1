@@ -7,6 +7,7 @@ import { SwRegistration } from "./providers";
 import ProfileGateProvider from "@/components/ProfileGateProvider";
 import ProfileCompletionBar from "@/components/ProfileCompletionBar";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { Toaster } from "sonner";
 
 const plusJakarta = Plus_Jakarta_Sans({
     variable: "--font-plus-jakarta",
@@ -109,6 +110,8 @@ export default function RootLayout({ children }) {
 
                 {/* SW update listener — next-pwa handles registration */}
                 <SwRegistration />
+
+                <Toaster richColors position="top-center" />
 
                 <ThemeProvider>
                     <ProfileGateProvider>
