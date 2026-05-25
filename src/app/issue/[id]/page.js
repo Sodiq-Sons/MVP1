@@ -1039,8 +1039,34 @@ function ReplyForm({
     const [saving, setSaving] = useState(false);
     const [replySuggestions, setReplySuggestions] = useState([]);
     const [replyMentionQuery, setReplyMentionQuery] = useState(null);
+    const [replyImage, setReplyImage] = useState(null); // { localUrl, cloudinaryUrl }
+    const [replyImageUploading, setReplyImageUploading] = useState(false);
     const replyInputRef = useRef(null);
+    const replyFileInputRef = useRef(null);
     const replyUserCache = useRef(null);
+
+    const handleReplyImageSelect = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = "";
+        if (file.size > 5 * 1024 * 1024) { alert("Image must be under 5 MB"); return; }
+        const localUrl = URL.createObjectURL(file);
+        setReplyImage({ localUrl, cloudinaryUrl: null });
+        setReplyImageUploading(true);
+        try {
+            const fd = new FormData();
+            fd.append("file", file);
+            const res = await fetch("/api/upload", { method: "POST", body: fd });
+            const data = await res.json();
+            if (!data.url) throw new Error(data.error || "Upload failed");
+            setReplyImage({ localUrl, cloudinaryUrl: data.url });
+        } catch (err) {
+            alert(err.message || "Image upload failed");
+            setReplyImage(null);
+        } finally {
+            setReplyImageUploading(false);
+        }
+    };
 
     const handleReplyChange = async (val) => {
         setText(val);
@@ -1079,8 +1105,11 @@ function ReplyForm({
     };
 
     const submit = async () => {
-        if (!text.trim() || !authReady || saving) return;
+        const replyImageUrl = replyImage?.cloudinaryUrl || null;
+        if ((!text.trim() && !replyImageUrl) || !authReady || saving) return;
+        if (replyImage && !replyImageUrl) { alert("Image is still uploading, please wait."); return; }
         setSaving(true);
+        setReplyImage(null);
         try {
             const issueRef = doc(db, "issues", issueId);
             let newReplyRef;
@@ -1096,7 +1125,8 @@ function ReplyForm({
                 newReplyRef = doc(commentsRef);
                 transaction.set(newReplyRef, {
                     text: text.trim(),
-                    userName: "Anonymous",
+                    imageUrl: replyImageUrl || null,
+                    userName: currentUser?.displayName || currentUser?.email?.split("@")[0] || "Corper",
                     userId: currentUser?.uid ?? "anon",
                     parentId,
                     replyingTo,
@@ -1174,7 +1204,26 @@ function ReplyForm({
                         ))}
                     </div>
                 )}
+            {/* Hidden image input for replies */}
+            <input ref={replyFileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleReplyImageSelect} />
             <div className="bg-subtle rounded-2xl border border-subtle focus-within:border-cp/50 focus-within:ring-2 focus-within:ring-gray-200 transition-all overflow-hidden">
+                {/* Reply image preview */}
+                {replyImage && (
+                    <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
+                        <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-gray-200 shrink-0">
+                            <img src={replyImage.localUrl} alt="preview" className="w-full h-full object-cover" />
+                            {replyImageUploading && (
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                    <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                                </div>
+                            )}
+                        </div>
+                        <p className="text-xs text-gray-500 flex-1">{replyImageUploading ? "Uploading…" : "Image ready"}</p>
+                        <button type="button" onClick={() => setReplyImage(null)} className="text-gray-400 hover:text-red-500 cursor-pointer p-1">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-3 h-3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>
+                )}
                 <div className="px-3 pt-2.5">
                     <span className="text-xs font-bold text-cp">
                         @{replyingTo}{" "}
@@ -1198,13 +1247,17 @@ function ReplyForm({
                     />
                 </div>
                 <div className="flex items-center justify-between px-3 pb-2 mt-1">
-                    {text.length > 0 ? (
-                        <span className="text-[11px] text-gray-400">
-                            {text.length}/280
-                        </span>
-                    ) : (
-                        <span />
-                    )}
+                    <button
+                        type="button"
+                        onClick={() => replyFileInputRef.current?.click()}
+                        disabled={replyImageUploading}
+                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-cp transition-colors cursor-pointer disabled:opacity-40"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        Photo
+                    </button>
                     <div className="flex items-center gap-2">
                         <button
                             onClick={onCancel}
@@ -1214,8 +1267,8 @@ function ReplyForm({
                         </button>
                         <button
                             onClick={submit}
-                            disabled={!text.trim() || saving}
-                            className="flex items-center gap-1.5 text-xs font-bold bg-cp text-white px-3 py-1.5 rounded-xl  disabled:opacity-40 transition-colors cursor-pointer"
+                            disabled={(!text.trim() && !replyImage?.cloudinaryUrl) || saving || replyImageUploading}
+                            className="flex items-center gap-1.5 text-xs font-bold bg-cp text-white px-3 py-1.5 rounded-xl disabled:opacity-40 transition-colors cursor-pointer"
                         >
                             {saving ? <SvgSpinner /> : <SvgSend />} Reply
                         </button>
@@ -1337,6 +1390,17 @@ function CommentItem({
                         )}
                         {comment.text}
                     </p>
+                    {comment.imageUrl && (
+                        <a href={comment.imageUrl} target="_blank" rel="noopener noreferrer" className="block mt-2">
+                            <img
+                                src={comment.imageUrl}
+                                alt="Attached image"
+                                className="rounded-xl max-w-xs w-full object-cover border border-subtle"
+                                style={{ maxHeight: 240 }}
+                                loading="lazy"
+                            />
+                        </a>
+                    )}
                     <div className="flex items-center gap-4 mt-2">
                         <button
                             onClick={toggleLike}
@@ -1864,7 +1928,10 @@ export default function IssueDetailPage({ params }) {
     const [mentionSuggestions, setMentionSuggestions] = useState([]);
     const [mentionQuery, setMentionQuery] = useState(null);
     const commentInputRef = useRef(null);
+    const commentFileInputRef = useRef(null);
     const userCacheRef = useRef(null); // populated once on first @ keystroke
+    const [commentImage, setCommentImage] = useState(null); // { localUrl, cloudinaryUrl }
+    const [commentImageUploading, setCommentImageUploading] = useState(false);
     const [demographicData, setDemographicData] = useState({});
     const [demographicsLoading, setDemographicsLoading] = useState(false);
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
@@ -2249,16 +2316,44 @@ export default function IssueDetailPage({ params }) {
         }
     };
 
+    const handleCommentImageSelect = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = "";
+        if (file.size > 5 * 1024 * 1024) { alert("Image must be under 5 MB"); return; }
+        const localUrl = URL.createObjectURL(file);
+        setCommentImage({ localUrl, cloudinaryUrl: null });
+        setCommentImageUploading(true);
+        try {
+            const fd = new FormData();
+            fd.append("file", file);
+            const res = await fetch("/api/upload", { method: "POST", body: fd });
+            const data = await res.json();
+            if (!data.url) throw new Error(data.error || "Upload failed");
+            setCommentImage({ localUrl, cloudinaryUrl: data.url });
+        } catch (err) {
+            alert(err.message || "Image upload failed");
+            setCommentImage(null);
+        } finally {
+            setCommentImageUploading(false);
+        }
+    };
+
     const handleSubmitComment = async (e) => {
         e.preventDefault();
         if (!requireCompleteProfile()) return;
-        if (!commentText.trim() || !authReady || submittingComment) return;
+        const commentImageUrl = commentImage?.cloudinaryUrl || null;
+        if ((!commentText.trim() && !commentImageUrl) || !authReady || submittingComment) return;
+        if (commentImage && !commentImageUrl) { alert("Image is still uploading, please wait."); return; }
 
         const tempId = `temp-${Date.now()}`;
+        const displayName = currentUser?.displayName || currentUser?.email?.split("@")[0] || "Corper";
+        setCommentImage(null);
         const tempComment = {
             id: tempId,
             text: commentText.trim(),
-            userName: "Anonymous",
+            imageUrl: commentImageUrl,
+            userName: displayName,
             userId: currentUser?.uid ?? "anon",
             parentId: null,
             replyingTo: null,
@@ -2279,7 +2374,8 @@ export default function IssueDetailPage({ params }) {
                 newCommentRef = doc(collection(db, "issues", id, "comments"));
                 transaction.set(newCommentRef, {
                     text: originalText.trim(),
-                    userName: "Anonymous",
+                    imageUrl: commentImageUrl || null,
+                    userName: displayName,
                     userId: currentUser?.uid ?? "anon",
                     parentId: null,
                     replyingTo: null,
@@ -2983,6 +3079,9 @@ export default function IssueDetailPage({ params }) {
                         onSubmit={handleSubmitComment}
                         className="px-4 py-3 border-b border-subtle"
                     >
+                        {/* Hidden image file input */}
+                        <input ref={commentFileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleCommentImageSelect} />
+
                         {/* @mention dropdown — sits outside overflow containers */}
                         {mentionSuggestions.length > 0 && (
                             <div className="mx-0 mb-2 bg-white border border-subtle rounded-xl shadow-xl overflow-hidden">
@@ -3010,6 +3109,23 @@ export default function IssueDetailPage({ params }) {
                         <div className="flex gap-2.5 items-start">
                             <Avatar name="A" size="md" />
                             <div className="flex-1 bg-subtle rounded-2xl border border-subtle overflow-hidden focus-within:border-cp/50 focus-within:ring-2 focus-within:ring-gray-200 transition-all">
+                                {/* Image preview */}
+                                {commentImage && (
+                                    <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
+                                        <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-gray-200 shrink-0">
+                                            <img src={commentImage.localUrl} alt="preview" className="w-full h-full object-cover" />
+                                            {commentImageUploading && (
+                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                                    <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-gray-500 flex-1">{commentImageUploading ? "Uploading…" : "Image ready"}</p>
+                                        <button type="button" onClick={() => setCommentImage(null)} className="text-gray-400 hover:text-red-500 cursor-pointer p-1">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-3.5 h-3.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                        </button>
+                                    </div>
+                                )}
                                 <input
                                     ref={commentInputRef}
                                     type="text"
@@ -3019,33 +3135,31 @@ export default function IssueDetailPage({ params }) {
                                     maxLength={280}
                                     disabled={!authReady || submittingComment}
                                     className="w-full px-4 py-3 bg-transparent text-sm text-gray-800 placeholder-gray-400 focus:outline-none disabled:opacity-50"
-                                    style={{
-                                        fontFamily: "DM Sans, sans-serif",
-                                    }}
+                                    style={{ fontFamily: "DM Sans, sans-serif" }}
                                 />
-                                {commentText.length > 0 && (
-                                    <div className="flex items-center justify-between px-4 pb-2.5">
-                                        <span className="text-xs text-gray-400">
-                                            {commentText.length}/280
-                                        </span>
+                                <div className="flex items-center justify-between px-3 pb-2.5">
+                                    {/* Image attach button */}
+                                    <button
+                                        type="button"
+                                        onClick={() => commentFileInputRef.current?.click()}
+                                        disabled={commentImageUploading}
+                                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-cp transition-colors cursor-pointer disabled:opacity-40"
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                                            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                                        </svg>
+                                        Photo
+                                    </button>
+                                    {(commentText.length > 0 || commentImage) && (
                                         <button
                                             type="submit"
-                                            disabled={
-                                                !commentText.trim() ||
-                                                !authReady ||
-                                                submittingComment
-                                            }
-                                            className="flex items-center gap-1.5 text-xs font-bold bg-cp text-white px-3 py-1.5 rounded-xl  disabled:opacity-40 transition-colors cursor-pointer"
+                                            disabled={(!commentText.trim() && !commentImage?.cloudinaryUrl) || !authReady || submittingComment || commentImageUploading}
+                                            className="flex items-center gap-1.5 text-xs font-bold bg-cp text-white px-3 py-1.5 rounded-xl disabled:opacity-40 transition-colors cursor-pointer"
                                         >
-                                            {submittingComment ? (
-                                                <SvgSpinner />
-                                            ) : (
-                                                <SvgSend />
-                                            )}{" "}
-                                            Post
+                                            {submittingComment ? <SvgSpinner /> : <SvgSend />} Post
                                         </button>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </form>
