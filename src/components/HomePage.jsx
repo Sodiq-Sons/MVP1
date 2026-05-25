@@ -471,12 +471,19 @@ const IssueCard = memo(function IssueCard({
                     )}
 
                     <div className="flex items-center justify-between mb-2.5">
-                        <span
-                            className={`text-xs font-semibold px-2.5 py-1 rounded-full ${meta.bg} ${meta.color} flex items-center gap-1.5`}
-                        >
-                            <span>{meta.emoji}</span>
-                            {meta.label}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            <span
+                                className={`text-xs font-semibold px-2.5 py-1 rounded-full ${meta.bg} ${meta.color} flex items-center gap-1.5`}
+                            >
+                                <span>{meta.emoji}</span>
+                                {meta.label}
+                            </span>
+                            {issue.isFlagged && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                                    ⚑ Flagged
+                                </span>
+                            )}
+                        </div>
                         <div className="flex items-center gap-1.5 flex-wrap justify-end">
                             {issue.pollTimerEnabled && issue.pollDeadline && (() => {
                                 const tl = getTimeLeft(issue.pollDeadline, issue.pollTimerEnabled);
@@ -749,6 +756,7 @@ export default function HomePage() {
                         category: d.category ?? "other",
                         type: d.type ?? null,
                         isPinned: d.isPinned ?? false,
+                        isFlagged: d.isFlagged ?? false,
                         responseType: d.responseType ?? "yes_no",
                         voteOptions: d.voteOptions ?? [],
                         votes: d.votes ?? {},
