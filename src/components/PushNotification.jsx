@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useNotifications } from "@/hooks/useNotifications";
+import { registerFCMToken } from "@/lib/fcm";
 
 // ── Icons (self-contained, no external deps) ─────────────────────────────
 const XIcon = () => (
@@ -373,7 +374,12 @@ export function usePushToasts() {
 
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, (user) => {
-            setCurrentUser(user && !user.isAnonymous ? user : null);
+            const authed = user && !user.isAnonymous ? user : null;
+            setCurrentUser(authed);
+            if (authed) {
+                // Request push permission after a brief delay so the UI settles first
+                setTimeout(() => registerFCMToken(authed.uid), 4000);
+            }
         });
         return () => unsub();
     }, []);

@@ -1096,6 +1096,8 @@ function CreatePostForm({
     };
 
     const step3Valid = () => {
+        // lost_found doesn't need a response type
+        if (postType === "lost_found") return true;
         if (!responseType) return false;
         if (responseType === "custom")
             return customOptions.filter((o) => o.trim()).length >= 2;
@@ -1976,7 +1978,7 @@ function CreatePostForm({
                                 ← Back
                             </button>
                             <button
-                                onClick={() => step2Valid() && setStep(3)}
+                                onClick={() => step2Valid() && setStep(postType === "lost_found" ? 4 : 3)}
                                 disabled={!step2Valid()}
                                 className={`flex-[3] py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${step2Valid() ? "btn-primary shadow-lg active:scale-[0.98]" : "bg-muted text-gray-400 cursor-not-allowed"}`}
                                 style={{
@@ -2329,7 +2331,7 @@ function CreatePostForm({
 
                         <div className="flex gap-3 mt-5">
                             <button
-                                onClick={() => setStep(3)}
+                                onClick={() => setStep(postType === "lost_found" ? 2 : 3)}
                                 disabled={saving}
                                 className="flex-1 py-4 rounded-2xl font-bold text-sm text-gray-500 hover:text-gray-700 border-2 border-theme hover:border-gray-300 transition-all duration-200 disabled:opacity-50 cursor-pointer"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}

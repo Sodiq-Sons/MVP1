@@ -10,6 +10,8 @@ import {
     onSnapshot,
     addDoc,
     updateDoc,
+    arrayRemove,
+    arrayUnion,
     serverTimestamp,
     getDoc,
 } from "firebase/firestore";
@@ -82,6 +84,8 @@ export default function GroupChatRoom({ chatId }) {
     const [contextMsg, setContextMsg] = useState(null);  // message shown in bottom sheet
     const [pendingImage, setPendingImage] = useState(null); // { localUrl, cloudinaryUrl }
     const [uploading, setUploading] = useState(false);
+    const [showInfo, setShowInfo] = useState(false);
+    const [memberAction, setMemberAction] = useState(null); // { uid, name } member being managed
     const bottomRef = useRef(null);
     const inputRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -243,6 +247,52 @@ export default function GroupChatRoom({ chatId }) {
         setReplyingTo({ id: msg.id, text: msg.text, senderName: msg.senderName });
     };
 
+    // ── Admin helpers ────────────────────────────────────────────────────────
+    const isAdmin = chat?.adminIds?.includes(uid) ?? chat?.createdBy === uid;
+    const onlyAdmins = chat?.onlyAdminsCanMessage ?? false;
+    const canSend = !onlyAdmins || isAdmin;
+
+    const removeMember = async (targetUid) => {
+        if (!isAdmin || targetUid === uid) return;
+        const member = (chat.members || []).find((m) => m.uid === targetUid);
+        if (!member) return;
+        try {
+            await updateDoc(doc(db, "groupChats", chatId), {
+                memberIds: arrayRemove(targetUid),
+                members:   arrayRemove(member),
+                adminIds:  arrayRemove(targetUid),
+                updatedAt: serverTimestamp(),
+            });
+        } catch (err) {
+            toast.error("Couldn't remove member");
+        }
+    };
+
+    const toggleAdminStatus = async (targetUid) => {
+        if (!isAdmin) return;
+        const targetIsAdmin = (chat.adminIds || []).includes(targetUid);
+        try {
+            await updateDoc(doc(db, "groupChats", chatId), {
+                adminIds:  targetIsAdmin ? arrayRemove(targetUid) : arrayUnion(targetUid),
+                updatedAt: serverTimestamp(),
+            });
+        } catch {
+            toast.error("Couldn't update admin status");
+        }
+    };
+
+    const toggleOnlyAdminsCanMessage = async () => {
+        if (!isAdmin) return;
+        try {
+            await updateDoc(doc(db, "groupChats", chatId), {
+                onlyAdminsCanMessage: !onlyAdmins,
+                updatedAt: serverTimestamp(),
+            });
+        } catch {
+            toast.error("Couldn't update setting");
+        }
+    };
+
     if (loadingChat) {
         return (
             <div className="h-screen flex items-center justify-center bg-page">
@@ -299,6 +349,19 @@ export default function GroupChatRoom({ chatId }) {
                             )}
                         </p>
                     </div>
+
+                    {/* Info / settings button */}
+                    <button
+                        onClick={() => setShowInfo(true)}
+                        className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+                        aria-label="Group info"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-5 h-5">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="8" />
+                            <line x1="12" y1="12" x2="12" y2="16" />
+                        </svg>
+                    </button>
 
                     <div className="flex -space-x-2 shrink-0">
                         {members.slice(0, 4).map((m) => (
@@ -488,54 +551,179 @@ export default function GroupChatRoom({ chatId }) {
 
             {/* ── Input bar ── */}
             <div className="shrink-0 bg-white border-t border-subtle">
-                {/* Hidden file input */}
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    className="hidden"
-                    onChange={handleImageSelect}
-                />
-                <form onSubmit={sendMessage} className="max-w-2xl mx-auto px-3 py-3 flex items-end gap-2">
-                    {/* Image attach button */}
-                    <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploading}
-                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all active:scale-90 disabled:opacity-40 cursor-pointer"
-                        aria-label="Attach image"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <polyline points="21 15 16 10 5 21" />
+                {!canSend ? (
+                    <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-2 text-gray-400 text-sm">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-4 h-4 shrink-0">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                         </svg>
-                    </button>
-                    <div className="flex-1 bg-gray-100 rounded-2xl flex items-center overflow-hidden focus-within:ring-2 transition-all" style={{ "--tw-ring-color": "var(--cp)" }}>
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            value={text}
-                            onChange={(e) => setText(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                            placeholder={replyingTo ? `Reply to ${replyingTo.senderName}…` : pendingImage ? "Add a caption…" : "Message…"}
-                            maxLength={1000}
-                            className="flex-1 px-4 py-3 bg-transparent text-sm text-gray-800 placeholder-gray-400 focus:outline-none"
-                        />
+                        <span>Only admins can send messages in this group</span>
                     </div>
-                    <button
-                        type="submit"
-                        disabled={(!text.trim() && !pendingImage?.cloudinaryUrl) || sending || uploading}
-                        className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 text-white transition-all active:scale-90 disabled:opacity-40 cursor-pointer"
-                        style={{ background: "var(--cp)" }}
-                        aria-label="Send"
-                    >
-                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4" style={{ transform: "rotate(45deg) translate(-1px, 1px)" }}>
-                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-                        </svg>
-                    </button>
-                </form>
+                ) : (
+                    <>
+                        {/* Hidden file input */}
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/gif"
+                            className="hidden"
+                            onChange={handleImageSelect}
+                        />
+                        <form onSubmit={sendMessage} className="max-w-2xl mx-auto px-3 py-3 flex items-end gap-2">
+                            {/* Image attach button */}
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={uploading}
+                                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all active:scale-90 disabled:opacity-40 cursor-pointer"
+                                aria-label="Attach image"
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                    <polyline points="21 15 16 10 5 21" />
+                                </svg>
+                            </button>
+                            <div className="flex-1 bg-gray-100 rounded-2xl flex items-center overflow-hidden focus-within:ring-2 transition-all" style={{ "--tw-ring-color": "var(--cp)" }}>
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    value={text}
+                                    onChange={(e) => setText(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                                    placeholder={replyingTo ? `Reply to ${replyingTo.senderName}…` : pendingImage ? "Add a caption…" : "Message…"}
+                                    maxLength={1000}
+                                    className="flex-1 px-4 py-3 bg-transparent text-sm text-gray-800 placeholder-gray-400 focus:outline-none"
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={(!text.trim() && !pendingImage?.cloudinaryUrl) || sending || uploading}
+                                className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 text-white transition-all active:scale-90 disabled:opacity-40 cursor-pointer"
+                                style={{ background: "var(--cp)" }}
+                                aria-label="Send"
+                            >
+                                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4" style={{ transform: "rotate(45deg) translate(-1px, 1px)" }}>
+                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                                </svg>
+                            </button>
+                        </form>
+                    </>
+                )}
             </div>
+
+            {/* ── Group Info panel ── */}
+            {showInfo && (
+                <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={() => { setShowInfo(false); setMemberAction(null); }}>
+                    <div className="w-full bg-white rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col" style={{ maxWidth: 600, margin: "0 auto" }} onClick={(e) => e.stopPropagation()}>
+                        {/* Handle */}
+                        <div className="flex justify-center pt-3 pb-1 shrink-0">
+                            <div className="w-10 h-1 rounded-full bg-gray-200" />
+                        </div>
+
+                        {/* Header */}
+                        <div className="px-5 pt-2 pb-4 border-b border-gray-100 shrink-0">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="font-bold text-gray-900 text-base">{chat?.name}</h3>
+                                    <p className="text-xs text-gray-400 mt-0.5">{members.length} members</p>
+                                </div>
+                                {isAdmin && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+                                            ⭐ Admin
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Only-admins-can-send toggle — admin only */}
+                            {isAdmin && (
+                                <button
+                                    onClick={toggleOnlyAdminsCanMessage}
+                                    className="mt-3 w-full flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors"
+                                >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-4 h-4 shrink-0 text-gray-500">
+                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                        </svg>
+                                        <span className="text-sm font-semibold text-gray-700">Only admins can send</span>
+                                    </div>
+                                    <div className={`relative w-10 h-6 rounded-full transition-colors shrink-0 ${onlyAdmins ? "" : "bg-gray-300"}`} style={onlyAdmins ? { background: "var(--cp)" } : {}}>
+                                        <span className="block w-4 h-4 bg-white rounded-full absolute top-1 shadow-sm transition-transform duration-200" style={{ transform: onlyAdmins ? "translateX(20px)" : "translateX(4px)" }} />
+                                    </div>
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Member list */}
+                        <div className="overflow-y-auto flex-1 py-2">
+                            {members.map((m) => {
+                                const mIsAdmin = (chat?.adminIds || []).includes(m.uid) || chat?.createdBy === m.uid;
+                                return (
+                                    <button
+                                        key={m.uid}
+                                        onClick={() => isAdmin && m.uid !== uid ? setMemberAction(m) : undefined}
+                                        className={`w-full flex items-center gap-3 px-5 py-3 text-left transition-colors ${isAdmin && m.uid !== uid ? "hover:bg-gray-50 active:bg-gray-100 cursor-pointer" : "cursor-default"}`}
+                                    >
+                                        <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center shrink-0">
+                                            {m.photoURL
+                                                ? <img src={m.photoURL} alt={m.name} className="w-full h-full object-cover" />
+                                                : <span className="text-sm font-bold text-gray-600">{m.name?.charAt(0)}</span>}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-gray-900 truncate">{m.name}{m.uid === uid ? " (You)" : ""}</p>
+                                            {mIsAdmin && <p className="text-xs text-amber-600 font-medium">Admin</p>}
+                                        </div>
+                                        {isAdmin && m.uid !== uid && (
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-4 h-4 text-gray-300 shrink-0">
+                                                <circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <button onClick={() => setShowInfo(false)} className="shrink-0 py-4 text-sm font-bold text-gray-400 border-t border-gray-100 cursor-pointer">Close</button>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Member action sheet ── */}
+            {memberAction && (
+                <div className="fixed inset-0 z-[60] bg-black/40 flex items-end" onClick={() => setMemberAction(null)}>
+                    <div className="w-full bg-white rounded-t-3xl shadow-2xl pb-safe" style={{ maxWidth: 600, margin: "0 auto" }} onClick={(e) => e.stopPropagation()}>
+                        <div className="px-5 pt-5 pb-3 border-b border-gray-100">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{memberAction.name}</p>
+                        </div>
+                        <div className="py-2">
+                            <button
+                                onClick={() => { toggleAdminStatus(memberAction.uid); setMemberAction(null); }}
+                                className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left cursor-pointer"
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-5 h-5 text-amber-500">
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                </svg>
+                                <span className="text-sm font-semibold text-gray-800">
+                                    {(chat?.adminIds || []).includes(memberAction.uid) ? "Remove admin" : "Make admin"}
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => { removeMember(memberAction.uid); setMemberAction(null); setShowInfo(false); }}
+                                className="w-full flex items-center gap-4 px-5 py-4 hover:bg-red-50 active:bg-red-100 transition-colors text-left cursor-pointer"
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-5 h-5 text-red-500">
+                                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="23" y1="11" x2="17" y2="11" />
+                                </svg>
+                                <span className="text-sm font-semibold text-red-600">Remove from group</span>
+                            </button>
+                        </div>
+                        <button onClick={() => setMemberAction(null)} className="w-full py-4 text-sm font-bold text-gray-400 border-t border-gray-100 cursor-pointer">Cancel</button>
+                    </div>
+                </div>
+            )}
 
             {/* ── Long-press action sheet ── */}
             {contextMsg && (

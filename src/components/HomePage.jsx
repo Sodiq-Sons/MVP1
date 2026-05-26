@@ -443,7 +443,7 @@ const IssueCard = memo(function IssueCard({
     return (
         <>
             <Link href={`/issue/${issue.id}`} className="block">
-                <div className="bg-card rounded-2xl p-4 shadow-card border border-[#FED7AA] hover:shadow-lg hover:border-gray-300 transition-all cursor-pointer relative">
+                <div className="bg-card rounded-2xl p-3 shadow-card border border-[#FED7AA] hover:shadow-lg hover:border-gray-300 transition-all cursor-pointer relative">
                     {rank && (
                         <div
                             className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white ${rank === 1 ? "bg-gradient-to-br from-yellow-400 to-yellow-600 text-white" : rank === 2 ? "bg-gradient-to-br from-gray-300 to-gray-500 text-white" : rank === 3 ? "bg-cp text-white" : "bg-muted text-gray-600"}`}
@@ -454,7 +454,7 @@ const IssueCard = memo(function IssueCard({
 
                     {/* Author row */}
                     {authorName && (
-                        <div className="flex items-center gap-1.5 mb-2">
+                        <div className="flex items-center gap-1.5 mb-1.5">
                             <div className="relative shrink-0">
                                 {issue.author?.photoURL && !issue.author?.isAnonymous ? (
                                     <img src={issue.author.photoURL} alt="" className="w-5 h-5 rounded-full object-cover" />
@@ -470,7 +470,7 @@ const IssueCard = memo(function IssueCard({
                         </div>
                     )}
 
-                    <div className="flex items-center justify-between mb-2.5">
+                    <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-1.5 flex-wrap">
                             <span
                                 className={`text-xs font-semibold px-2.5 py-1 rounded-full ${meta.bg} ${meta.color} flex items-center gap-1.5`}
@@ -531,7 +531,7 @@ const IssueCard = memo(function IssueCard({
                                         ? "Remove your like first"
                                         : "Dislike this post"
                                 }
-                                className={`flex flex-col items-center gap-0.5 w-14 h-14 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
+                                className={`flex flex-col items-center gap-0.5 w-12 h-12 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
                                     downvoted
                                         ? "border-red-500 bg-red-50"
                                         : isAnonymous || upvoted
@@ -562,7 +562,7 @@ const IssueCard = memo(function IssueCard({
                                         ? "Remove your dislike first"
                                         : "Like this post"
                                 }
-                                className={`flex flex-col items-center gap-0.5 w-14 h-14 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
+                                className={`flex flex-col items-center gap-0.5 w-12 h-12 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
                                     upvoted
                                         ? "border-green-500 bg-green-50"
                                         : isAnonymous || downvoted
@@ -587,7 +587,7 @@ const IssueCard = memo(function IssueCard({
                             </button>
                         </div>
                     </div>
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-subtle">
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-subtle">
                         <div className="flex items-center gap-2 flex-wrap">
                             <span
                                 className="flex items-center gap-1 text-xs text-black"
