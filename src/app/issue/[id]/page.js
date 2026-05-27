@@ -2196,39 +2196,35 @@ export default function IssueDetailPage({ params }) {
     const handleUpvote = async (e) => {
         e.preventDefault();
         if (!requireCompleteProfile()) return;
-        if (
-            !authReady ||
-            !currentUser ||
-            upvoteLoading ||
-            downvoteLoading ||
-            downvoted
-        )
-            return;
+        if (!authReady || !currentUser || upvoteLoading || downvoteLoading) return;
+
         const wasUpvoted = upvoted;
+        const wasDownvoted = downvoted;
+
         setUpvoted(!wasUpvoted);
         setUpvoteCount((c) => (wasUpvoted ? Math.max(0, c - 1) : c + 1));
+        if (wasDownvoted) {
+            setDownvoted(false);
+            setDownvoteCount((c) => Math.max(0, c - 1));
+        }
         setUpvoteLoading(true);
         try {
-            await runTransaction(db, async (tx) => {
-                const snap = await tx.get(doc(db, "issues", id));
-                if (!snap.exists()) throw new Error("not found");
-                const current = snap.data().upvotes || 0;
-                tx.update(doc(db, "issues", id), {
-                    upvotes: wasUpvoted
-                        ? Math.max(0, current - 1)
-                        : current + 1,
-                });
+            const token = await currentUser.getIdToken();
+            const res = await fetch("/api/vote", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ issueId: id, type: "up" }),
             });
+            if (!res.ok) throw new Error("Vote failed");
+
+            if (wasUpvoted) localStorage.removeItem(`upvote_${id}_${currentUser.uid}`);
+            else localStorage.setItem(`upvote_${id}_${currentUser.uid}`, "1");
+            if (wasDownvoted) localStorage.removeItem(`downvote_${id}_${currentUser.uid}`);
+
             if (!wasUpvoted) {
-                await awardPoints(currentUser.uid, "UPVOTE_ISSUE", {
-                    issueId: id,
-                    issueTitle: issue.title,
-                });
+                await awardPoints(currentUser.uid, "UPVOTE_ISSUE", { issueId: id, issueTitle: issue.title });
                 if (issue.author?.uid && issue.author.uid !== currentUser.uid) {
-                    await awardPoints(issue.author.uid, "RECEIVE_UPVOTE", {
-                        issueId: id,
-                        issueTitle: issue.title,
-                    });
+                    await awardPoints(issue.author.uid, "RECEIVE_UPVOTE", { issueId: id, issueTitle: issue.title });
                     await createNotification({
                         type: NOTIFICATION_TYPES.UPVOTE,
                         recipientId: issue.author.uid,
@@ -2239,13 +2235,12 @@ export default function IssueDetailPage({ params }) {
                     });
                 }
             }
-            if (wasUpvoted)
-                localStorage.removeItem(`upvote_${id}_${currentUser.uid}`);
-            else localStorage.setItem(`upvote_${id}_${currentUser.uid}`, "1");
         } catch (err) {
             console.error("Upvote failed:", err);
             setUpvoted(wasUpvoted);
+            setDownvoted(wasDownvoted);
             setUpvoteCount(upvoteCount);
+            setDownvoteCount(downvoteCount);
         } finally {
             setUpvoteLoading(false);
         }
@@ -2254,36 +2249,36 @@ export default function IssueDetailPage({ params }) {
     const handleDownvote = async (e) => {
         e.preventDefault();
         if (!requireCompleteProfile()) return;
-        if (
-            !authReady ||
-            !currentUser ||
-            downvoteLoading ||
-            upvoteLoading ||
-            upvoted
-        )
-            return;
+        if (!authReady || !currentUser || downvoteLoading || upvoteLoading) return;
+
         const wasDownvoted = downvoted;
+        const wasUpvoted = upvoted;
+
         setDownvoted(!wasDownvoted);
         setDownvoteCount((c) => (wasDownvoted ? Math.max(0, c - 1) : c + 1));
+        if (wasUpvoted) {
+            setUpvoted(false);
+            setUpvoteCount((c) => Math.max(0, c - 1));
+        }
         setDownvoteLoading(true);
         try {
-            await runTransaction(db, async (tx) => {
-                const snap = await tx.get(doc(db, "issues", id));
-                if (!snap.exists()) throw new Error("not found");
-                const current = snap.data().downvotes || 0;
-                tx.update(doc(db, "issues", id), {
-                    downvotes: wasDownvoted
-                        ? Math.max(0, current - 1)
-                        : current + 1,
-                });
+            const token = await currentUser.getIdToken();
+            const res = await fetch("/api/vote", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ issueId: id, type: "down" }),
             });
-            if (wasDownvoted)
-                localStorage.removeItem(`downvote_${id}_${currentUser.uid}`);
+            if (!res.ok) throw new Error("Vote failed");
+
+            if (wasDownvoted) localStorage.removeItem(`downvote_${id}_${currentUser.uid}`);
             else localStorage.setItem(`downvote_${id}_${currentUser.uid}`, "1");
+            if (wasUpvoted) localStorage.removeItem(`upvote_${id}_${currentUser.uid}`);
         } catch (err) {
             console.error("Downvote failed:", err);
             setDownvoted(wasDownvoted);
+            setUpvoted(wasUpvoted);
             setDownvoteCount(downvoteCount);
+            setUpvoteCount(upvoteCount);
         } finally {
             setDownvoteLoading(false);
         }

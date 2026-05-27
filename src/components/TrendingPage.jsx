@@ -7,9 +7,6 @@ import {
     onSnapshot,
     orderBy,
     query,
-    doc,
-    runTransaction,
-    getDoc,
 } from "firebase/firestore";
 import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
 import { db, auth } from "@/lib/firebase";
@@ -403,36 +400,36 @@ function TrendingCard({
             return;
         }
         if (!authReady || loading || downvoteLoading) return;
-        // Mutual exclusivity: cannot support if already opposing
-        if (downvoted) return;
 
         const wasUpvoted = upvoted;
+        const wasDownvoted = downvoted;
         const newCount = wasUpvoted ? Math.max(0, count - 1) : count + 1;
+
         setUpvoted(!wasUpvoted);
         setCount(newCount);
+        if (wasDownvoted) {
+            setDownvoted(false);
+            setDownvoteCount((c) => Math.max(0, c - 1));
+        }
         setLoading(true);
         try {
-            const docRef = doc(db, "issues", issue.id);
-            await runTransaction(db, async (tx) => {
-                const snap = await tx.get(docRef);
-                if (!snap.exists()) throw new Error("not found");
-                const current = snap.data().upvotes || 0;
-                tx.update(docRef, {
-                    upvotes: wasUpvoted
-                        ? Math.max(0, current - 1)
-                        : current + 1,
-                });
+            const token = await currentUser.getIdToken();
+            const res = await fetch("/api/vote", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ issueId: issue.id, type: "up" }),
             });
+            if (!res.ok) throw new Error("Vote failed");
+
+            if (wasUpvoted) localStorage.removeItem(`upvote_${issue.id}_${currentUser.uid}`);
+            else localStorage.setItem(`upvote_${issue.id}_${currentUser.uid}`, "1");
+            if (wasDownvoted) localStorage.removeItem(`downvote_${issue.id}_${currentUser.uid}`);
+
             if (!wasUpvoted) {
-                const issueSnap = await getDoc(docRef);
-                const issueData = issueSnap.data();
-                if (
-                    issueData?.author?.uid &&
-                    issueData.author.uid !== currentUser.uid
-                ) {
+                if (issue?.author?.uid && issue.author.uid !== currentUser.uid) {
                     await createNotification({
                         type: NOTIFICATION_TYPES.UPVOTE,
-                        recipientId: issueData.author.uid,
+                        recipientId: issue.author.uid,
                         actorId: currentUser.uid,
                         actorName: currentUser.displayName || "Someone",
                         actorPhotoURL: currentUser.photoURL,
@@ -442,10 +439,10 @@ function TrendingCard({
                     });
                 }
                 const milestones = [10, 25, 50, 100, 250, 500];
-                if (milestones.includes(newCount) && issueData?.author?.uid) {
+                if (milestones.includes(newCount) && issue?.author?.uid) {
                     await createNotification({
                         type: NOTIFICATION_TYPES.MILESTONE,
-                        recipientId: issueData.author.uid,
+                        recipientId: issue.author.uid,
                         actorId: "system",
                         actorName: "Camp Voice",
                         issueId: issue.id,
@@ -454,20 +451,12 @@ function TrendingCard({
                     });
                 }
             }
-            if (wasUpvoted) {
-                localStorage.removeItem(
-                    `upvote_${issue.id}_${currentUser.uid}`,
-                );
-            } else {
-                localStorage.setItem(
-                    `upvote_${issue.id}_${currentUser.uid}`,
-                    "1",
-                );
-            }
         } catch (err) {
             console.error("Upvote failed:", err);
             setUpvoted(wasUpvoted);
+            setDownvoted(wasDownvoted);
             setCount(issue.upvotes || 0);
+            setDownvoteCount(issue.downvotes || 0);
         } finally {
             setLoading(false);
         }
@@ -481,42 +470,36 @@ function TrendingCard({
             return;
         }
         if (!authReady || downvoteLoading || loading) return;
-        // Mutual exclusivity: cannot oppose if already supporting
-        if (upvoted) return;
 
         const wasDownvoted = downvoted;
-        const newCount = wasDownvoted
-            ? Math.max(0, downvoteCount - 1)
-            : downvoteCount + 1;
+        const wasUpvoted = upvoted;
+        const newCount = wasDownvoted ? Math.max(0, downvoteCount - 1) : downvoteCount + 1;
+
         setDownvoted(!wasDownvoted);
         setDownvoteCount(newCount);
+        if (wasUpvoted) {
+            setUpvoted(false);
+            setCount((c) => Math.max(0, c - 1));
+        }
         setDownvoteLoading(true);
         try {
-            const docRef = doc(db, "issues", issue.id);
-            await runTransaction(db, async (tx) => {
-                const snap = await tx.get(docRef);
-                if (!snap.exists()) throw new Error("not found");
-                const current = snap.data().downvotes || 0;
-                tx.update(docRef, {
-                    downvotes: wasDownvoted
-                        ? Math.max(0, current - 1)
-                        : current + 1,
-                });
+            const token = await currentUser.getIdToken();
+            const res = await fetch("/api/vote", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ issueId: issue.id, type: "down" }),
             });
-            if (wasDownvoted) {
-                localStorage.removeItem(
-                    `downvote_${issue.id}_${currentUser.uid}`,
-                );
-            } else {
-                localStorage.setItem(
-                    `downvote_${issue.id}_${currentUser.uid}`,
-                    "1",
-                );
-            }
+            if (!res.ok) throw new Error("Vote failed");
+
+            if (wasDownvoted) localStorage.removeItem(`downvote_${issue.id}_${currentUser.uid}`);
+            else localStorage.setItem(`downvote_${issue.id}_${currentUser.uid}`, "1");
+            if (wasUpvoted) localStorage.removeItem(`upvote_${issue.id}_${currentUser.uid}`);
         } catch (err) {
             console.error("Oppose failed:", err);
             setDownvoted(wasDownvoted);
+            setUpvoted(wasUpvoted);
             setDownvoteCount(issue.downvotes || 0);
+            setCount(issue.upvotes || 0);
         } finally {
             setDownvoteLoading(false);
         }
