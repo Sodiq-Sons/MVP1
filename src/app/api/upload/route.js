@@ -1,6 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
-import admin from "firebase-admin";
-import "@/lib/firebaseAdmin"; // ensure admin is initialised
+import { getAdminAuth } from "@/lib/firebaseAdmin";
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -24,7 +23,7 @@ export async function POST(request) {
         return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
     try {
-        await admin.auth().verifyIdToken(token);
+        await getAdminAuth().verifyIdToken(token);
     } catch {
         return Response.json({ error: "Invalid token" }, { status: 401 });
     }

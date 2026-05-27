@@ -1,4 +1,4 @@
-import { adminDb, adminMessaging } from "@/lib/firebaseAdmin";
+import { getAdminDb, getAdminMessaging } from "@/lib/firebaseAdmin";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -13,6 +13,8 @@ export async function GET(request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const adminDb = getAdminDb();
+    const adminMessaging = getAdminMessaging();
     const today = todayStr();
 
     // Fetch users with an active streak

@@ -1,12 +1,11 @@
-import admin from "firebase-admin";
-import { adminDb } from "@/lib/firebaseAdmin";
+import { getAdminDb, getAdminAuth } from "@/lib/firebaseAdmin";
 
 async function verifyToken(request) {
     const authHeader = request.headers.get("Authorization") || "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
     if (!token) return null;
     try {
-        const decoded = await admin.auth().verifyIdToken(token);
+        const decoded = await getAdminAuth().verifyIdToken(token);
         return decoded.uid;
     } catch {
         return null;
@@ -19,6 +18,7 @@ export async function POST(request) {
         return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const adminDb = getAdminDb();
     let body;
     try {
         body = await request.json();
