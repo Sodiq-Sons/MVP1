@@ -25,6 +25,7 @@ import { onAuthStateChanged, signOut, signInAnonymously, updateProfile } from "f
 import { toast } from "sonner";
 import Image from "next/image";
 import { isProfileComplete } from "@/lib/profileCompletion";
+import { uploadImage } from "@/lib/uploadImage";
 
 // ── Icons
 const LocationIcon = () => (
@@ -880,12 +881,7 @@ export default function ProfilePage() {
 
         setPhotoUploading(true);
         try {
-            const formData = new FormData();
-            formData.append("file", file);
-            const res = await fetch("/api/upload", { method: "POST", body: formData });
-            if (!res.ok) throw new Error("Upload failed");
-            const { url } = await res.json();
-
+            const url = await uploadImage(file);
             await updateProfile(currentUser, { photoURL: url });
             await updateDoc(doc(db, "users", currentUser.uid), { photoURL: url, updatedAt: serverTimestamp() });
 

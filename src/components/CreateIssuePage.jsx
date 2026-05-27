@@ -24,6 +24,7 @@ import { awardPoints } from "@/lib/gamification";
 import Image from "next/image";
 import ProfileIncompleteModal from "@/components/ProfileIncompleteModal";
 import { isProfileComplete } from "@/lib/profileCompletion";
+import { uploadImage } from "@/lib/uploadImage";
 
 // ─── Post Types ───────────────────────────────────────────────────────────────
 const POST_TYPES = [
@@ -232,7 +233,7 @@ const DEMOGRAPHIC_OPTIONS = [
         description: "Breakdown by Male, Female, and Other",
     },
     {
-        id: "state",
+        id: "stateOfOrigin",
         emoji: "📍",
         label: "State of Origin",
         description: "See voting patterns by state",
@@ -985,20 +986,7 @@ export default function CreatePostPage() {
 
 async function uploadImages(images) {
     const uploads = images.map(async (img) => {
-        const formData = new FormData();
-        formData.append("file", img.file);
-
-        const res = await fetch("/api/upload", {
-            method: "POST",
-            body: formData,
-        });
-
-        if (!res.ok) {
-            const { error } = await res.json().catch(() => ({}));
-            throw new Error(error || "Image upload failed");
-        }
-
-        const { url } = await res.json();
+        const url = await uploadImage(img.file);
         return url;
     });
 

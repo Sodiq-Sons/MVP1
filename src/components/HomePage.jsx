@@ -9,7 +9,6 @@ import {
     query,
     collection,
     doc,
-    runTransaction,
     getDoc,
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
@@ -319,9 +318,7 @@ const IssueCard = memo(function IssueCard({
             setShowLoginPrompt(true);
             return;
         }
-        if (!authReady || loading || downvoteLoading) return;
-        // Mutual exclusivity: cannot support if already opposing
-        if (downvoted) return;
+        if (!authReady || loading || downvoteLoading || downvoted) return;
 
         const wasUpvoted = upvoted;
         const newCount = wasUpvoted ? Math.max(0, count - 1) : count + 1;
@@ -329,24 +326,17 @@ const IssueCard = memo(function IssueCard({
         setCount(newCount);
         setLoading(true);
         try {
-            const docRef = doc(db, "issues", issue.id);
-            await runTransaction(db, async (tx) => {
-                const snap = await tx.get(docRef);
-                if (!snap.exists()) throw new Error("not found");
-                const current = snap.data().upvotes || 0;
-                tx.update(docRef, {
-                    upvotes: wasUpvoted
-                        ? Math.max(0, current - 1)
-                        : current + 1,
-                });
+            const token = await currentUser.getIdToken();
+            const res = await fetch("/api/vote", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ issueId: issue.id, type: "up" }),
             });
+            if (!res.ok) throw new Error("Vote failed");
+
             if (!wasUpvoted) {
-                const issueSnap = await getDoc(doc(db, "issues", issue.id));
-                const issueData = issueSnap.data();
-                if (
-                    issueData?.author?.uid &&
-                    issueData.author.uid !== currentUser.uid
-                ) {
+                const issueData = issue;
+                if (issueData?.author?.uid && issueData.author.uid !== currentUser.uid) {
                     await createNotification({
                         type: NOTIFICATION_TYPES.UPVOTE,
                         recipientId: issueData.author.uid,
@@ -370,16 +360,8 @@ const IssueCard = memo(function IssueCard({
                     });
                 }
             }
-            if (wasUpvoted) {
-                localStorage.removeItem(
-                    `upvote_${issue.id}_${currentUser.uid}`,
-                );
-            } else {
-                localStorage.setItem(
-                    `upvote_${issue.id}_${currentUser.uid}`,
-                    "1",
-                );
-            }
+            if (wasUpvoted) localStorage.removeItem(`upvote_${issue.id}_${currentUser.uid}`);
+            else localStorage.setItem(`upvote_${issue.id}_${currentUser.uid}`, "1");
         } catch (err) {
             console.error("Upvote failed:", err);
             setUpvoted(wasUpvoted);
@@ -396,39 +378,24 @@ const IssueCard = memo(function IssueCard({
             setShowLoginPrompt(true);
             return;
         }
-        if (!authReady || downvoteLoading || loading) return;
-        // Mutual exclusivity: cannot oppose if already supporting
-        if (upvoted) return;
+        if (!authReady || downvoteLoading || loading || upvoted) return;
 
         const wasDownvoted = downvoted;
-        const newCount = wasDownvoted
-            ? Math.max(0, downvoteCount - 1)
-            : downvoteCount + 1;
+        const newCount = wasDownvoted ? Math.max(0, downvoteCount - 1) : downvoteCount + 1;
         setDownvoted(!wasDownvoted);
         setDownvoteCount(newCount);
         setDownvoteLoading(true);
         try {
-            const docRef = doc(db, "issues", issue.id);
-            await runTransaction(db, async (tx) => {
-                const snap = await tx.get(docRef);
-                if (!snap.exists()) throw new Error("not found");
-                const current = snap.data().downvotes || 0;
-                tx.update(docRef, {
-                    downvotes: wasDownvoted
-                        ? Math.max(0, current - 1)
-                        : current + 1,
-                });
+            const token = await currentUser.getIdToken();
+            const res = await fetch("/api/vote", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ issueId: issue.id, type: "down" }),
             });
-            if (wasDownvoted) {
-                localStorage.removeItem(
-                    `downvote_${issue.id}_${currentUser.uid}`,
-                );
-            } else {
-                localStorage.setItem(
-                    `downvote_${issue.id}_${currentUser.uid}`,
-                    "1",
-                );
-            }
+            if (!res.ok) throw new Error("Vote failed");
+
+            if (wasDownvoted) localStorage.removeItem(`downvote_${issue.id}_${currentUser.uid}`);
+            else localStorage.setItem(`downvote_${issue.id}_${currentUser.uid}`, "1");
         } catch (err) {
             console.error("Oppose failed:", err);
             setDownvoted(wasDownvoted);

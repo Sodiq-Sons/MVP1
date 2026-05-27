@@ -24,6 +24,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
 import { useSidebar } from "@/components/SidebarContext";
 import { toast } from "sonner";
+import { uploadImage } from "@/lib/uploadImage";
 
 const CUTOFF_MS = 3 * 60 * 1000;
 
@@ -166,12 +167,8 @@ export default function GroupChatRoom({ chatId }) {
         setPendingImage({ localUrl, cloudinaryUrl: null });
         setUploading(true);
         try {
-            const fd = new FormData();
-            fd.append("file", file);
-            const res = await fetch("/api/upload", { method: "POST", body: fd });
-            const data = await res.json();
-            if (!data.url) throw new Error(data.error || "Upload failed");
-            setPendingImage({ localUrl, cloudinaryUrl: data.url });
+            const url = await uploadImage(file);
+            setPendingImage({ localUrl, cloudinaryUrl: url });
         } catch (err) {
             toast.error(err.message || "Image upload failed");
             setPendingImage(null);

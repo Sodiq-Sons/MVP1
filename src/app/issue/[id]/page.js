@@ -21,6 +21,7 @@ import Link from "next/link";
 import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
 import { awardPoints } from "@/lib/gamification";
 import { isProfileComplete } from "@/lib/profileCompletion";
+import { uploadImage } from "@/lib/uploadImage";
 import Image from "next/image";
 
 // ─── Category Meta ─────────────────────────────────────────────────────────────
@@ -61,14 +62,13 @@ const DEMOGRAPHIC_CONFIG = {
         emoji: "🎂",
         label: "Age group",
         firestoreField: "age",
-        groups: ["Teens (13-19)", "Youth (20-35)", "Adult (35+)"],
+        groups: ["20-24", "25-29", "30+"],
         getGroup: (rawAge) => {
             const n = parseInt(String(rawAge), 10);
-            if (isNaN(n)) return null;
-            if (n >= 13 && n <= 19) return "Teens (13-19)";
-            if (n >= 20 && n <= 35) return "Youth (20-35)";
-            if (n > 35) return "Adult (35+)";
-            return null;
+            if (isNaN(n) || n < 18) return null;
+            if (n <= 24) return "20-24";
+            if (n <= 29) return "25-29";
+            return "30+";
         },
     },
     gender: {
@@ -774,9 +774,12 @@ function DemographicInsights({
 
     const activeConfig = DEMOGRAPHIC_CONFIG[activeTab];
     const activeData = demographicData[activeTab] || {};
-    const activeGroups = Object.keys(activeData).filter((g) =>
-        voteOptions.some((opt) => (activeData[g]?.[opt] || 0) > 0),
-    );
+    // Suppress groups with fewer than 5 voters to prevent de-anonymisation
+    const MIN_GROUP_SIZE = 5;
+    const activeGroups = Object.keys(activeData).filter((g) => {
+        const total = Object.values(activeData[g] || {}).reduce((s, v) => s + v, 0);
+        return total >= MIN_GROUP_SIZE;
+    });
 
     return (
         <div className="bg-card rounded-2xl border border-subtle shadow-sm overflow-hidden">
@@ -1054,12 +1057,8 @@ function ReplyForm({
         setReplyImage({ localUrl, cloudinaryUrl: null });
         setReplyImageUploading(true);
         try {
-            const fd = new FormData();
-            fd.append("file", file);
-            const res = await fetch("/api/upload", { method: "POST", body: fd });
-            const data = await res.json();
-            if (!data.url) throw new Error(data.error || "Upload failed");
-            setReplyImage({ localUrl, cloudinaryUrl: data.url });
+            const url = await uploadImage(file);
+            setReplyImage({ localUrl, cloudinaryUrl: url });
         } catch (err) {
             alert(err.message || "Image upload failed");
             setReplyImage(null);
@@ -2075,39 +2074,22 @@ export default function IssueDetailPage({ params }) {
                 );
                 for (const voteDoc of votesSnap.docs) {
                     const voteData = voteDoc.data();
-                    const { userId, option: selectedOption } = voteData;
-                    if (
-                        !userId ||
-                        !selectedOption ||
-                        !issue.voteOptions.includes(selectedOption)
-                    )
-                        continue;
-                    let userData = {};
-                    try {
-                        const s = await getDoc(doc(db, "users", userId));
-                        if (!s.exists()) continue;
-                        userData = s.data();
-                    } catch {
-                        continue;
-                    }
+                    const { option: selectedOption } = voteData;
+                    if (!selectedOption || !issue.voteOptions.includes(selectedOption)) continue;
+
+                    // Demographics are denormalized onto the vote doc — no user lookup needed
                     issue.demographics.forEach((demo) => {
                         const config = DEMOGRAPHIC_CONFIG[demo];
                         if (!config) return;
-                        const rawValue =
-                            userData[config.firestoreField ?? demo];
+                        const rawValue = voteData[config.firestoreField ?? demo];
                         if (rawValue === undefined || rawValue === null) return;
-                        const group = config.getGroup
-                            ? config.getGroup(rawValue)
-                            : String(rawValue);
+                        const group = config.getGroup ? config.getGroup(rawValue) : String(rawValue);
                         if (!group) return;
                         if (!demoData[demo][group]) {
                             demoData[demo][group] = {};
-                            issue.voteOptions.forEach((opt) => {
-                                demoData[demo][group][opt] = 0;
-                            });
+                            issue.voteOptions.forEach((opt) => { demoData[demo][group][opt] = 0; });
                         }
-                        demoData[demo][group][selectedOption] =
-                            (demoData[demo][group][selectedOption] || 0) + 1;
+                        demoData[demo][group][selectedOption] = (demoData[demo][group][selectedOption] || 0) + 1;
                     });
                 }
                 setDemographicData(demoData);
@@ -2147,6 +2129,8 @@ export default function IssueDetailPage({ params }) {
 
         const prev = userVote;
         const wasSameVote = prev === option;
+
+        // Optimistic UI
         setVoteLoading(true);
         const newCounts = { ...voteCounts };
         if (wasSameVote) {
@@ -2160,32 +2144,19 @@ export default function IssueDetailPage({ params }) {
             setTotalVotes((p) => (prev ? p : p + 1));
         }
         setVoteCounts(newCounts);
+
         try {
-            await runTransaction(db, async (tx) => {
-                const snap = await tx.get(doc(db, "issues", id));
-                if (!snap.exists()) throw new Error("missing");
-                const d = snap.data();
-                const cv = { ...(d.votes || {}) };
-                let ct = d.totalVotes || 0;
-                if (wasSameVote) {
-                    cv[option] = Math.max(0, (cv[option] || 0) - 1);
-                    ct = Math.max(0, ct - 1);
-                    tx.delete(doc(db, "issues", id, "votes", currentUser.uid));
-                } else {
-                    if (prev) {
-                        cv[prev] = Math.max(0, (cv[prev] || 0) - 1);
-                    } else {
-                        ct += 1;
-                    }
-                    cv[option] = (cv[option] || 0) + 1;
-                    tx.set(doc(db, "issues", id, "votes", currentUser.uid), {
-                        userId: currentUser.uid,
-                        option,
-                        votedAt: serverTimestamp(),
-                    });
-                }
-                tx.update(doc(db, "issues", id), { votes: cv, totalVotes: ct });
+            const token = await currentUser.getIdToken();
+            const res = await fetch("/api/vote", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ issueId: id, type: "poll", option }),
             });
+            if (!res.ok) throw new Error(await res.text());
+
             if (!wasSameVote) {
                 await awardPoints(currentUser.uid, "VOTE_ON_ISSUE", {
                     issueId: id,
@@ -2200,15 +2171,17 @@ export default function IssueDetailPage({ params }) {
                         type: NOTIFICATION_TYPES.VOTE,
                         recipientId: issue.author.uid,
                         actorId: currentUser.uid,
-                        actorName: currentUser?.displayName || currentUser?.email?.split("@")[0] || "Corper",
+                        actorName:
+                            currentUser?.displayName ||
+                            currentUser?.email?.split("@")[0] ||
+                            "Corper",
                         issueId: id,
                         issueTitle: issue.title,
                         meta: { option },
                     });
                 }
             }
-            if (wasSameVote)
-                localStorage.removeItem(`vote_${id}_${currentUser.uid}`);
+            if (wasSameVote) localStorage.removeItem(`vote_${id}_${currentUser.uid}`);
             else localStorage.setItem(`vote_${id}_${currentUser.uid}`, option);
         } catch (err) {
             console.error("Vote failed:", err);
@@ -2325,12 +2298,8 @@ export default function IssueDetailPage({ params }) {
         setCommentImage({ localUrl, cloudinaryUrl: null });
         setCommentImageUploading(true);
         try {
-            const fd = new FormData();
-            fd.append("file", file);
-            const res = await fetch("/api/upload", { method: "POST", body: fd });
-            const data = await res.json();
-            if (!data.url) throw new Error(data.error || "Upload failed");
-            setCommentImage({ localUrl, cloudinaryUrl: data.url });
+            const url = await uploadImage(file);
+            setCommentImage({ localUrl, cloudinaryUrl: url });
         } catch (err) {
             alert(err.message || "Image upload failed");
             setCommentImage(null);

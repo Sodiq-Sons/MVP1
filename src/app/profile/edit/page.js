@@ -18,6 +18,7 @@ import {
     isProfileComplete,
 } from "@/lib/profileCompletion";
 import { awardPoints, checkAndAwardBadges } from "@/lib/gamification";
+import { uploadImage } from "@/lib/uploadImage";
 
 // ─── Nigerian States ───────────────────────────────────────────────────────────
 const NIGERIAN_STATES = [
@@ -663,11 +664,7 @@ export default function EditProfilePage() {
         }
         setPhotoUploading(true);
         try {
-            const formPayload = new FormData();
-            formPayload.append("file", file);
-            const res = await fetch("/api/upload", { method: "POST", body: formPayload });
-            if (!res.ok) throw new Error("Upload failed");
-            const { url } = await res.json();
+            const url = await uploadImage(file);
             const optimisedUrl = url.replace("/upload/", "/upload/f_auto,q_auto,w_400/");
             await updateProfile(auth.currentUser, { photoURL: optimisedUrl });
             await updateDoc(doc(db, "users", auth.currentUser.uid), {

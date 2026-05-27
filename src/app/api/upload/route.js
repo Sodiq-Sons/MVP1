@@ -1,4 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
+import admin from "firebase-admin";
+import "@/lib/firebaseAdmin"; // ensure admin is initialised
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -15,6 +17,18 @@ const ALLOWED_TYPES = new Set([
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export async function POST(request) {
+    // Require a valid Firebase ID token to prevent billing abuse
+    const authHeader = request.headers.get("Authorization") || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) {
+        return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    try {
+        await admin.auth().verifyIdToken(token);
+    } catch {
+        return Response.json({ error: "Invalid token" }, { status: 401 });
+    }
+
     try {
         const formData = await request.formData();
         const file = formData.get("file");
