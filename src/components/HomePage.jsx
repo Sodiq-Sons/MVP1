@@ -318,12 +318,20 @@ const IssueCard = memo(function IssueCard({
             setShowLoginPrompt(true);
             return;
         }
-        if (!authReady || loading || downvoteLoading || downvoted) return;
+        if (!authReady || loading || downvoteLoading) return;
 
         const wasUpvoted = upvoted;
+        const wasDownvoted = downvoted;
         const newCount = wasUpvoted ? Math.max(0, count - 1) : count + 1;
+
+        // Optimistic update — also undo the downvote if switching
         setUpvoted(!wasUpvoted);
         setCount(newCount);
+        if (wasDownvoted) {
+            setDownvoted(false);
+            setDownvoteCount((c) => Math.max(0, c - 1));
+        }
+
         setLoading(true);
         try {
             const token = await currentUser.getIdToken();
@@ -333,6 +341,10 @@ const IssueCard = memo(function IssueCard({
                 body: JSON.stringify({ issueId: issue.id, type: "up" }),
             });
             if (!res.ok) throw new Error("Vote failed");
+
+            if (wasUpvoted) localStorage.removeItem(`upvote_${issue.id}_${currentUser.uid}`);
+            else localStorage.setItem(`upvote_${issue.id}_${currentUser.uid}`, "1");
+            if (wasDownvoted) localStorage.removeItem(`downvote_${issue.id}_${currentUser.uid}`);
 
             if (!wasUpvoted) {
                 const issueData = issue;
@@ -360,12 +372,12 @@ const IssueCard = memo(function IssueCard({
                     });
                 }
             }
-            if (wasUpvoted) localStorage.removeItem(`upvote_${issue.id}_${currentUser.uid}`);
-            else localStorage.setItem(`upvote_${issue.id}_${currentUser.uid}`, "1");
         } catch (err) {
             console.error("Upvote failed:", err);
             setUpvoted(wasUpvoted);
+            setDownvoted(wasDownvoted);
             setCount(issue.upvotes || 0);
+            setDownvoteCount(issue.downvotes || 0);
         } finally {
             setLoading(false);
         }
@@ -378,12 +390,20 @@ const IssueCard = memo(function IssueCard({
             setShowLoginPrompt(true);
             return;
         }
-        if (!authReady || downvoteLoading || loading || upvoted) return;
+        if (!authReady || downvoteLoading || loading) return;
 
         const wasDownvoted = downvoted;
+        const wasUpvoted = upvoted;
         const newCount = wasDownvoted ? Math.max(0, downvoteCount - 1) : downvoteCount + 1;
+
+        // Optimistic update — also undo the upvote if switching
         setDownvoted(!wasDownvoted);
         setDownvoteCount(newCount);
+        if (wasUpvoted) {
+            setUpvoted(false);
+            setCount((c) => Math.max(0, c - 1));
+        }
+
         setDownvoteLoading(true);
         try {
             const token = await currentUser.getIdToken();
@@ -396,10 +416,13 @@ const IssueCard = memo(function IssueCard({
 
             if (wasDownvoted) localStorage.removeItem(`downvote_${issue.id}_${currentUser.uid}`);
             else localStorage.setItem(`downvote_${issue.id}_${currentUser.uid}`, "1");
+            if (wasUpvoted) localStorage.removeItem(`upvote_${issue.id}_${currentUser.uid}`);
         } catch (err) {
             console.error("Oppose failed:", err);
             setDownvoted(wasDownvoted);
+            setUpvoted(wasUpvoted);
             setDownvoteCount(issue.downvotes || 0);
+            setCount(issue.upvotes || 0);
         } finally {
             setDownvoteLoading(false);
         }
