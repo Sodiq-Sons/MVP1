@@ -60,7 +60,7 @@ export default function InstallPrompt() {
                     {isIOS ? (
                         <p className="text-xs text-gray-500 leading-relaxed">
                             Tap the Share button then “Add to Home Screen” to
-                            install Naija Connect.
+                            install Camp Connect.
                         </p>
                     ) : (
                         <p className="text-xs text-gray-500 leading-relaxed">

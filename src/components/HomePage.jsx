@@ -893,9 +893,6 @@ export default function HomePage() {
                             >
                                 Camp Connect 🏕️
                             </div>
-                            <div className="text-white/55 text-[10px] font-medium mt-0.5 tracking-wide truncate">
-                                Be the voice. Drive the change.
-                            </div>
                         </div>
                     </div>
 
@@ -1069,12 +1066,6 @@ export default function HomePage() {
                         >
                             Hello, {displayName} 👋
                         </h2>
-                        <p
-                            className="text-gray-500 text-sm"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            Be the voice. Drive the change.
-                        </p>
                     </div>
                     <div className="ml-auto flex gap-6 text-center">
                         <div>

@@ -12,6 +12,26 @@ const HomePage = dynamic(() => import("@/components/HomePage"), {
     ),
 });
 
+function StaticCrawlerContent() {
+    return (
+        <section className="sr-only" aria-hidden="true">
+            <h1>Camp Connect — NYSC Camp Social Feed</h1>
+            <p>
+                The real-time social platform for NYSC corp members. Share gists,
+                raise issues, run polls, and connect with your platoon — all in
+                one place.
+            </p>
+            <ul>
+                <li>Browse camp gists and trending issues from your camp</li>
+                <li>Vote on community polls and see live results</li>
+                <li>Join group chats with fellow corp members</li>
+                <li>Report lost items and find what you need at camp</li>
+                <li>Track your daily engagement streak</li>
+            </ul>
+        </section>
+    );
+}
+
 export const metadata = {
     title: "Camp Feed — Gists, Issues & Polls",
     description:
@@ -26,6 +46,7 @@ export const metadata = {
 export default function Page() {
     return (
         <main id="main-content">
+            <StaticCrawlerContent />
             <HomePage />
         </main>
     );
