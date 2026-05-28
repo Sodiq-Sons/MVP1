@@ -721,6 +721,10 @@ function DemographicInsights({
     demographicData,
     demographicsLoading,
     totalVotes,
+    hasVotesButNoData,
+    currentUser,
+    isAnonymous,
+    profileComplete,
 }) {
     const voteOptions = issue.voteOptions || [];
     const demographics = (issue.demographics || []).filter(
@@ -914,10 +918,25 @@ function DemographicInsights({
                         </p>
                     </div>
                 ) : activeGroups.length === 0 ? (
-                    <div className="py-6 text-center">
-                        <p className="text-sm text-gray-400">
-                            No data yet — voters must have their profile complete
+                    <div className="py-6 text-center space-y-2">
+                        <p className="text-sm text-gray-500 font-medium">
+                            {hasVotesButNoData
+                                ? "Voters haven't filled their profiles yet"
+                                : "No demographic data yet"}
                         </p>
+                        <p className="text-xs text-gray-400">
+                            {hasVotesButNoData
+                                ? "Demographics only appear for voters with gender, state, and platoon set on their profile."
+                                : "Demographic breakdown appears once voters with complete profiles vote."}
+                        </p>
+                        {currentUser && !isAnonymous && !profileComplete && (
+                            <a
+                                href="/profile/edit"
+                                className="inline-block mt-2 text-xs font-semibold text-cp underline"
+                            >
+                                Complete your profile &rarr;
+                            </a>
+                        )}
                     </div>
                 ) : (
                     activeGroups.map((group) => {
@@ -1921,6 +1940,7 @@ export default function IssueDetailPage({ params }) {
     const [commentImageUploading, setCommentImageUploading] = useState(false);
     const [demographicData, setDemographicData] = useState({});
     const [demographicsLoading, setDemographicsLoading] = useState(false);
+    const [demoHasVotesButNoData, setDemoHasVotesButNoData] = useState(false);
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
     const [showProfilePrompt, setShowProfilePrompt] = useState(false);
     const [isAnonymous, setIsAnonymous] = useState(true);
@@ -2060,12 +2080,16 @@ export default function IssueDetailPage({ params }) {
                 const votesSnap = await getDocs(
                     collection(db, "issues", id, "votes"),
                 );
+                let pollVoteCount = 0;
+                let demoMatchCount = 0;
                 for (const voteDoc of votesSnap.docs) {
                     const voteData = voteDoc.data();
                     const { option: selectedOption } = voteData;
                     if (!selectedOption || !issue.voteOptions.includes(selectedOption)) continue;
+                    pollVoteCount++;
 
                     // Demographics are denormalized onto the vote doc — no user lookup needed
+                    let hadAnyDemo = false;
                     issue.demographics.forEach((demo) => {
                         const config = DEMOGRAPHIC_CONFIG[demo];
                         if (!config) return;
@@ -2073,14 +2097,17 @@ export default function IssueDetailPage({ params }) {
                         if (rawValue === undefined || rawValue === null) return;
                         const group = config.getGroup ? config.getGroup(rawValue) : String(rawValue);
                         if (!group) return;
+                        hadAnyDemo = true;
                         if (!demoData[demo][group]) {
                             demoData[demo][group] = {};
                             issue.voteOptions.forEach((opt) => { demoData[demo][group][opt] = 0; });
                         }
                         demoData[demo][group][selectedOption] = (demoData[demo][group][selectedOption] || 0) + 1;
                     });
+                    if (hadAnyDemo) demoMatchCount++;
                 }
                 setDemographicData(demoData);
+                setDemoHasVotesButNoData(pollVoteCount > 0 && demoMatchCount === 0);
             } catch (err) {
                 console.error("Demographics fetch error:", err);
             } finally {
@@ -2329,15 +2356,18 @@ export default function IssueDetailPage({ params }) {
                     commentCount: currentCount + 1,
                 });
             });
-            await awardPoints(currentUser.uid, "COMMENT_ON_ISSUE", {
+            awardPoints(currentUser.uid, "COMMENT_ON_ISSUE", {
                 issueId: id,
                 issueTitle: issue.title,
-            });
+            }).catch(() => {});
             if (issue.author?.uid && issue.author.uid !== currentUser.uid) {
-                await awardPoints(issue.author.uid, "RECEIVE_COMMENT", {
-                    issueId: id,
-                    issueTitle: issue.title,
-                });
+                currentUser.getIdToken().then((token) =>
+                    fetch("/api/gamification", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ recipientId: issue.author.uid, action: "RECEIVE_COMMENT", issueId: id, issueTitle: issue.title }),
+                    })
+                ).catch(() => {});
                 await createNotification({
                     type: NOTIFICATION_TYPES.COMMENT,
                     recipientId: issue.author.uid,
@@ -2997,6 +3027,10 @@ export default function IssueDetailPage({ params }) {
                         demographicData={demographicData}
                         demographicsLoading={demographicsLoading}
                         totalVotes={totalVotes}
+                        hasVotesButNoData={demoHasVotesButNoData}
+                        currentUser={currentUser}
+                        isAnonymous={isAnonymous}
+                        profileComplete={profileComplete}
                     />
                 )}
 
