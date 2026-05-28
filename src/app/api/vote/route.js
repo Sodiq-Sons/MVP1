@@ -1,5 +1,7 @@
 import { getAdminDb, getAdminAuth } from "@/lib/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
+import { awardPointsAdmin } from "@/lib/gamificationAdmin";
+import { after } from "next/server";
 
 async function verifyToken(request) {
     const authHeader = request.headers.get("Authorization") || "";
@@ -58,6 +60,8 @@ export async function POST(request) {
             if (!issueSnap.exists) throw new Error("Issue not found");
             const issueData = issueSnap.data();
 
+            const authorUid = issueData.author?.uid ?? null;
+
             if (type === "up" || type === "down") {
                 const existing = voteSnap.exists ? voteSnap.data() : null;
                 const existingType = existing?.voteType;
@@ -68,7 +72,7 @@ export async function POST(request) {
                     // Toggle off — remove the vote
                     tx.delete(voteRef);
                     tx.update(issueRef, { [field]: Math.max(0, (issueData[field] || 0) - 1) });
-                    return { action: "removed", type };
+                    return { action: "removed", type, authorUid };
                 }
 
                 const updates = { [field]: (issueData[field] || 0) + 1 };
@@ -77,7 +81,7 @@ export async function POST(request) {
                 }
                 tx.set(voteRef, { voteType: type, userId: uid, ...demographics, votedAt: ts });
                 tx.update(issueRef, updates);
-                return { action: existingType ? "switched" : "added", type, previousType: existingType ?? null };
+                return { action: existingType ? "switched" : "added", type, previousType: existingType ?? null, authorUid };
             }
 
             // type === "poll"
@@ -114,10 +118,25 @@ export async function POST(request) {
                 action: wasSameVote ? "removed" : prevOption ? "switched" : "added",
                 option,
                 previousOption: prevOption,
+                authorUid,
             };
         });
 
-        return Response.json({ success: true, ...result });
+        // Award points after the response is sent (non-blocking)
+        if (result.action !== "removed") {
+            const meta = { issueId };
+            const voterAction  = type === "up" ? "UPVOTE_ISSUE"   : type === "poll" ? "VOTE_ON_ISSUE"  : null;
+            const authorAction = type === "up" ? "RECEIVE_UPVOTE" : type === "poll" ? "RECEIVE_VOTE"   : null;
+            after(async () => {
+                if (voterAction)  await awardPointsAdmin(uid, voterAction, meta);
+                if (authorAction && result.authorUid && result.authorUid !== uid) {
+                    await awardPointsAdmin(result.authorUid, authorAction, meta);
+                }
+            });
+        }
+
+        const { authorUid: _drop, ...publicResult } = result;
+        return Response.json({ success: true, ...publicResult });
     } catch (err) {
         const msg = err.message || "Vote failed";
         const status = msg === "Issue not found" || msg === "Invalid poll option" ? 400 : 500;

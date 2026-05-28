@@ -2159,15 +2159,7 @@ export default function IssueDetailPage({ params }) {
             if (!res.ok) throw new Error(await res.text());
 
             if (!wasSameVote) {
-                await awardPoints(currentUser.uid, "VOTE_ON_ISSUE", {
-                    issueId: id,
-                    issueTitle: issue.title,
-                });
                 if (issue.author?.uid && issue.author.uid !== currentUser.uid) {
-                    await awardPoints(issue.author.uid, "RECEIVE_VOTE", {
-                        issueId: id,
-                        issueTitle: issue.title,
-                    });
                     await createNotification({
                         type: NOTIFICATION_TYPES.VOTE,
                         recipientId: issue.author.uid,
@@ -2223,9 +2215,7 @@ export default function IssueDetailPage({ params }) {
             if (wasDownvoted) localStorage.removeItem(`downvote_${id}_${currentUser.uid}`);
 
             if (!wasUpvoted) {
-                await awardPoints(currentUser.uid, "UPVOTE_ISSUE", { issueId: id, issueTitle: issue.title });
                 if (issue.author?.uid && issue.author.uid !== currentUser.uid) {
-                    await awardPoints(issue.author.uid, "RECEIVE_UPVOTE", { issueId: id, issueTitle: issue.title });
                     await createNotification({
                         type: NOTIFICATION_TYPES.UPVOTE,
                         recipientId: issue.author.uid,
