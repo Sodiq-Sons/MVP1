@@ -40,11 +40,12 @@ export async function POST(request) {
     // Read user demographics for denormalization (single read, not per-vote)
     const userSnap = await adminDb.collection("users").doc(uid).get();
     const userData = userSnap.exists ? userSnap.data() : {};
+    // Only include fields that are actually stored on the user profile doc.
+    // age is not stored — omit it so vote docs don't have null age entries.
     const demographics = {
-        age: userData.age ?? null,
-        gender: userData.gender ?? null,
+        gender:        userData.gender        ?? null,
         stateOfOrigin: userData.stateOfOrigin ?? null,
-        platoon: userData.platoon ?? null,
+        platoon:       userData.platoon       ?? null,
     };
 
     const issueRef = adminDb.collection("issues").doc(issueId);

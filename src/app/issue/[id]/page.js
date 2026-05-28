@@ -59,19 +59,6 @@ const CATEGORY_META = {
 
 // ─── Demographic Config ────────────────────────────────────────────────────────
 const DEMOGRAPHIC_CONFIG = {
-    age: {
-        emoji: "🎂",
-        label: "Age group",
-        firestoreField: "age",
-        groups: ["20-24", "25-29", "30+"],
-        getGroup: (rawAge) => {
-            const n = parseInt(String(rawAge), 10);
-            if (isNaN(n) || n < 18) return null;
-            if (n <= 24) return "20-24";
-            if (n <= 29) return "25-29";
-            return "30+";
-        },
-    },
     gender: {
         emoji: "⚧️",
         label: "Gender",

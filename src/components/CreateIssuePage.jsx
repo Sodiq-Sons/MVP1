@@ -221,12 +221,6 @@ const RESPONSE_TYPES = [
 
 const DEMOGRAPHIC_OPTIONS = [
     {
-        id: "age",
-        emoji: "🎂",
-        label: "Age Groups",
-        description: "See how different age groups voted",
-    },
-    {
         id: "gender",
         emoji: "⚧️",
         label: "Gender",
