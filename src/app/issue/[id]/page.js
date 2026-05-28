@@ -762,8 +762,8 @@ function DemographicInsights({
 
     const activeConfig = DEMOGRAPHIC_CONFIG[activeTab];
     const activeData = demographicData[activeTab] || {};
-    // Suppress groups with fewer than 5 voters to prevent de-anonymisation
-    const MIN_GROUP_SIZE = 5;
+    // Raise to 5 before launch to prevent de-anonymisation on small groups
+    const MIN_GROUP_SIZE = 1;
     const activeGroups = Object.keys(activeData).filter((g) => {
         const total = Object.values(activeData[g] || {}).reduce((s, v) => s + v, 0);
         return total >= MIN_GROUP_SIZE;
@@ -916,7 +916,7 @@ function DemographicInsights({
                 ) : activeGroups.length === 0 ? (
                     <div className="py-6 text-center">
                         <p className="text-sm text-gray-400">
-                            No data for this demographic yet
+                            No data yet — voters must have their profile complete
                         </p>
                     </div>
                 ) : (
@@ -2092,6 +2092,7 @@ export default function IssueDetailPage({ params }) {
         id,
         issue?.demographics?.join(","),
         issue?.voteOptions?.join(","),
+        issue?.totalVotes,
         currentUser,
     ]);
 
