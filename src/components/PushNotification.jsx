@@ -123,7 +123,7 @@ const typeConfig = {
         bg: "bg-green-50",
         color: "text-green-600",
         border: "border-green-200",
-        label: "Upvote",
+        label: "Like",
         icon: <UpvoteIcon />,
         accent: "#16A34A",
     },

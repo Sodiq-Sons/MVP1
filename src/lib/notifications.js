@@ -67,7 +67,7 @@ function serializeMeta(meta) {
 }
 
 const MESSAGES = {
-    upvote: "upvoted your post",
+    upvote: "liked your post",
     comment: "commented on your post",
     reply: "replied to your comment",
     like_comment: "liked your comment",

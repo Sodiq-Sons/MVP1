@@ -23,6 +23,7 @@ import { awardPoints } from "@/lib/gamification";
 import { isProfileComplete } from "@/lib/profileCompletion";
 import { uploadImage } from "@/lib/uploadImage";
 import Image from "next/image";
+import { toast } from "sonner";
 
 // ─── Category Meta ─────────────────────────────────────────────────────────────
 const CATEGORY_META = {
@@ -1052,7 +1053,7 @@ function ReplyForm({
         const file = e.target.files?.[0];
         if (!file) return;
         e.target.value = "";
-        if (file.size > 5 * 1024 * 1024) { alert("Image must be under 5 MB"); return; }
+        if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB"); return; }
         const localUrl = URL.createObjectURL(file);
         setReplyImage({ localUrl, cloudinaryUrl: null });
         setReplyImageUploading(true);
@@ -1060,7 +1061,7 @@ function ReplyForm({
             const url = await uploadImage(file);
             setReplyImage({ localUrl, cloudinaryUrl: url });
         } catch (err) {
-            alert(err.message || "Image upload failed");
+            toast.error(err.message || "Image upload failed");
             setReplyImage(null);
         } finally {
             setReplyImageUploading(false);
@@ -1106,7 +1107,7 @@ function ReplyForm({
     const submit = async () => {
         const replyImageUrl = replyImage?.cloudinaryUrl || null;
         if ((!text.trim() && !replyImageUrl) || !authReady || saving) return;
-        if (replyImage && !replyImageUrl) { alert("Image is still uploading, please wait."); return; }
+        if (replyImage && !replyImageUrl) { toast.error("Image is still uploading, please wait."); return; }
         setSaving(true);
         setReplyImage(null);
         try {
@@ -2288,7 +2289,7 @@ export default function IssueDetailPage({ params }) {
         const file = e.target.files?.[0];
         if (!file) return;
         e.target.value = "";
-        if (file.size > 5 * 1024 * 1024) { alert("Image must be under 5 MB"); return; }
+        if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB"); return; }
         const localUrl = URL.createObjectURL(file);
         setCommentImage({ localUrl, cloudinaryUrl: null });
         setCommentImageUploading(true);
@@ -2296,7 +2297,7 @@ export default function IssueDetailPage({ params }) {
             const url = await uploadImage(file);
             setCommentImage({ localUrl, cloudinaryUrl: url });
         } catch (err) {
-            alert(err.message || "Image upload failed");
+            toast.error(err.message || "Image upload failed");
             setCommentImage(null);
         } finally {
             setCommentImageUploading(false);
@@ -2308,7 +2309,7 @@ export default function IssueDetailPage({ params }) {
         if (!requireCompleteProfile()) return;
         const commentImageUrl = commentImage?.cloudinaryUrl || null;
         if ((!commentText.trim() && !commentImageUrl) || !authReady || submittingComment) return;
-        if (commentImage && !commentImageUrl) { alert("Image is still uploading, please wait."); return; }
+        if (commentImage && !commentImageUrl) { toast.error("Image is still uploading, please wait."); return; }
 
         const tempId = `temp-${Date.now()}`;
         const displayName = currentUser?.displayName || currentUser?.email?.split("@")[0] || "Corper";
@@ -2866,7 +2867,7 @@ export default function IssueDetailPage({ params }) {
                             <button
                                 onClick={handleDownvote}
                                 disabled={
-                                    !authReady || downvoteLoading || upvoted
+                                    !authReady || downvoteLoading
                                 }
                                 className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl border-2 font-semibold text-sm transition-all cursor-pointer disabled:opacity-50 flex-1 sm:flex-none ${downvoted ? "border-red-500 bg-red-50 text-red-700" : "border-red-200 bg-white text-red-500 hover:border-red-400 hover:bg-red-50"}`}
                             >
@@ -2883,7 +2884,7 @@ export default function IssueDetailPage({ params }) {
                             <button
                                 onClick={handleUpvote}
                                 disabled={
-                                    !authReady || upvoteLoading || downvoted
+                                    !authReady || upvoteLoading
                                 }
                                 className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl border-2 font-semibold text-sm transition-all cursor-pointer disabled:opacity-50 flex-1 sm:flex-none ${upvoted ? "border-green-500 bg-green-50 text-green-700" : "border-green-200 bg-white text-green-600 hover:border-green-400 hover:bg-green-50"}`}
                             >

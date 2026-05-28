@@ -1,4 +1,5 @@
 import { getAdminDb, getAdminAuth } from "@/lib/firebaseAdmin";
+import { FieldValue } from "firebase-admin/firestore";
 
 async function verifyToken(request) {
     const authHeader = request.headers.get("Authorization") || "";
@@ -46,7 +47,7 @@ export async function POST(request) {
 
     const issueRef = adminDb.collection("issues").doc(issueId);
     const voteRef = issueRef.collection("votes").doc(uid);
-    const ts = admin.firestore.FieldValue.serverTimestamp();
+    const ts = FieldValue.serverTimestamp();
 
     try {
         const result = await adminDb.runTransaction(async (tx) => {

@@ -687,7 +687,7 @@ export default function PublicProfilePage() {
                                     bg: "bg-cp-tint",
                                 },
                                 {
-                                    label: "Upvotes",
+                                    label: "Likes",
                                     value: formatNum(
                                         stats?.upvotesReceived || 0,
                                     ),
@@ -915,7 +915,7 @@ export default function PublicProfilePage() {
                                                 desc: "Total posts shared",
                                             },
                                             {
-                                                label: "Upvotes Received",
+                                                label: "Likes Received",
                                                 value: formatNum(
                                                     stats?.upvotesReceived || 0,
                                                 ),
@@ -940,7 +940,7 @@ export default function PublicProfilePage() {
                                                 desc: "Replies to their posts",
                                             },
                                             {
-                                                label: "Upvotes Given",
+                                                label: "Likes Given",
                                                 value: formatNum(
                                                     stats?.upvotesGiven || 0,
                                                 ),
