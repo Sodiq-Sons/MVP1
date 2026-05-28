@@ -1,9 +1,18 @@
 import { getAdminDb, getAdminAuth } from "@/lib/firebaseAdmin";
 import { awardPointsAdmin } from "@/lib/gamificationAdmin";
 
-// Only these actions can be awarded to another user via this endpoint.
-// Self-award actions (COMMENT_ON_ISSUE, VOTE_ON_ISSUE, etc.) stay client-side.
-const ALLOWED_RECEIVE_ACTIONS = new Set([
+// Actions a user may award to themselves (their own engagement)
+const SELF_ACTIONS = new Set([
+    "CREATE_ISSUE",
+    "COMMENT_ON_ISSUE",
+    "REPLY_TO_COMMENT",
+    "LIKE_COMMENT",
+    "UPVOTE_ISSUE",
+    "VOTE_ON_ISSUE",
+]);
+
+// Actions a user may award to another user (must differ from caller)
+const RECEIVE_ACTIONS = new Set([
     "RECEIVE_COMMENT",
     "RECEIVE_REPLY",
     "RECEIVE_LIKE",
@@ -39,15 +48,16 @@ export async function POST(request) {
     if (!recipientId || !action) {
         return Response.json({ error: "recipientId and action are required" }, { status: 400 });
     }
-    if (!ALLOWED_RECEIVE_ACTIONS.has(action)) {
-        return Response.json({ error: "Action not permitted via this endpoint" }, { status: 403 });
+
+    const isSelf = recipientId === callerUid;
+
+    if (isSelf && !SELF_ACTIONS.has(action)) {
+        return Response.json({ error: "Action not permitted for self" }, { status: 403 });
     }
-    // Don't award points to yourself via this endpoint
-    if (recipientId === callerUid) {
-        return Response.json({ error: "Cannot award receive-points to yourself" }, { status: 400 });
+    if (!isSelf && !RECEIVE_ACTIONS.has(action)) {
+        return Response.json({ error: "Action not permitted for other users" }, { status: 403 });
     }
 
-    // Verify the recipient exists
     const adminDb = getAdminDb();
     const recipientSnap = await adminDb.collection("users").doc(recipientId).get();
     if (!recipientSnap.exists) {

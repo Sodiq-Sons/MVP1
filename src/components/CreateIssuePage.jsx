@@ -20,7 +20,7 @@ import { db, auth } from "@/lib/firebase";
 import Link from "next/link";
 import { toast } from "sonner";
 import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
-import { awardPoints } from "@/lib/gamification";
+import { awardPointsViaApi } from "@/lib/gamification";
 import Image from "next/image";
 import ProfileIncompleteModal from "@/components/ProfileIncompleteModal";
 import { isProfileComplete } from "@/lib/profileCompletion";
@@ -1282,7 +1282,8 @@ function CreatePostForm({
                 });
             }
             await batch.commit();
-            await awardPoints(currentUser.uid, "CREATE_ISSUE", {
+            // Fire-and-forget — don't let gamification errors block the post
+            awardPointsViaApi(currentUser, currentUser.uid, "CREATE_ISSUE", {
                 issueId: issueRef.id,
                 issueTitle: finalTitle.trim(),
             });

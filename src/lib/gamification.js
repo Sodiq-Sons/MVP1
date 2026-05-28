@@ -290,6 +290,22 @@ export function getPointsToNextLevel(currentPoints) {
     return currentLevel.maxPoints - currentPoints;
 }
 
+// ─── Server-side award helper (bypasses Firestore rules via Admin SDK) ─────────
+// Pass the Firebase user object as `user` so we can get a fresh ID token.
+export async function awardPointsViaApi(user, recipientId, action, metadata = {}) {
+    if (!user || !recipientId || !action) return;
+    try {
+        const token = await user.getIdToken();
+        await fetch("/api/gamification", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ recipientId, action, ...metadata }),
+        });
+    } catch {
+        // Fire-and-forget: never let gamification errors surface to the user
+    }
+}
+
 // ─── Core Points Function ──────────────────────────────────────────────────────
 export async function awardPoints(userId, action, metadata = {}) {
     if (!userId) return null;

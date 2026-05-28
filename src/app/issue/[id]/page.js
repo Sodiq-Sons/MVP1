@@ -19,7 +19,7 @@ import { db, auth } from "@/lib/firebase";
 import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
 import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
-import { awardPoints } from "@/lib/gamification";
+import { awardPointsViaApi } from "@/lib/gamification";
 import { isProfileComplete } from "@/lib/profileCompletion";
 import { uploadImage } from "@/lib/uploadImage";
 import Image from "next/image";
@@ -2356,18 +2356,15 @@ export default function IssueDetailPage({ params }) {
                     commentCount: currentCount + 1,
                 });
             });
-            awardPoints(currentUser.uid, "COMMENT_ON_ISSUE", {
+            awardPointsViaApi(currentUser, currentUser.uid, "COMMENT_ON_ISSUE", {
                 issueId: id,
                 issueTitle: issue.title,
-            }).catch(() => {});
+            });
             if (issue.author?.uid && issue.author.uid !== currentUser.uid) {
-                currentUser.getIdToken().then((token) =>
-                    fetch("/api/gamification", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                        body: JSON.stringify({ recipientId: issue.author.uid, action: "RECEIVE_COMMENT", issueId: id, issueTitle: issue.title }),
-                    })
-                ).catch(() => {});
+                awardPointsViaApi(currentUser, issue.author.uid, "RECEIVE_COMMENT", {
+                    issueId: id,
+                    issueTitle: issue.title,
+                });
                 await createNotification({
                     type: NOTIFICATION_TYPES.COMMENT,
                     recipientId: issue.author.uid,
