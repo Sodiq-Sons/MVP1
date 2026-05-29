@@ -589,30 +589,44 @@ export default function PublicProfilePage() {
             </div>
 
             <div className="px-4 md:px-6 mt-4 space-y-4">
-                {/* Profile Card */}
+                {/* Profile Card — Twitter-style */}
                 <div className="bg-card rounded-2xl overflow-hidden border border-subtle shadow-sm">
                     {/* Banner */}
-                    <div className="h-28 md:h-36 relative bg-gradient-to-br from-[color:var(--cp-deeper)] to-[color:var(--cp)]">
+                    <div className="h-36 md:h-44 relative bg-gradient-to-br from-[color:var(--cp-deeper)] to-[color:var(--cp)]">
                         <div
                             className="absolute inset-0 opacity-10"
                             style={{
-                                backgroundImage:
-                                    "radial-gradient(circle, #fff 1px, transparent 1px)",
+                                backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)",
                                 backgroundSize: "20px 20px",
                             }}
                         />
+                        <div
+                            className="absolute inset-0 opacity-5"
+                            style={{
+                                backgroundImage: "repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 0, transparent 50%)",
+                                backgroundSize: "12px 12px",
+                            }}
+                        />
+                        {/* Share button in banner top-right */}
+                        <button
+                            onClick={handleShare}
+                            className="absolute top-3 right-3 flex items-center gap-1.5 text-white text-xs font-bold bg-black/20 backdrop-blur-sm border border-white/20 px-3 py-1.5 rounded-full hover:bg-black/30 active:scale-95 transition-all"
+                        >
+                            <ShareIcon /> Share
+                        </button>
                     </div>
 
-                    <div className="px-4 md:px-5 pb-4 md:pb-5">
-                        <div className="flex items-end justify-between -mt-11 mb-3">
+                    <div className="px-4 md:px-5 pb-5">
+                        {/* Avatar row */}
+                        <div className="-mt-14 mb-3 flex items-end justify-between">
                             <div className="relative">
-                                <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl border-4 border-white shadow-lg bg-cp flex items-center justify-center text-white text-3xl font-black overflow-hidden">
+                                <div className="w-24 h-24 md:w-28 md:h-28 rounded-full border-4 border-white shadow-xl bg-cp flex items-center justify-center text-white text-3xl font-black overflow-hidden">
                                     {displayPhoto ? (
                                         <Image
                                             src={displayPhoto}
                                             alt={displayName}
-                                            width={96}
-                                            height={96}
+                                            width={112}
+                                            height={112}
                                             className="w-full h-full object-cover"
                                         />
                                     ) : (
@@ -620,50 +634,65 @@ export default function PublicProfilePage() {
                                     )}
                                 </div>
                                 {isOnline && (
-                                    <div className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-white" />
+                                    <div className="absolute bottom-1 right-0 w-5 h-5 bg-emerald-400 rounded-full border-2 border-white shadow-sm" />
                                 )}
                             </div>
-                            {roleBadge && (
-                                <span
-                                    className={`text-xs font-bold px-2.5 py-1 rounded-full border ${roleBadge.cls}`}
-                                >
-                                    {roleBadge.label}
-                                </span>
-                            )}
+                            {/* Role badge or online pill */}
+                            <div className="mb-1 flex flex-col items-end gap-1.5">
+                                {roleBadge && (
+                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${roleBadge.cls}`}>
+                                        {roleBadge.label}
+                                    </span>
+                                )}
+                                {isOnline && (
+                                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+                                        Online
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
-                        {/* Name & Bio */}
-                        <div className="mb-3">
-                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                        {/* Name + level badge */}
+                        <div className="mb-1">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 <h2
-                                    className="text-lg font-black text-gray-900"
-                                    style={{
-                                        fontFamily:
-                                            "Plus Jakarta Sans, sans-serif",
-                                    }}
+                                    className="text-xl font-black text-gray-900 leading-tight"
+                                    style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                                 >
                                     {displayName}
                                 </h2>
-                                {isOnline && (
-                                    <span className="text-emerald-600 text-xs font-semibold flex items-center gap-1">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />{" "}
-                                        Online
+                                {profile?.isVerified && (
+                                    <svg viewBox="0 0 24 24" fill="var(--cp)" className="w-5 h-5 flex-shrink-0" aria-label="Verified">
+                                        <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                    </svg>
+                                )}
+                            </div>
+                            {/* Level + streak */}
+                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                <span className="text-[11px] font-bold text-white bg-cp px-2.5 py-0.5 rounded-full leading-5">
+                                    Lv.{levelData.level} · {levelData.name}
+                                </span>
+                                {(profile?.streak || 0) >= 2 && (
+                                    <span className="text-[11px] font-bold text-orange-500 bg-orange-50 border border-orange-100 px-2 py-0.5 rounded-full leading-5">
+                                        🔥 {profile.streak}-day streak
                                     </span>
                                 )}
                             </div>
-                            <p
-                                className="text-gray-500 text-sm leading-relaxed"
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
-                            >
-                                {displayBio}
-                            </p>
                         </div>
 
-                        {/* Meta */}
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mb-4">
+                        {/* Bio */}
+                        <p
+                            className="text-gray-500 text-sm leading-relaxed mt-2.5 mb-3"
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                        >
+                            {displayBio}
+                        </p>
+
+                        {/* Meta chips */}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-gray-400 mb-4">
                             <span className="flex items-center gap-1">
-                                <LocationIcon />
-                                {displayLoc}
+                                <LocationIcon /> {displayLoc}
                             </span>
                             <span className="flex items-center gap-1">
                                 <CalendarIcon />
@@ -673,59 +702,29 @@ export default function PublicProfilePage() {
                                     year: "numeric",
                                 })}
                             </span>
+                            {profile?.platoon && (
+                                <span className="flex items-center gap-1 font-semibold text-cp">
+                                    👥 {profile.platoon}
+                                </span>
+                            )}
                         </div>
 
-                        {/* Stats */}
-                        <div className="grid grid-cols-4 gap-2">
+                        {/* Stats row — Twitter-style inline */}
+                        <div className="flex items-center gap-5 pt-3 border-t border-subtle flex-wrap">
                             {[
-                                {
-                                    label: "Posts",
-                                    value: formatNum(
-                                        stats?.issuesCount || issues.length,
-                                    ),
-                                    emoji: "📋",
-                                    bg: "bg-cp-tint",
-                                },
-                                {
-                                    label: "Likes",
-                                    value: formatNum(
-                                        stats?.upvotesReceived || 0,
-                                    ),
-                                    emoji: "⬆️",
-                                    bg: "bg-green-50",
-                                },
-                                {
-                                    label: "Badges",
-                                    value: formatNum(badges.length),
-                                    emoji: "🏅",
-                                    bg: "bg-purple-50",
-                                },
-                                {
-                                    label: "Score",
-                                    value: formatNum(impactScore),
-                                    emoji: "⭐",
-                                    bg: "bg-blue-50",
-                                },
+                                { value: formatNum(stats?.issuesCount || issues.length), label: "Posts" },
+                                { value: formatNum(stats?.upvotesReceived || 0), label: "Likes" },
+                                { value: formatNum(badges.length), label: "Badges" },
+                                { value: formatNum(impactScore), label: "pts" },
                             ].map((s) => (
-                                <div
-                                    key={s.label}
-                                    className={`text-center ${s.bg} rounded-xl py-2.5 px-1`}
-                                >
-                                    <div className="text-xl mb-0.5">
-                                        {s.emoji}
-                                    </div>
-                                    <div
+                                <div key={s.label} className="flex items-baseline gap-1">
+                                    <span
                                         className="text-sm font-black text-gray-900"
-                                        style={{
-                                            fontFamily:
-                                                "Plus Jakarta Sans, sans-serif",
-                                        }}
+                                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                                     >
                                         {s.value}
-                                    </div>
-                                    <div className="text-[9px] text-gray-400 font-medium">
-                                        {s.label}
-                                    </div>
+                                    </span>
+                                    <span className="text-xs text-gray-400">{s.label}</span>
                                 </div>
                             ))}
                         </div>

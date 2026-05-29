@@ -1104,25 +1104,41 @@ export default function ProfilePage() {
             </div>
 
             <div className="px-4 md:px-6 space-y-4">
-                {/* Profile Card */}
+                {/* Profile Card — Twitter-style */}
                 <div className="bg-card rounded-2xl overflow-hidden border border-subtle shadow-sm">
-                    <div
-                        className="h-24 md:h-32 relative"
-                        style={{ background: "var(--cp-deeper)" }}
-                    >
+                    {/* Banner */}
+                    <div className="h-36 md:h-44 relative bg-gradient-to-br from-[color:var(--cp-deeper)] to-[color:var(--cp)]">
                         <div
                             className="absolute inset-0 opacity-10"
                             style={{
-                                backgroundImage:
-                                    "radial-gradient(circle, #fff 1px, transparent 1px)",
+                                backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)",
                                 backgroundSize: "20px 20px",
                             }}
                         />
+                        {/* Subtle diagonal stripe accent */}
+                        <div
+                            className="absolute inset-0 opacity-5"
+                            style={{
+                                backgroundImage: "repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 0, transparent 50%)",
+                                backgroundSize: "12px 12px",
+                            }}
+                        />
+                        {/* Edit Profile button — floated top-right inside banner */}
+                        {!isAnonymous && (
+                            <Link
+                                href="/profile/edit"
+                                className="absolute top-3 right-3 flex items-center gap-1.5 text-white text-xs font-bold bg-black/20 backdrop-blur-sm border border-white/20 px-3 py-1.5 rounded-full hover:bg-black/30 active:scale-95 transition-all"
+                            >
+                                <EditIcon />
+                                Edit profile
+                            </Link>
+                        )}
                     </div>
-                    <div className="px-4 md:px-5 pb-4 md:pb-5">
-                        <div className="flex items-end justify-between -mt-10 mb-3">
+
+                    <div className="px-4 md:px-5 pb-5">
+                        {/* Avatar row */}
+                        <div className="-mt-14 mb-3 flex items-end justify-between">
                             <div className="relative">
-                                {/* Hidden file input */}
                                 <input
                                     ref={photoInputRef}
                                     type="file"
@@ -1130,14 +1146,13 @@ export default function ProfilePage() {
                                     className="hidden"
                                     onChange={handlePhotoUpload}
                                 />
-                                {/* Avatar with camera overlay */}
                                 <button
                                     onClick={() => !isAnonymous && photoInputRef.current?.click()}
-                                    className="relative w-20 h-20 md:w-24 md:h-24 rounded-2xl border-4 border-white shadow-lg flex items-center justify-center text-white text-3xl font-black bg-cp-deeper overflow-hidden group cursor-pointer"
+                                    className="relative w-24 h-24 md:w-28 md:h-28 rounded-full border-4 border-white shadow-xl flex items-center justify-center text-white text-3xl font-black bg-cp-deeper overflow-hidden group cursor-pointer"
                                     title="Change profile photo"
                                 >
                                     {photoUploading ? (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl">
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                                             <svg className="w-6 h-6 animate-spin text-white" viewBox="0 0 24 24" fill="none">
                                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
@@ -1149,16 +1164,15 @@ export default function ProfilePage() {
                                                 <Image
                                                     src={displayPhoto}
                                                     alt={displayName}
-                                                    width={96}
-                                                    height={96}
-                                                    className="w-full h-full object-cover rounded-2xl"
+                                                    width={112}
+                                                    height={112}
+                                                    className="w-full h-full object-cover"
                                                 />
                                             ) : (
                                                 displayName.charAt(0).toUpperCase()
                                             )}
-                                            {/* Camera hover overlay */}
                                             {!isAnonymous && (
-                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center">
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" className="w-7 h-7">
                                                         <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
                                                         <circle cx="12" cy="13" r="4"/>
@@ -1168,53 +1182,73 @@ export default function ProfilePage() {
                                         </>
                                     )}
                                 </button>
-                                {/* Verified badge */}
+                                {/* Verified badge on avatar */}
                                 {profileVerified && (
                                     <div
-                                        className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 border-white"
+                                        className="absolute bottom-1 right-0 w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm"
                                         style={{ background: "var(--cp)" }}
                                         title="Profile complete"
                                     >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" className="w-2.5 h-2.5">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" className="w-3 h-3">
                                             <polyline points="20 6 9 17 4 12"/>
                                         </svg>
                                     </div>
                                 )}
                             </div>
-                            <Link
-                                href="/profile/edit"
-                                className="md:hidden flex items-center gap-1.5 text-xs font-semibold text-cp bg-cp-tint border border-cp/20 px-3 py-1.5 rounded-xl"
-                            >
-                                <EditIcon /> Edit
-                            </Link>
+                            {/* Online pill — right-aligned */}
+                            <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+                                Online
+                            </div>
                         </div>
 
-                        <div className="mb-3">
+                        {/* Name + verified checkmark + role badge */}
+                        <div className="mb-1">
                             <div className="flex items-center gap-2 flex-wrap">
                                 <h2
-                                    className="text-lg font-black text-gray-900"
-                                    style={{
-                                        fontFamily:
-                                            "Plus Jakarta Sans, sans-serif",
-                                    }}
+                                    className="text-xl font-black text-gray-900 leading-tight"
+                                    style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                                 >
                                     {displayName}
                                 </h2>
+                                {profileVerified && (
+                                    <svg viewBox="0 0 24 24" fill="var(--cp)" className="w-5 h-5 flex-shrink-0" aria-label="Verified">
+                                        <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                    </svg>
+                                )}
                                 {displayRole === "top_reporter" && (
                                     <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-cp/10 text-cp">
                                         🔥 Top Reporter
                                     </span>
                                 )}
                             </div>
-                            <p className="text-gray-500 text-sm mt-1 leading-relaxed">
-                                {displayBio}
-                            </p>
+                            {/* Level + streak pill row */}
+                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                {gamificationStats && (
+                                    <span className="text-[11px] font-bold text-white bg-cp px-2.5 py-0.5 rounded-full leading-5">
+                                        Lv.{gamificationStats.level} · {gamificationStats.levelName}
+                                    </span>
+                                )}
+                                {(firestoreProfile?.streak || 0) >= 2 && (
+                                    <span className="text-[11px] font-bold text-orange-500 bg-orange-50 border border-orange-100 px-2 py-0.5 rounded-full leading-5">
+                                        🔥 {firestoreProfile.streak}-day streak
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mb-4">
+                        {/* Bio */}
+                        <p
+                            className="text-gray-500 text-sm leading-relaxed mt-2.5 mb-3"
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                        >
+                            {displayBio}
+                        </p>
+
+                        {/* Meta chips */}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-gray-400 mb-4">
                             <span className="flex items-center gap-1">
-                                <LocationIcon />
-                                {displayLoc}
+                                <LocationIcon /> {displayLoc}
                             </span>
                             <span className="flex items-center gap-1">
                                 <CalendarIcon />
@@ -1224,15 +1258,6 @@ export default function ProfilePage() {
                                     year: "numeric",
                                 })}
                             </span>
-                            <span className="text-emerald-600 font-semibold flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                                Online
-                            </span>
-                            {(firestoreProfile?.streak || 0) >= 2 && (
-                                <span className="flex items-center gap-1 font-bold text-orange-500">
-                                    🔥 {firestoreProfile.streak}-day streak
-                                </span>
-                            )}
                             {firestoreProfile?.platoon && (
                                 <Link
                                     href="/platoons"
@@ -1243,31 +1268,24 @@ export default function ProfilePage() {
                             )}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
-                            <StatCard
-                                icon={<span className="text-lg">📋</span>}
-                                value={formatNum(stats.issuesCount)}
-                                label="Posts"
-                                color="orange"
-                            />
-                            <StatCard
-                                icon={<span className="text-lg">👍</span>}
-                                value={formatNum(stats.upvotesReceived)}
-                                label="Likes"
-                                color="green"
-                            />
-                            <StatCard
-                                icon={<span className="text-lg">🏅</span>}
-                                value={formatNum(stats.badgesCount)}
-                                label="Badges"
-                                color="purple"
-                            />
-                            <StatCard
-                                icon={<span className="text-lg">🔥</span>}
-                                value={firestoreProfile?.streak || 0}
-                                label="Day Streak"
-                                color="orange"
-                            />
+                        {/* Stats row — Twitter-style inline */}
+                        <div className="flex items-center gap-5 pt-3 border-t border-subtle flex-wrap">
+                            {[
+                                { value: formatNum(stats.issuesCount), label: "Posts" },
+                                { value: formatNum(stats.upvotesReceived), label: "Likes" },
+                                { value: formatNum(stats.badgesCount), label: "Badges" },
+                                { value: formatNum(gamificationStats?.impactScore || 0), label: "pts" },
+                            ].map((s) => (
+                                <div key={s.label} className="flex items-baseline gap-1">
+                                    <span
+                                        className="text-sm font-black text-gray-900"
+                                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
+                                    >
+                                        {s.value}
+                                    </span>
+                                    <span className="text-xs text-gray-400">{s.label}</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
