@@ -200,18 +200,24 @@ function StatusBadge({ status }) {
 
 function SkeletonCard() {
     return (
-        <div className="bg-card rounded-2xl p-4 border border-[#FED7AA] animate-pulse">
-            <div className="flex items-center justify-between mb-3">
-                <div className="h-5 w-24 bg-muted rounded-full" />
-                <div className="h-4 w-12 bg-muted rounded" />
-            </div>
-            <div className="flex gap-3">
-                <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-muted rounded w-3/4" />
-                    <div className="h-3 bg-muted rounded w-full" />
-                    <div className="h-3 bg-muted rounded w-2/3" />
+        <div className="bg-[color:var(--card-bg)] rounded-2xl p-4 border border-[color:var(--border-subtle)] shadow-sm animate-pulse">
+            <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 bg-muted rounded-full shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                    <div className="h-3 bg-muted rounded-full w-24" />
+                    <div className="h-2.5 bg-muted rounded-full w-16" />
                 </div>
-                <div className="w-14 h-16 bg-muted rounded-xl shrink-0" />
+                <div className="h-5 w-16 bg-muted rounded-full shrink-0" />
+            </div>
+            <div className="space-y-2 mb-3">
+                <div className="h-4 bg-muted rounded w-5/6" />
+                <div className="h-3 bg-muted rounded w-full" />
+                <div className="h-3 bg-muted rounded w-3/4" />
+            </div>
+            <div className="border-t border-[color:var(--border-subtle)] pt-3 flex items-center gap-2">
+                <div className="h-7 w-14 bg-muted rounded-lg" />
+                <div className="h-7 w-14 bg-muted rounded-lg" />
+                <div className="ml-auto h-7 w-10 bg-muted rounded-lg" />
             </div>
         </div>
     );
@@ -432,218 +438,167 @@ const IssueCard = memo(function IssueCard({
 
     return (
         <>
-            <Link href={`/issue/${issue.id}`} className="block">
-                <div className="bg-card rounded-2xl p-3 shadow-card border border-[#FED7AA] hover:shadow-lg hover:border-gray-300 transition-all cursor-pointer relative">
+            <Link href={`/issue/${issue.id}`} className="block group">
+                <article className="relative bg-[color:var(--card-bg)] rounded-2xl border border-[color:var(--border-subtle)] shadow-sm hover:shadow-md hover:border-[color:var(--border)] transition-all duration-200 overflow-hidden cursor-pointer">
                     {rank && (
                         <div
-                            className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white ${rank === 1 ? "bg-gradient-to-br from-yellow-400 to-yellow-600 text-white" : rank === 2 ? "bg-gradient-to-br from-gray-300 to-gray-500 text-white" : rank === 3 ? "bg-cp text-white" : "bg-muted text-gray-600"}`}
+                            className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white z-10 ${rank === 1 ? "bg-gradient-to-br from-yellow-400 to-yellow-600 text-white" : rank === 2 ? "bg-gradient-to-br from-gray-300 to-gray-500 text-white" : rank === 3 ? "bg-gradient-to-br from-orange-400 to-orange-600 text-white" : "bg-white border-gray-200 text-gray-500"}`}
                         >
                             {rank}
                         </div>
                     )}
 
-                    {/* Author row */}
-                    {authorName && (
-                        <div className="flex items-center gap-1.5 mb-1.5">
-                            <div className="relative shrink-0">
-                                {issue.author?.photoURL && !issue.author?.isAnonymous ? (
-                                    <img src={issue.author.photoURL} alt="" className="w-5 h-5 rounded-full object-cover" />
-                                ) : (
-                                    <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center">
-                                        <span className="text-gray-500 text-[8px] font-bold">
-                                            {issue.author?.isAnonymous ? "?" : authorName.charAt(0).toUpperCase()}
+                    <div className="p-4">
+                        {/* Author + meta row */}
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="shrink-0">
+                                    {issue.author?.photoURL && !issue.author?.isAnonymous ? (
+                                        <img src={issue.author.photoURL} alt="" className="w-8 h-8 rounded-full object-cover ring-1 ring-black/5" />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                                            <span className="text-gray-500 text-[11px] font-bold">
+                                                {issue.author?.isAnonymous ? "?" : (authorName || "?").charAt(0).toUpperCase()}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                                {authorName && (
+                                    <div className="min-w-0">
+                                        <span className="text-[12px] font-semibold text-gray-800 block leading-none truncate">
+                                            {authorName}
                                         </span>
+                                        <div className="flex items-center gap-1 mt-0.5">
+                                            {platoonLabel && (
+                                                <span className="text-[10px] text-gray-400">{platoonLabel}</span>
+                                            )}
+                                            {platoonLabel && <span className="text-[10px] text-gray-300">·</span>}
+                                            <span className="text-[10px] text-gray-400">{issue.timeAgo}</span>
+                                        </div>
                                     </div>
                                 )}
                             </div>
-                            <p className="text-xs text-gray-400" style={{ fontFamily: "DM Sans, sans-serif" }}>{authorName}</p>
-                        </div>
-                    )}
-
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                            <span
-                                className={`text-xs font-semibold px-2.5 py-1 rounded-full ${meta.bg} ${meta.color} flex items-center gap-1.5`}
-                            >
-                                <span>{meta.emoji}</span>
-                                {meta.label}
-                            </span>
-                            {issue.isFlagged && (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
-                                    ⚑ Flagged
+                            <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${meta.bg} ${meta.color}`}>
+                                    {meta.emoji} {meta.label}
                                 </span>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                            {issue.pollTimerEnabled && issue.pollDeadline && (() => {
-                                const tl = getTimeLeft(issue.pollDeadline, issue.pollTimerEnabled);
-                                if (!tl) return null;
-                                return (
-                                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 ${tl === "Closed" ? "bg-gray-100 text-gray-400" : "bg-amber-50 text-amber-600 border border-amber-100"}`}>
-                                        ⏱️ {tl}
-                                    </span>
-                                );
-                            })()}
-                            <span className="text-xs text-gray-400" style={{ fontFamily: "DM Sans, sans-serif" }}>
-                                {rank ? `Trending #${rank} · ` : ""}{issue.timeAgo}
-                            </span>
-                        </div>
-                    </div>
-                    <div className="flex gap-3">
-                        <div className="flex-1 min-w-0">
-                            <h3
-                                className="font-bold text-gray-900 text-sm leading-snug mb-1.5"
-                                style={{
-                                    fontFamily: "Plus Jakarta Sans, sans-serif",
-                                }}
-                            >
-                                {issue.title}
-                            </h3>
-                            <p
-                                className="text-xs text-gray-500 leading-relaxed line-clamp-2"
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
-                            >
-                                {issue.description}
-                            </p>
+                                {issue.pollTimerEnabled && issue.pollDeadline && (() => {
+                                    const tl = getTimeLeft(issue.pollDeadline, issue.pollTimerEnabled);
+                                    if (!tl) return null;
+                                    return (
+                                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 ${tl === "Closed" ? "bg-gray-100 text-gray-400" : "bg-amber-50 text-amber-600 border border-amber-100"}`}>
+                                            ⏱ {tl}
+                                        </span>
+                                    );
+                                })()}
+                            </div>
                         </div>
 
-                        {/* Vote buttons: Disalike (top) + Like (bottom) */}
+                        {/* Title */}
+                        <h3
+                            className="font-bold text-gray-900 text-[15px] leading-snug mb-1.5"
+                            style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
+                        >
+                            {issue.title}
+                        </h3>
+
+                        {/* Description */}
+                        <p
+                            className="text-[13px] text-gray-500 leading-relaxed line-clamp-2"
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                        >
+                            {issue.description}
+                        </p>
+
+                        {/* Tags row */}
+                        {(issue.isFlagged || issue.status || issue.locationTag?.label) && (
+                            <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
+                                {issue.isFlagged && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                                        ⚑ Flagged
+                                    </span>
+                                )}
+                                <StatusBadge status={issue.status} />
+                                {issue.locationTag?.label && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            const url = issue.locationTag.lat
+                                                ? `https://maps.google.com/?q=${issue.locationTag.lat},${issue.locationTag.lng}`
+                                                : `https://maps.google.com/?q=${encodeURIComponent(issue.locationTag.label)}`;
+                                            window.open(url, "_blank", "noopener,noreferrer");
+                                        }}
+                                        className="flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors cursor-pointer"
+                                    >
+                                        📍 {issue.locationTag.label}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Engagement footer */}
                         <div
-                            className="shrink-0 space-y-1.5"
+                            className="flex items-center gap-0.5 mt-3 pt-3 border-t border-[color:var(--border-subtle)]"
                             onClick={(e) => e.preventDefault()}
                         >
-                            {/* Disalike button */}
-                            <button
-                                onClick={handleDownvote}
-                                disabled={downvoteLoading || upvoted}
-                                title={
-                                    upvoted
-                                        ? "Remove your like first"
-                                        : "Dislike this post"
-                                }
-                                className={`flex flex-col items-center gap-0.5 w-12 h-12 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
-                                    downvoted
-                                        ? "border-red-500 bg-red-50"
-                                        : isAnonymous || upvoted
-                                          ? "border-theme bg-subtle"
-                                          : "border-red-200 bg-white hover:border-red-400 hover:bg-red-50"
-                                }`}
-                            >
-                                <span className="mt-2">
-                                    <DownvoteIcon active={downvoted} />
-                                </span>
-                                <span
-                                    className={`text-sm font-bold ${
-                                        downvoted
-                                            ? "text-red-600"
-                                            : "text-red-400"
-                                    }`}
-                                >
-                                    {formatUpvotes(downvoteCount)}
-                                </span>
-                            </button>
-
-                            {/* Support button */}
                             <button
                                 onClick={handleUpvote}
                                 disabled={loading || downvoted}
-                                title={
-                                    downvoted
-                                        ? "Remove your dislike first"
-                                        : "Like this post"
-                                }
-                                className={`flex flex-col items-center gap-0.5 w-12 h-12 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
+                                title={downvoted ? "Remove your dislike first" : "Like this post"}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-40 text-[12px] font-semibold ${
                                     upvoted
-                                        ? "border-green-500 bg-green-50"
-                                        : isAnonymous || downvoted
-                                          ? "border-theme bg-subtle"
-                                          : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50"
+                                        ? "bg-green-50 text-green-600"
+                                        : "text-gray-400 hover:bg-green-50 hover:text-green-600"
                                 }`}
                             >
-                                <span className="mt-2">
-                                    <UpvoteIcon active={upvoted} />
-                                </span>
-                                <span
-                                    className={`text-sm font-bold ${
-                                        upvoted
-                                            ? "text-green-600"
-                                            : isAnonymous
-                                              ? "text-gray-400"
-                                              : "text-green-600"
-                                    }`}
-                                >
-                                    {formatUpvotes(count)}
-                                </span>
+                                <UpvoteIcon active={upvoted} />
+                                {formatUpvotes(count)}
                             </button>
-                        </div>
-                    </div>
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-subtle">
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <span
-                                className="flex items-center gap-1 text-xs text-black"
-                                style={{
-                                    fontFamily: "DM Sans, sans-serif",
-                                }}
-                            >
-                                <PlatoonIcon />
-                                {platoonLabel}
-                            </span>
 
-                            <StatusBadge status={issue.status} />
-
-                            {issue.locationTag?.label && (
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        const url = issue.locationTag.lat
-                                            ? `https://maps.google.com/?q=${issue.locationTag.lat},${issue.locationTag.lng}`
-                                            : `https://maps.google.com/?q=${encodeURIComponent(issue.locationTag.label)}`;
-                                        window.open(url, "_blank", "noopener,noreferrer");
-                                    }}
-                                    className="flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors cursor-pointer"
-                                >
-                                    📍 {issue.locationTag.label}
-                                </button>
-                            )}
-                        </div>
-                        <button
-                            className="flex items-center gap-1.5 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                            onClick={(e) => e.preventDefault()}
-                        >
-                            <CommentIcon />
-                            <span
-                                className="text-xs font-semibold"
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            <button
+                                onClick={handleDownvote}
+                                disabled={downvoteLoading || upvoted}
+                                title={upvoted ? "Remove your like first" : "Dislike this post"}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-40 text-[12px] font-semibold ${
+                                    downvoted
+                                        ? "bg-red-50 text-red-500"
+                                        : "text-gray-400 hover:bg-red-50 hover:text-red-500"
+                                }`}
                             >
-                                {issue.commentCount}
-                            </span>
-                        </button>
-                    </div>
-                    {avatarCount > 0 && (
-                        <div className="flex items-center gap-2 mt-2.5">
-                            <div className="flex items-center">
-                                {AVATAR_LETTERS.slice(0, avatarCount).map(
-                                    (a, i) => (
+                                <DownvoteIcon active={downvoted} />
+                                {formatUpvotes(downvoteCount)}
+                            </button>
+
+                            <div className="flex-1" />
+
+                            <div className="flex items-center gap-1.5 px-2 text-gray-400">
+                                <CommentIcon />
+                                <span className="text-[12px] font-semibold">{issue.commentCount}</span>
+                            </div>
+                        </div>
+
+                        {/* Social proof */}
+                        {avatarCount > 0 && (
+                            <div className="flex items-center gap-2 mt-2">
+                                <div className="flex items-center">
+                                    {AVATAR_LETTERS.slice(0, avatarCount).map((a, i) => (
                                         <div
                                             key={i}
-                                            className={`w-6 h-6 rounded-full ${avatarColors[i % avatarColors.length]} border-2 border-white flex items-center justify-center text-white text-[9px] font-bold -ml-1.5 first:ml-0`}
+                                            className={`w-5 h-5 rounded-full ${avatarColors[i % avatarColors.length]} border-2 border-white flex items-center justify-center text-white text-[8px] font-bold -ml-1.5 first:ml-0`}
                                         >
                                             {a}
                                         </div>
-                                    ),
-                                )}
+                                    ))}
+                                </div>
+                                <span className="text-[11px] text-gray-400">
+                                    {count} {count === 1 ? "like" : "likes"}
+                                </span>
                             </div>
-                            <span
-                                className="text-xs text-gray-400"
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
-                            >
-                                {count} {count === 1 ? "like" : "likes"}
-                            </span>
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
+                </article>
             </Link>
             <LoginPromptModal
                 isOpen={showLoginPrompt}

@@ -441,7 +441,7 @@ export default function Navbar() {
                             {userData?.verified && (
                                 <div
                                     className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center border-2 border-white"
-                                    style={{ background: "var(--cp)" }}
+                                    style={{ background: "#1D9BF0" }}
                                     title="Verified corper"
                                 >
                                     <svg viewBox="0 0 16 16" fill="white" className="w-2 h-2">
@@ -454,7 +454,7 @@ export default function Navbar() {
                             <div className="flex-1 min-w-0">
                                 <div className="text-[12px] font-semibold text-gray-800 truncate leading-none flex items-center gap-1">
                                     {userData?.name || "Loading..."}
-                                    {userData?.streak >= 3 && (
+                                    {userData?.streak >= 1 && (
                                         <span className="text-[10px]" title={`${userData.streak}-day streak`}>
                                             🔥{userData.streak}
                                         </span>
@@ -465,7 +465,7 @@ export default function Navbar() {
                                 </div>
                             </div>
                         )}
-                        {collapsed && userData?.streak >= 3 && (
+                        {collapsed && userData?.streak >= 1 && (
                             <span className="absolute right-1 top-1 text-[9px] leading-none" title={`${userData.streak}-day streak`}>🔥</span>
                         )}
                     </div>
@@ -496,15 +496,19 @@ export default function Navbar() {
             ════════════════════════════════════ */}
             <nav
                 aria-label="Tab bar navigation"
-                className={`md:hidden fixed bottom-0 left-0 right-0 bg-nav border-t border-subtle z-50 ${pathname.startsWith("/chat") ? "hidden" : ""}`}
+                className={`md:hidden fixed bottom-0 left-0 right-0 z-50 ${pathname.startsWith("/chat") ? "hidden" : ""}`}
                 style={{
-                    boxShadow: "0 -1px 0 #F3F4F6, 0 -4px 20px rgba(0,0,0,0.06)",
+                    background: "rgba(255,255,255,0.88)",
+                    backdropFilter: "blur(20px) saturate(180%)",
+                    WebkitBackdropFilter: "blur(20px) saturate(180%)",
+                    borderTop: "1px solid rgba(0,0,0,0.06)",
+                    boxShadow: "0 -1px 0 rgba(0,0,0,0.04), 0 -8px 32px rgba(0,0,0,0.06)",
                 }}
             >
                 <div
-                    className="flex items-center justify-around px-1"
+                    className="flex items-center justify-around px-2"
                     style={{
-                        height: 60,
+                        height: 64,
                         paddingBottom: "env(safe-area-inset-bottom, 0px)",
                     }}
                 >
@@ -521,16 +525,16 @@ export default function Navbar() {
                                     key={href}
                                     href={href}
                                     className="flex items-center justify-center"
-                                    style={{ marginTop: -22 }}
+                                    style={{ marginTop: -24 }}
                                     aria-label="Post to Camp"
                                 >
                                     <div
                                         className="flex items-center justify-center active:scale-95 transition-transform rounded-full"
                                         style={{
-                                            width: 50,
-                                            height: 50,
-                                            background: cp,
-                                            boxShadow: `0 4px 16px var(--cp-glow), 0 1px 4px var(--cp-glow)`,
+                                            width: 52,
+                                            height: 52,
+                                            background: `linear-gradient(135deg, var(--cp-deeper), var(--cp))`,
+                                            boxShadow: `0 6px 20px var(--cp-glow), 0 2px 6px rgba(0,0,0,0.12)`,
                                         }}
                                     >
                                         <PlusIcon />
@@ -545,13 +549,19 @@ export default function Navbar() {
                                 href={href}
                                 aria-label={label}
                                 aria-current={active ? "page" : undefined}
-                                className="flex flex-col items-center gap-0.75 px-3 py-1.5"
+                                className="flex flex-col items-center gap-1 px-3 py-1.5 relative"
                             >
-                                <div style={active ? { color: cp } : { color: "#9CA3AF" }}>
+                                {active && (
+                                    <div
+                                        className="absolute inset-x-1 top-0.5 bottom-0.5 rounded-xl"
+                                        style={{ background: "var(--cp-light)" }}
+                                    />
+                                )}
+                                <div className="relative" style={active ? { color: cp } : { color: "#9CA3AF" }}>
                                     {Icon && <Icon active={active} cp={cp} />}
                                 </div>
                                 <span
-                                    className="text-[9.5px] font-semibold tracking-wide leading-none"
+                                    className="relative text-[9px] font-bold tracking-wide leading-none"
                                     style={{
                                         fontFamily: "DM Sans, sans-serif",
                                         ...(active ? { color: cp } : { color: "#9CA3AF" }),
