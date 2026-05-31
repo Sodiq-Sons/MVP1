@@ -58,7 +58,7 @@ export default function ThemeToggler() {
 
             {/* ── Pill handle ── */}
             <button
-                onClick={() => setOpen((v) => !v)}
+                onPointerDown={(e) => { e.preventDefault(); setOpen((v) => !v); }}
                 aria-label="Toggle theme picker"
                 className="flex flex-col items-center justify-center gap-1.5 shadow-lg cursor-pointer no-theme-transition"
                 style={{
@@ -68,6 +68,10 @@ export default function ThemeToggler() {
                     border: "none",
                     borderRadius: 9999,
                     flexShrink: 0,
+                    touchAction: "manipulation",
+                    WebkitTouchCallout: "none",
+                    WebkitUserSelect: "none",
+                    userSelect: "none",
                 }}
             >
                 {themes.map((t) => (
