@@ -223,8 +223,8 @@ function UserProfileCard({ user }) {
                         {user.isVerified && (
                             <div
                                 className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center"
-                                style={{ background: "var(--cp)" }}
-                                title="Profile complete"
+                                style={{ background: "#1D9BF0" }}
+                                title="Verified"
                             >
                                 <svg viewBox="0 0 16 16" fill="white" className="w-2 h-2">
                                     <path d="M13 3.5 6.5 10 3 6.5l-1 1L6.5 12 14 4.5z" />

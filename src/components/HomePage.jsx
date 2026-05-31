@@ -820,46 +820,49 @@ export default function HomePage() {
             style={{ background: "var(--bg)" }}
         >
             {/* Mobile Header */}
-            <header className="md:hidden sticky top-0 z-40 px-4 pt-6 pb-4" style={{ background: "var(--header-bg)" }}>
-                <div className="flex items-center justify-between">
-                    <div className="flex space-x-2 min-w-0 relative z-10 overflow-hidden">
-                        <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center shrink-0 relative z-10">
-                            <span className="text-white text-[17px] leading-none select-none">
-                                ✊
-                            </span>
+            <header
+                className="md:hidden sticky top-0 z-40 overflow-hidden"
+                style={{
+                    background: "linear-gradient(135deg, var(--cp-deeper) 0%, var(--cp) 100%)",
+                    boxShadow: "0 4px 24px var(--cp-glow)",
+                }}
+            >
+                {/* Dot-grid pattern overlay */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px)",
+                        backgroundSize: "20px 20px",
+                    }}
+                />
+                <div className="relative flex items-center justify-between px-4 py-3.5">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 bg-white/25 backdrop-blur-sm rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+                            <span className="text-white text-[17px] leading-none select-none">✊</span>
                         </div>
-
                         <div>
-                            <div
-                                className="text-white font-bold text-[13.5px] leading-tight truncate block space-y-1"
-                                style={{
-                                    fontFamily: "Plus Jakarta Sans, sans-serif",
-                                }}
-                            >
-                                Camp Connect 🏕️
+                            <div className="text-white font-extrabold text-[14px] leading-none" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
+                                Camp Connect
                             </div>
+                            <div className="text-white/60 text-[10px] font-medium mt-0.5">Be the voice. Drive the change.</div>
                         </div>
                     </div>
-
-                    <div className="gap-2 flex">
-                        <div className="flex items-center gap-1.5 bg-white/20 rounded-full px-3 py-1.5">
-                            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                            <span className="text-white text-xs font-semibold">
-                                {onlineCampers}
-                            </span>
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm border border-white/20 rounded-full px-2.5 py-1">
+                            <span className="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse" />
+                            <span className="text-white text-[11px] font-semibold">{onlineCampers} online</span>
                         </div>
-
                         {isAnonymous ? (
                             <Link
                                 href="/login"
-                                className="px-4 py-2 bg-white rounded-xl font-bold text-sm hover:bg-white/90 transition-colors"
-                                style={{ fontFamily: "DM Sans, sans-serif", color: "var(--cp)" }}
+                                className="px-3 py-1.5 bg-white rounded-full font-bold text-[12px] shadow-sm"
+                                style={{ color: "var(--cp)", fontFamily: "DM Sans, sans-serif" }}
                             >
                                 Login
                             </Link>
                         ) : (
-                            <Link href="/profile" className="relative">
-                                <div className="w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-cp-tint flex items-center justify-center">
+                            <Link href="/profile">
+                                <div className="w-8 h-8 rounded-full border-2 border-white/50 overflow-hidden bg-white/20 flex items-center justify-center shadow-sm">
                                     {userProfile?.photoURL
                                         ? <img src={userProfile.photoURL} alt="" className="w-full h-full object-cover" />
                                         : <span className="text-white text-xs font-bold">{displayName.charAt(0).toUpperCase()}</span>
@@ -875,44 +878,39 @@ export default function HomePage() {
             <div className="hidden md:flex items-center justify-between px-6 pt-8 pb-0">
                 <div>
                     <h1
-                        className="text-2xl font-bold text-gray-900"
+                        className="text-[28px] font-extrabold text-gray-900 leading-none"
                         style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                     >
-                        Post Feed
+                        Camp Feed
                     </h1>
-                    <p className="text-gray-500 text-sm mt-0.5">
-                        Posts from across Camps
+                    <p className="text-gray-400 text-sm mt-1.5 font-medium">
+                        What&apos;s happening across all camps
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
                     {isAnonymous ? (
                         <Link
                             href="/login"
-                            className="flex items-center gap-2 px-5 py-2.5 text-white rounded-xl font-bold text-sm transition-colors shadow-sm"
-                            style={{ background: "var(--cp)", fontFamily: "DM Sans, sans-serif" }}
+                            className="flex items-center gap-2 px-5 py-2.5 text-white rounded-xl font-bold text-sm transition-all shadow-sm hover:shadow-md active:scale-95"
+                            style={{ background: "linear-gradient(135deg, var(--cp-deeper), var(--cp))", fontFamily: "DM Sans, sans-serif" }}
                         >
                             <UserIcon />
-                            Login
+                            Sign In
                         </Link>
                     ) : (
-                        <Link href="/profile" className="flex items-center gap-2.5 bg-white rounded-xl px-3 py-2 shadow-sm border border-subtle hover:border-cp/30 transition-colors">
-                            <div className="w-8 h-8 rounded-full bg-cp overflow-hidden flex items-center justify-center text-white text-sm font-bold">
+                        <Link href="/profile" className="flex items-center gap-2.5 bg-white rounded-xl px-3 py-2 shadow-sm border border-[color:var(--border-subtle)] hover:shadow-md transition-all">
+                            <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-white text-sm font-bold" style={{ background: "var(--cp)" }}>
                                 {userProfile?.photoURL
                                     ? <img src={userProfile.photoURL} alt="" className="w-full h-full object-cover" />
                                     : displayName.charAt(0).toUpperCase()
                                 }
                             </div>
                             <div>
-                                <div
-                                    className="text-sm font-semibold text-gray-800 leading-none"
-                                    style={{
-                                        fontFamily: "DM Sans, sans-serif",
-                                    }}
-                                >
+                                <div className="text-sm font-semibold text-gray-800 leading-none" style={{ fontFamily: "DM Sans, sans-serif" }}>
                                     {displayName}
                                 </div>
-                                <div className="text-xs text-gray-400 mt-0.5">
-                                    {displayPlatoon ? displayPlatoon : "No Platoon"}
+                                <div className="text-[11px] text-gray-400 mt-0.5">
+                                    {displayPlatoon || "No Platoon"}
                                 </div>
                             </div>
                         </Link>
@@ -921,18 +919,15 @@ export default function HomePage() {
             </div>
 
             {/* Mobile Greeting */}
-            <div className="md:hidden px-4 pt-5 pb-2">
+            <div className="md:hidden px-4 pt-5 pb-1">
                 <h1
-                    className="text-2xl font-bold text-gray-900"
+                    className="text-[22px] font-extrabold text-gray-900 leading-tight"
                     style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                 >
-                    Hello, {displayName} 👋
+                    Hey, {displayName} 👋
                 </h1>
-                <p
-                    className="text-gray-500 text-sm mt-0.5"
-                    style={{ fontFamily: "DM Sans, sans-serif" }}
-                >
-                    Be the voice. Drive the change.
+                <p className="text-gray-400 text-sm mt-0.5 font-medium" style={{ fontFamily: "DM Sans, sans-serif" }}>
+                    What&apos;s happening at camp today?
                 </p>
             </div>
 
@@ -994,63 +989,52 @@ export default function HomePage() {
             )}
 
             {/* Desktop Greeting */}
-            <div className="hidden md:block px-6 mt-4">
-                <div className="bg-card rounded-2xl p-4 shadow-card border border-subtle flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-cp flex items-center justify-center text-white text-xl font-bold overflow-hidden">
-                        {userProfile?.photoURL
-                            ? <img src={userProfile.photoURL} alt="" className="w-full h-full object-cover" />
-                            : displayName.charAt(0).toUpperCase()
-                        }
-                    </div>
-                    <div>
-                        <h2
-                            className="text-lg font-bold text-gray-900"
-                            style={{
-                                fontFamily: "Plus Jakarta Sans, sans-serif",
-                            }}
-                        >
-                            Hello, {displayName} 👋
-                        </h2>
-                    </div>
-                    <div className="ml-auto flex gap-6 text-center">
-                        <div>
-                            <div
-                                className="text-lg font-bold"
-                                style={{ color: "var(--cp)", fontFamily: "Plus Jakarta Sans, sans-serif" }}
-                            >
-                                {issues.length}
-                            </div>
-                            <div className="text-xs text-gray-400">Posts</div>
+            <div className="hidden md:block px-6 mt-6">
+                <div
+                    className="rounded-2xl p-5 relative overflow-hidden"
+                    style={{
+                        background: "linear-gradient(135deg, var(--cp-deeper) 0%, var(--cp) 60%, color-mix(in srgb, var(--cp) 80%, #FFB347) 100%)",
+                        boxShadow: "0 8px 32px var(--cp-glow)",
+                    }}
+                >
+                    {/* Pattern */}
+                    <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                            backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px)",
+                            backgroundSize: "24px 24px",
+                        }}
+                    />
+                    {/* Glow blob */}
+                    <div className="absolute -top-8 -right-8 w-48 h-48 rounded-full pointer-events-none" style={{ background: "rgba(255,255,255,0.08)" }} />
+                    <div className="relative flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white text-xl font-bold overflow-hidden shadow-sm shrink-0">
+                            {userProfile?.photoURL
+                                ? <img src={userProfile.photoURL} alt="" className="w-full h-full object-cover" />
+                                : displayName.charAt(0).toUpperCase()
+                            }
                         </div>
-                        <div>
-                            <div
-                                className="text-lg font-bold text-green-600 flex items-center gap-1 justify-center"
-                                style={{
-                                    fontFamily: "Plus Jakarta Sans, sans-serif",
-                                }}
-                            >
-                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                                {onlineCampers}
-                            </div>
-                            <div className="text-xs text-gray-400">
-                                Campers Online
-                            </div>
+                        <div className="min-w-0">
+                            <h2 className="text-lg font-extrabold text-white leading-none" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
+                                Hello, {displayName} 👋
+                            </h2>
+                            <p className="text-white/65 text-sm mt-1" style={{ fontFamily: "DM Sans, sans-serif" }}>
+                                Be the voice. Drive the change.
+                            </p>
                         </div>
-                        <div>
-                            <div
-                                className="text-lg font-bold text-[#16A34A]"
-                                style={{
-                                    fontFamily: "Plus Jakarta Sans, sans-serif",
-                                }}
-                            >
-                                {issues.reduce(
-                                    (sum, i) => sum + (i.totalVotes || 0),
-                                    0,
-                                )}
-                            </div>
-                            <div className="text-xs text-gray-400">
-                                Total Votes
-                            </div>
+                        <div className="ml-auto flex items-center gap-1 shrink-0">
+                            {[
+                                { value: issues.length, label: "Posts" },
+                                { value: <span className="flex items-center gap-1 justify-center"><span className="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse" />{onlineCampers}</span>, label: "Online" },
+                                { value: issues.reduce((s, i) => s + (i.totalVotes || 0), 0), label: "Votes" },
+                            ].map((stat, i) => (
+                                <div key={i} className="text-center px-4 py-2">
+                                    <div className="text-xl font-extrabold text-white leading-none" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
+                                        {stat.value}
+                                    </div>
+                                    <div className="text-white/60 text-[11px] font-medium mt-0.5">{stat.label}</div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -1068,9 +1052,9 @@ export default function HomePage() {
                         onChange={(e) => { setSearch(e.target.value); setShowSuggestions(true); }}
                         onFocus={() => setShowSuggestions(true)}
                         onKeyDown={(e) => e.key === "Escape" && setShowSuggestions(false)}
-                        placeholder="Search posts, platoon no..."
-                        className="w-full bg-white rounded-xl pl-9 pr-4 py-3 text-sm text-black placeholder-gray-400 border border-subtle shadow-card focus:outline-none focus:ring-2 transition-all"
-                        style={{ "--tw-ring-color": "var(--cp-border)", fontFamily: "DM Sans, sans-serif" }}
+                        placeholder="Search posts, platoon..."
+                        className="w-full bg-[color:var(--card-bg)] rounded-xl pl-9 pr-4 py-3 text-sm text-gray-800 placeholder-gray-400 border border-[color:var(--border-subtle)] shadow-sm focus:outline-none focus:border-[color:var(--cp)] focus:shadow-md transition-all"
+                        style={{ fontFamily: "DM Sans, sans-serif" }}
                     />
                     {showSuggestions && suggestions.length > 0 && (
                         <div className="absolute top-full left-0 right-0 mt-1.5 bg-card rounded-xl border border-subtle shadow-lg z-50 overflow-hidden">
@@ -1103,7 +1087,7 @@ export default function HomePage() {
                 </div>
                 <button
                     onClick={cycleSort}
-                    className="h-11 bg-white rounded-xl flex items-center gap-1.5 px-3 shadow-card border border-subtle hover:bg-subtle transition-colors text-black shrink-0 self-center cursor-pointer"
+                    className="h-11 bg-[color:var(--card-bg)] rounded-xl flex items-center gap-1.5 px-3 shadow-sm border border-[color:var(--border-subtle)] hover:shadow-md hover:border-[color:var(--border)] transition-all text-gray-700 shrink-0 self-center cursor-pointer"
                     style={{ fontFamily: "DM Sans, sans-serif" }}
                 >
                     <SortIcon />
@@ -1120,8 +1104,15 @@ export default function HomePage() {
                         <button
                             key={f.key}
                             onClick={() => setActiveFilter(f.key)}
-                            className={`shrink-0 snap-start px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${activeFilter === f.key ? "text-white shadow-sm" : "bg-white text-black border border-theme"}`}
-                            style={{ fontFamily: "DM Sans, sans-serif", ...(activeFilter === f.key ? { background: "var(--cp)" } : {}) }}
+                            className={`shrink-0 snap-start px-4 py-2 rounded-full text-[13px] font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
+                                activeFilter === f.key
+                                    ? "text-white shadow-md"
+                                    : "bg-[color:var(--card-bg)] text-gray-600 border border-[color:var(--border-subtle)] hover:border-[color:var(--border)] hover:shadow-sm"
+                            }`}
+                            style={{
+                                fontFamily: "DM Sans, sans-serif",
+                                ...(activeFilter === f.key ? { background: "linear-gradient(135deg, var(--cp-deeper), var(--cp))" } : {}),
+                            }}
                         >
                             {f.label}
                         </button>
