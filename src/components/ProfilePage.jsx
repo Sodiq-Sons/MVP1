@@ -220,16 +220,16 @@ const LockIcon = () => (
 
 // ─── Level Configuration ──────────────────────────────────────────────────────
 const LEVELS = [
-    { level: 1, name: "New Voice", min: 0, max: 100 },
-    { level: 2, name: "Active Citizen", min: 100, max: 300 },
-    { level: 3, name: "Community Voice", min: 300, max: 600 },
-    { level: 4, name: "Local Leader", min: 600, max: 1000 },
-    { level: 5, name: "Change Maker", min: 1000, max: 1500 },
-    { level: 6, name: "Community Champion", min: 1500, max: 2500 },
-    { level: 7, name: "City Influencer", min: 2500, max: 4000 },
-    { level: 8, name: "State Ambassador", min: 4000, max: 6000 },
-    { level: 9, name: "National Voice", min: 6000, max: 10000 },
-    { level: 10, name: "Legendary Citizen", min: 10000, max: Infinity },
+    { level: 1,  name: "New Voice",          min: 0,     max: 100,      medal: "🌱" },
+    { level: 2,  name: "Active Citizen",      min: 100,   max: 300,      medal: "🥉" },
+    { level: 3,  name: "Community Voice",     min: 300,   max: 600,      medal: "🎖️" },
+    { level: 4,  name: "Local Leader",        min: 600,   max: 1000,     medal: "🥈" },
+    { level: 5,  name: "Change Maker",        min: 1000,  max: 1500,     medal: "🥇" },
+    { level: 6,  name: "Community Champion",  min: 1500,  max: 2500,     medal: "🏆" },
+    { level: 7,  name: "City Influencer",     min: 2500,  max: 4000,     medal: "💎" },
+    { level: 8,  name: "State Ambassador",    min: 4000,  max: 6000,     medal: "👑" },
+    { level: 9,  name: "National Voice",      min: 6000,  max: 10000,    medal: "⭐" },
+    { level: 10, name: "Legendary Citizen",   min: 10000, max: Infinity, medal: "🔱" },
 ];
 
 // ─── Badges Configuration ─────────────────────────────────────────────────────
@@ -397,7 +397,7 @@ function LevelProgress({ stats }) {
             <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
                     <div className="text-xs font-semibold text-white/70">
-                        Level {stats.level} • {stats.levelName}
+                        {LEVELS.find((l) => l.level === stats.level)?.medal} Level {stats.level} • {stats.levelName}
                     </div>
                     <div className="text-xs font-bold text-white/90">
                         {stats.impactScore} pts
@@ -951,7 +951,7 @@ export default function ProfilePage() {
     // Streak is only "alive" if the user was active today or yesterday
     const _todayStr = new Date().toISOString().slice(0, 10);
     const _yestStr  = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })();
-    const isStreakActive = (firestoreProfile?.streak || 0) >= 2 &&
+    const isStreakActive = (firestoreProfile?.streak || 0) >= 1 &&
         (firestoreProfile?.lastActivityDate === _todayStr || firestoreProfile?.lastActivityDate === _yestStr);
 
     const tabs = [
@@ -1192,7 +1192,7 @@ export default function ProfilePage() {
                                 {profileVerified && (
                                     <div
                                         className="absolute bottom-1 right-0 w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm"
-                                        style={{ background: "var(--cp)" }}
+                                        style={{ background: "#1D9BF0" }}
                                         title="Profile complete"
                                     >
                                         <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" className="w-3 h-3">
@@ -1218,7 +1218,7 @@ export default function ProfilePage() {
                                     {displayName}
                                 </h2>
                                 {profileVerified && (
-                                    <svg viewBox="0 0 24 24" fill="var(--cp)" className="w-5 h-5 flex-shrink-0" aria-label="Verified">
+                                    <svg viewBox="0 0 24 24" fill="#1D9BF0" className="w-5 h-5 flex-shrink-0" aria-label="Verified">
                                         <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
                                     </svg>
                                 )}
@@ -1232,7 +1232,7 @@ export default function ProfilePage() {
                             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                 {gamificationStats && (
                                     <span className="text-[11px] font-bold text-white bg-cp px-2.5 py-0.5 rounded-full leading-5">
-                                        Lv.{gamificationStats.level} · {gamificationStats.levelName}
+                                        {LEVELS.find((l) => l.level === gamificationStats.level)?.medal} Lv.{gamificationStats.level} · {gamificationStats.levelName}
                                     </span>
                                 )}
                                 {isStreakActive && (
