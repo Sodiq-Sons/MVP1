@@ -4,7 +4,13 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 function todayStr() {
-    return new Date().toISOString().slice(0, 10);
+    return new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+}
+
+function yesterdayStr() {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
 }
 
 export async function GET(request) {
@@ -16,19 +22,40 @@ export async function GET(request) {
     const adminDb = getAdminDb();
     const adminMessaging = getAdminMessaging();
     const today = todayStr();
+    const yesterday = yesterdayStr();
 
-    // Fetch users with an active streak
-    const snap = await adminDb.collection("users").where("streak", ">", 0).get();
+    // ── Step 1: Reset streaks for users who missed yesterday ──────────────────
+    // A streak is alive only if lastActivityDate is today OR yesterday.
+    // Anyone with lastActivityDate < yesterday has broken their streak.
+    const allStreakSnap = await adminDb
+        .collection("users")
+        .where("streak", ">", 0)
+        .get();
 
-    const toNotify = snap.docs
-        .map((d) => ({ uid: d.id, ...d.data() }))
-        .filter((u) => u.fcmToken && u.lastActivityDate !== today);
+    const resets = [];
+    const toNotify = [];
 
-    if (toNotify.length === 0) {
-        return NextResponse.json({ sent: 0, total: 0 });
+    for (const d of allStreakSnap.docs) {
+        const u = { uid: d.id, ref: d.ref, ...d.data() };
+        const last = u.lastActivityDate ?? null;
+
+        if (!last || (last !== today && last !== yesterday)) {
+            // Streak is dead — reset it
+            resets.push(d.ref);
+        } else if (last !== today && u.fcmToken) {
+            // Active streak, hasn't logged in yet today — send reminder
+            toNotify.push(u);
+        }
     }
 
-    // FCM sendEach limit is 500
+    // Commit resets in batches of 500
+    for (let i = 0; i < resets.length; i += 500) {
+        const batch = adminDb.batch();
+        resets.slice(i, i + 500).forEach((ref) => batch.update(ref, { streak: 0 }));
+        await batch.commit();
+    }
+
+    // ── Step 2: Send streak-reminder push to at-risk users ────────────────────
     let sent = 0;
     for (let i = 0; i < toNotify.length; i += 500) {
         const chunk = toNotify.slice(i, i + 500);
@@ -53,7 +80,7 @@ export async function GET(request) {
         const result = await adminMessaging.sendEach(messages);
         sent += result.successCount;
 
-        // Remove stale tokens
+        // Clear stale tokens
         result.responses.forEach((resp, idx) => {
             if (resp.error?.code === "messaging/registration-token-not-registered") {
                 adminDb
@@ -65,5 +92,9 @@ export async function GET(request) {
         });
     }
 
-    return NextResponse.json({ sent, total: toNotify.length });
+    return NextResponse.json({
+        reset: resets.length,
+        reminded: toNotify.length,
+        sent,
+    });
 }

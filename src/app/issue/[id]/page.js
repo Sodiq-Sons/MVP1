@@ -1156,6 +1156,19 @@ function ReplyForm({
                     commentId: newReplyRef.id,
                     commentPreview: text.trim(),
                 });
+                currentUser.getIdToken().then((token) =>
+                    fetch("/api/notify", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({
+                            recipientId: replyingToUserId,
+                            type: "reply",
+                            actorName,
+                            issueId,
+                            issueTitle,
+                        }),
+                    })
+                ).catch(() => {});
             }
             // Notify @mentioned users in the reply text
             const replyCache = replyUserCache.current || [];
@@ -1175,6 +1188,19 @@ function ReplyForm({
                             commentId: newReplyRef.id,
                             commentPreview: text.trim(),
                         }).catch(() => {});
+                        currentUser.getIdToken().then((token) =>
+                            fetch("/api/notify", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                body: JSON.stringify({
+                                    recipientId: u.uid,
+                                    type: "mention",
+                                    actorName,
+                                    issueId,
+                                    issueTitle,
+                                }),
+                            })
+                        ).catch(() => {});
                     }
                 }
             }
@@ -2376,6 +2402,19 @@ export default function IssueDetailPage({ params }) {
                     commentId: newCommentRef.id,
                     commentPreview: originalText.trim(),
                 });
+                currentUser.getIdToken().then((token) =>
+                    fetch("/api/notify", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({
+                            recipientId: issue.author.uid,
+                            type: "comment",
+                            actorName: currentUser?.displayName || currentUser?.email?.split("@")[0] || "Corper",
+                            issueId: id,
+                            issueTitle: issue.title,
+                        }),
+                    })
+                ).catch(() => {});
             }
             // Notify @mentioned users
             const cache = userCacheRef.current || [];
@@ -2395,6 +2434,19 @@ export default function IssueDetailPage({ params }) {
                             commentId: newCommentRef.id,
                             commentPreview: originalText.trim(),
                         }).catch(() => {});
+                        currentUser.getIdToken().then((token) =>
+                            fetch("/api/notify", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                body: JSON.stringify({
+                                    recipientId: u.uid,
+                                    type: "mention",
+                                    actorName: currentUser?.displayName || currentUser?.email?.split("@")[0] || "Corper",
+                                    issueId: id,
+                                    issueTitle: issue.title,
+                                }),
+                            })
+                        ).catch(() => {});
                     }
                 }
             }

@@ -1,6 +1,7 @@
 import { getAdminDb, getAdminAuth } from "@/lib/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
 import { awardPointsAdmin } from "@/lib/gamificationAdmin";
+import { sendPushAdmin } from "@/lib/pushAdmin";
 import { after } from "next/server";
 
 async function verifyToken(request) {
@@ -40,6 +41,7 @@ export async function POST(request) {
     // Read user demographics for denormalization (single read, not per-vote)
     const userSnap = await adminDb.collection("users").doc(uid).get();
     const userData = userSnap.exists ? userSnap.data() : {};
+    const actorName = userData.fullName || userData.displayName || "Someone";
     // Only include fields that are actually stored on the user profile doc.
     // age is not stored — omit it so vote docs don't have null age entries.
     const demographics = {
@@ -63,6 +65,8 @@ export async function POST(request) {
 
             const authorUid = issueData.author?.uid ?? null;
 
+            const issueTitle = issueData.title ?? null;
+
             if (type === "up" || type === "down") {
                 const existing = voteSnap.exists ? voteSnap.data() : null;
                 const existingType = existing?.voteType;
@@ -73,7 +77,7 @@ export async function POST(request) {
                     // Toggle off — remove the vote
                     tx.delete(voteRef);
                     tx.update(issueRef, { [field]: Math.max(0, (issueData[field] || 0) - 1) });
-                    return { action: "removed", type, authorUid };
+                    return { action: "removed", type, authorUid, issueTitle };
                 }
 
                 const updates = { [field]: (issueData[field] || 0) + 1 };
@@ -82,7 +86,7 @@ export async function POST(request) {
                 }
                 tx.set(voteRef, { voteType: type, userId: uid, ...demographics, votedAt: ts });
                 tx.update(issueRef, updates);
-                return { action: existingType ? "switched" : "added", type, previousType: existingType ?? null, authorUid };
+                return { action: existingType ? "switched" : "added", type, previousType: existingType ?? null, authorUid, issueTitle };
             }
 
             // type === "poll"
@@ -120,10 +124,11 @@ export async function POST(request) {
                 option,
                 previousOption: prevOption,
                 authorUid,
+                issueTitle,
             };
         });
 
-        // Award points after the response is sent (non-blocking)
+        // Award points + send push after the response is sent (non-blocking)
         if (result.action !== "removed") {
             const meta = { issueId };
             const voterAction  = type === "up" ? "UPVOTE_ISSUE"   : type === "poll" ? "VOTE_ON_ISSUE"  : null;
@@ -132,6 +137,12 @@ export async function POST(request) {
                 if (voterAction)  await awardPointsAdmin(uid, voterAction, meta);
                 if (authorAction && result.authorUid && result.authorUid !== uid) {
                     await awardPointsAdmin(result.authorUid, authorAction, meta);
+                    // Push notification to post author
+                    const title = type === "up" ? "👍 Someone liked your post" : "🗳️ New vote on your poll";
+                    const body  = type === "up"
+                        ? `${actorName} liked "${result.issueTitle ?? "your post"}"`
+                        : `${actorName} voted on "${result.issueTitle ?? "your poll"}"`;
+                    await sendPushAdmin(result.authorUid, { title, body, url: `/issue/${issueId}` });
                 }
             });
         }

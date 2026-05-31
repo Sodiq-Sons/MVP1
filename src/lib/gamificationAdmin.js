@@ -1,5 +1,6 @@
 import { getAdminDb } from "@/lib/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
+import { sendPushAdmin } from "@/lib/pushAdmin";
 
 const POINTS_CONFIG = {
     UPVOTE_ISSUE:    1,
@@ -83,7 +84,7 @@ export async function awardPointsAdmin(userId, action, metadata = {}) {
             await userRef.collection("stats").doc("overview").set(updates, { merge: true });
         }
 
-        // Level-up notification
+        // Level-up notification + push
         if (leveledUp) {
             await adminDb.collection("notifications").add({
                 type: "milestone",
@@ -102,6 +103,11 @@ export async function awardPointsAdmin(userId, action, metadata = {}) {
                 }),
                 read: false,
                 createdAt: FieldValue.serverTimestamp(),
+            });
+            await sendPushAdmin(userId, {
+                title: "🎉 Level up!",
+                body: `You reached Level ${newLevel.level} · ${newLevel.name} (${next} pts)`,
+                url: "/profile",
             });
         }
     } catch (err) {

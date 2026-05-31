@@ -486,6 +486,10 @@ export default function PublicProfilePage() {
         : 100;
 
     const isOnline = profile?.isOnline === true;
+    const _todayStr = new Date().toISOString().slice(0, 10);
+    const _yestStr  = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })();
+    const isStreakActive = (profile?.streak || 0) >= 2 &&
+        (profile?.lastActivityDate === _todayStr || profile?.lastActivityDate === _yestStr);
     const roleBadge =
         profile?.role === "top_reporter"
             ? {
@@ -673,7 +677,7 @@ export default function PublicProfilePage() {
                                 <span className="text-[11px] font-bold text-white bg-cp px-2.5 py-0.5 rounded-full leading-5">
                                     Lv.{levelData.level} · {levelData.name}
                                 </span>
-                                {(profile?.streak || 0) >= 2 && (
+                                {isStreakActive && (
                                     <span className="text-[11px] font-bold text-orange-500 bg-orange-50 border border-orange-100 px-2 py-0.5 rounded-full leading-5">
                                         🔥 {profile.streak}-day streak
                                     </span>

@@ -948,6 +948,12 @@ export default function ProfilePage() {
     const displayRole = firestoreProfile?.role || "citizen";
     const displayJoined = firestoreProfile?.joinedAt || new Date();
 
+    // Streak is only "alive" if the user was active today or yesterday
+    const _todayStr = new Date().toISOString().slice(0, 10);
+    const _yestStr  = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })();
+    const isStreakActive = (firestoreProfile?.streak || 0) >= 2 &&
+        (firestoreProfile?.lastActivityDate === _todayStr || firestoreProfile?.lastActivityDate === _yestStr);
+
     const tabs = [
         { key: "issues", label: "My Posts", count: stats.issuesCount },
         { key: "badges", label: "Badges", count: stats.badgesCount },
@@ -1229,7 +1235,7 @@ export default function ProfilePage() {
                                         Lv.{gamificationStats.level} · {gamificationStats.levelName}
                                     </span>
                                 )}
-                                {(firestoreProfile?.streak || 0) >= 2 && (
+                                {isStreakActive && (
                                     <span className="text-[11px] font-bold text-orange-500 bg-orange-50 border border-orange-100 px-2 py-0.5 rounded-full leading-5">
                                         🔥 {firestoreProfile.streak}-day streak
                                     </span>
