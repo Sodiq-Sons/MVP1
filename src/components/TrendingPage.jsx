@@ -523,10 +523,10 @@ function TrendingCard({
     return (
         <>
             <Link href={`/issue/${issue.id}`} className="block group">
-                <article className="relative bg-[color:var(--card-bg)] rounded-2xl border border-[color:var(--border-subtle)] shadow-sm hover:shadow-md hover:border-[color:var(--border)] transition-all duration-200 overflow-hidden cursor-pointer">
+                <article className="relative bg-[color:var(--card-bg)] rounded-2xl cursor-pointer">
                     {/* Rank badge */}
                     <div
-                        className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black shadow-md border-2 border-white z-10 ${
+                        className={`absolute -top-3 -left-1 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black shadow-md border-2 border-[color:var(--bg)] z-10 ${
                             rank === 1 ? "bg-gradient-to-br from-yellow-400 to-orange-500 text-white"
                             : rank === 2 ? "bg-gradient-to-br from-gray-300 to-gray-500 text-white"
                             : rank === 3 ? "bg-gradient-to-br from-orange-400 to-red-500 text-white"
@@ -536,7 +536,7 @@ function TrendingCard({
                         {rank}
                     </div>
 
-                    <div className="p-4 flex flex-col">
+                    <div className="pt-5 px-4 pb-4 flex flex-col">
                         {/* Author + category row */}
                         <div className="flex items-start justify-between gap-2 mb-2.5">
                             <div className="flex items-center gap-2 min-w-0">
@@ -569,7 +569,7 @@ function TrendingCard({
 
                         {/* Title */}
                         <h3
-                            className="font-bold text-gray-900 text-[14px] leading-snug mb-1.5 line-clamp-2"
+                            className="font-extrabold text-gray-900 text-[15px] leading-snug mb-2 line-clamp-2"
                             style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                         >
                             {issue.title}
@@ -577,7 +577,7 @@ function TrendingCard({
 
                         {/* Description */}
                         <p
-                            className="text-[12px] text-gray-500 leading-relaxed line-clamp-2 flex-1"
+                            className="text-[13px] text-gray-500 leading-relaxed line-clamp-2 flex-1"
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
                             {issue.description}
@@ -592,7 +592,7 @@ function TrendingCard({
 
                         {/* Engagement footer */}
                         <div
-                            className="flex items-center gap-0.5 mt-3 pt-3 border-t border-[color:var(--border-subtle)]"
+                            className="flex items-center gap-0.5 mt-3 pt-2"
                             onClick={(e) => e.preventDefault()}
                         >
                             <button
@@ -989,7 +989,7 @@ export default function TrendingPage() {
             )}
 
             {/* ── Issues List ── */}
-            <div className="px-4 md:px-6 space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
+            <div className="px-4 md:px-6 pt-4 pb-6 space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
                 {loading ? (
                     Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
                 ) : filtered.length > 0 ? (
