@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import Link from "next/link";
 
 function buildLeaderboard(users) {
     const map = {};
@@ -177,13 +178,12 @@ export default function PlatoonLeaderboard() {
                         </h1>
                         <p className="text-[11px] text-gray-400 font-medium">Live rankings across all platoons</p>
                     </div>
-                    <Link
-                        href="/platoons/fight"
+                    <span
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white text-xs font-bold shadow-sm"
                         style={{ background: "linear-gradient(135deg, var(--cp-deeper), var(--cp))" }}
                     >
                         ⚔️ Battle
-                    </Link>
+                    </span>
                 </div>
             </div>
 
