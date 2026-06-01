@@ -56,6 +56,22 @@ function normalisePlatoon(raw) {
     return `Platoon ${s}`;
 }
 
+const CATEGORY_ACCENT = {
+    infrastructure: { from: "#F59E0B", to: "#D97706", glow: "rgba(245,158,11,0.22)" },
+    education:      { from: "#3B82F6", to: "#2563EB", glow: "rgba(59,130,246,0.22)" },
+    healthcare:     { from: "#F43F5E", to: "#E11D48", glow: "rgba(244,63,94,0.22)" },
+    water:          { from: "#06B6D4", to: "#0891B2", glow: "rgba(6,182,212,0.22)" },
+    security:       { from: "#9333EA", to: "#7C3AED", glow: "rgba(147,51,234,0.22)" },
+    electricity:    { from: "#EAB308", to: "#CA8A04", glow: "rgba(234,179,8,0.22)" },
+    environment:    { from: "#22C55E", to: "#16A34A", glow: "rgba(34,197,94,0.22)" },
+    gist:           { from: "#EC4899", to: "#DB2777", glow: "rgba(236,72,153,0.22)" },
+    polls:          { from: "#8B5CF6", to: "#7C3AED", glow: "rgba(139,92,246,0.22)" },
+    poll:           { from: "#8B5CF6", to: "#7C3AED", glow: "rgba(139,92,246,0.22)" },
+    food:           { from: "#F97316", to: "#EA580C", glow: "rgba(249,115,22,0.22)" },
+    issue:          { from: "#EF4444", to: "#DC2626", glow: "rgba(239,68,68,0.22)" },
+    other:          { from: "#6B7280", to: "#4B5563", glow: "rgba(107,114,128,0.15)" },
+};
+
 const AVATAR_LETTERS = ["A", "B", "C", "D"];
 const avatarColors = [
     "bg-amber-400",
@@ -200,8 +216,10 @@ function StatusBadge({ status }) {
 
 function SkeletonCard() {
     return (
-        <div className="bg-[color:var(--card-bg)] rounded-2xl p-4 border border-[color:var(--border-subtle)] shadow-sm animate-pulse">
-            <div className="flex items-center gap-2.5 mb-3">
+        <div className="bg-[color:var(--card-bg)] rounded-2xl animate-pulse md:h-64 md:flex md:flex-col overflow-hidden">
+            <div className="h-[3px] w-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 shrink-0" />
+            <div className="p-4 flex flex-col flex-1 min-h-0">
+            <div className="flex items-center gap-2.5 mb-3 shrink-0">
                 <div className="w-8 h-8 bg-muted rounded-full shrink-0" />
                 <div className="flex-1 space-y-1.5">
                     <div className="h-3 bg-muted rounded-full w-24" />
@@ -209,15 +227,17 @@ function SkeletonCard() {
                 </div>
                 <div className="h-5 w-16 bg-muted rounded-full shrink-0" />
             </div>
-            <div className="space-y-2 mb-3">
+            <div className="space-y-2 mb-3 shrink-0">
                 <div className="h-4 bg-muted rounded w-5/6" />
                 <div className="h-3 bg-muted rounded w-full" />
                 <div className="h-3 bg-muted rounded w-3/4" />
             </div>
-            <div className="border-t border-[color:var(--border-subtle)] pt-3 flex items-center gap-2">
-                <div className="h-7 w-14 bg-muted rounded-lg" />
-                <div className="h-7 w-14 bg-muted rounded-lg" />
-                <div className="ml-auto h-7 w-10 bg-muted rounded-lg" />
+            <div className="flex-1 min-h-0" />
+            <div className="pt-3 flex items-center gap-2 shrink-0">
+                <div className="h-7 w-14 bg-muted rounded-xl" />
+                <div className="h-7 w-14 bg-muted rounded-xl" />
+                <div className="ml-auto h-7 w-10 bg-muted rounded-xl" />
+            </div>
             </div>
         </div>
     );
@@ -434,43 +454,78 @@ const IssueCard = memo(function IssueCard({
         }
     };
 
-    const avatarCount = getAvatarCount(count);
+    const accent = CATEGORY_ACCENT[issue.category] ?? CATEGORY_ACCENT.other;
 
     return (
         <>
             <Link href={`/issue/${issue.id}`} className="block group">
-                <article className="relative bg-[color:var(--card-bg)] rounded-2xl border border-[color:var(--border-subtle)] shadow-sm hover:shadow-md hover:border-[color:var(--border)] transition-all duration-200 overflow-hidden cursor-pointer">
+                <article
+                    className="relative bg-[color:var(--card-bg)] rounded-2xl overflow-hidden cursor-pointer md:h-64 md:flex md:flex-col"
+                >
+                    {/* Category accent bar */}
+                    <div
+                        className="h-[3px] w-full shrink-0"
+                        style={{ background: `linear-gradient(90deg, ${accent.from}, ${accent.to})` }}
+                    />
+
                     {rank && (
                         <div
-                            className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white z-10 ${rank === 1 ? "bg-gradient-to-br from-yellow-400 to-yellow-600 text-white" : rank === 2 ? "bg-gradient-to-br from-gray-300 to-gray-500 text-white" : rank === 3 ? "bg-gradient-to-br from-orange-400 to-orange-600 text-white" : "bg-white border-gray-200 text-gray-500"}`}
+                            className="absolute top-3 left-3 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-extrabold shadow-lg z-10 text-white"
+                            style={{
+                                background: rank === 1
+                                    ? "linear-gradient(135deg, #FBBF24, #F59E0B)"
+                                    : rank === 2
+                                    ? "linear-gradient(135deg, #CBD5E1, #94A3B8)"
+                                    : rank === 3
+                                    ? "linear-gradient(135deg, #FB923C, #EA580C)"
+                                    : "#E5E7EB",
+                                boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                            }}
                         >
                             {rank}
                         </div>
                     )}
 
-                    <div className="p-4">
-                        {/* Author + meta row */}
-                        <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="p-4 flex flex-col flex-1 min-h-0">
+                        {/* Author + category row */}
+                        <div className="flex items-start justify-between gap-3 mb-2.5 shrink-0">
                             <div className="flex items-center gap-2.5 min-w-0">
                                 <div className="shrink-0">
                                     {issue.author?.photoURL && !issue.author?.isAnonymous ? (
-                                        <img src={issue.author.photoURL} alt="" className="w-8 h-8 rounded-full object-cover ring-1 ring-black/5" />
+                                        <img
+                                            src={issue.author.photoURL}
+                                            alt=""
+                                            className="w-8 h-8 rounded-full object-cover"
+                                            style={{ boxShadow: `0 0 0 2.5px ${accent.from}55` }}
+                                        />
                                     ) : (
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                                            <span className="text-gray-500 text-[11px] font-bold">
-                                                {issue.author?.isAnonymous ? "?" : (authorName || "?").charAt(0).toUpperCase()}
-                                            </span>
+                                        <div
+                                            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-extrabold"
+                                            style={{ background: `linear-gradient(135deg, ${accent.from}, ${accent.to})` }}
+                                        >
+                                            {issue.author?.isAnonymous ? "?" : (authorName || "?").charAt(0).toUpperCase()}
                                         </div>
                                     )}
                                 </div>
                                 {authorName && (
                                     <div className="min-w-0">
-                                        <span className="text-[12px] font-semibold text-gray-800 block leading-none truncate">
+                                        <span className="text-[12px] font-bold text-gray-800 leading-none truncate inline-flex items-center gap-1">
                                             {authorName}
+                                            {issue.author?.isVerified && (
+                                                <svg viewBox="0 0 22 22" aria-label="Verified" className="inline w-3.5 h-3.5 shrink-0" fill="none">
+                                                    <path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.246-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z" fill="#1D9BF0"/>
+                                                    <path d="M9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246-5.683 6.206z" fill="white"/>
+                                                </svg>
+                                            )}
                                         </span>
                                         <div className="flex items-center gap-1 mt-0.5">
                                             {platoonLabel && (
-                                                <span className="text-[10px] text-gray-400">{platoonLabel}</span>
+                                                <span
+                                                    className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full text-white leading-none"
+                                                    style={{ background: `linear-gradient(90deg, ${accent.from}CC, ${accent.to}CC)` }}
+                                                >
+                                                    {platoonLabel}
+                                                </span>
                                             )}
                                             {platoonLabel && <span className="text-[10px] text-gray-300">·</span>}
                                             <span className="text-[10px] text-gray-400">{issue.timeAgo}</span>
@@ -478,8 +533,13 @@ const IssueCard = memo(function IssueCard({
                                     </div>
                                 )}
                             </div>
-                            <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
-                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${meta.bg} ${meta.color}`}>
+
+                            {/* Category badge + timer */}
+                            <div className="flex flex-col items-end gap-1 shrink-0 mt-0.5">
+                                <span
+                                    className="text-[10px] font-extrabold px-2.5 py-1 rounded-full text-white flex items-center gap-1 whitespace-nowrap"
+                                    style={{ background: `linear-gradient(135deg, ${accent.from}, ${accent.to})`, boxShadow: `0 2px 8px ${accent.glow}` }}
+                                >
                                     {meta.emoji} {meta.label}
                                 </span>
                                 {issue.pollTimerEnabled && issue.pollDeadline && (() => {
@@ -496,23 +556,15 @@ const IssueCard = memo(function IssueCard({
 
                         {/* Title */}
                         <h3
-                            className="font-bold text-gray-900 text-[15px] leading-snug mb-1.5"
+                            className="font-extrabold text-gray-900 text-[15px] leading-snug mb-2 shrink-0 line-clamp-2"
                             style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                         >
                             {issue.title}
                         </h3>
 
-                        {/* Description */}
-                        <p
-                            className="text-[13px] text-gray-500 leading-relaxed line-clamp-2"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            {issue.description}
-                        </p>
-
                         {/* Tags row */}
                         {(issue.isFlagged || issue.status || issue.locationTag?.label) && (
-                            <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
+                            <div className="flex items-center gap-1.5 flex-wrap mb-2 shrink-0">
                                 {issue.isFlagged && (
                                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
                                         ⚑ Flagged
@@ -538,20 +590,31 @@ const IssueCard = memo(function IssueCard({
                             </div>
                         )}
 
+                        {/* Description */}
+                        <div className="flex-1 min-h-0 overflow-hidden">
+                            <p
+                                className="text-[13px] text-gray-500 leading-relaxed line-clamp-3"
+                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            >
+                                {issue.description}
+                            </p>
+                        </div>
+
                         {/* Engagement footer */}
                         <div
-                            className="flex items-center gap-0.5 mt-3 pt-3 border-t border-[color:var(--border-subtle)]"
+                            className="flex items-center mt-auto pt-2.5 shrink-0"
                             onClick={(e) => e.preventDefault()}
                         >
                             <button
                                 onClick={handleUpvote}
                                 disabled={loading || downvoted}
                                 title={downvoted ? "Remove your dislike first" : "Like this post"}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-40 text-[12px] font-semibold ${
-                                    upvoted
-                                        ? "bg-green-50 text-green-600"
-                                        : "text-gray-400 hover:bg-green-50 hover:text-green-600"
-                                }`}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all duration-150 cursor-pointer disabled:opacity-40 text-[12px] font-bold"
+                                style={upvoted ? {
+                                    background: "linear-gradient(135deg, #22C55E, #16A34A)",
+                                    color: "white",
+                                    boxShadow: "0 2px 10px rgba(34,197,94,0.4)",
+                                } : { color: "#9CA3AF" }}
                             >
                                 <UpvoteIcon active={upvoted} />
                                 {formatUpvotes(count)}
@@ -561,11 +624,12 @@ const IssueCard = memo(function IssueCard({
                                 onClick={handleDownvote}
                                 disabled={downvoteLoading || upvoted}
                                 title={upvoted ? "Remove your like first" : "Dislike this post"}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-40 text-[12px] font-semibold ${
-                                    downvoted
-                                        ? "bg-red-50 text-red-500"
-                                        : "text-gray-400 hover:bg-red-50 hover:text-red-500"
-                                }`}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all duration-150 cursor-pointer disabled:opacity-40 text-[12px] font-bold"
+                                style={downvoted ? {
+                                    background: "linear-gradient(135deg, #EF4444, #DC2626)",
+                                    color: "white",
+                                    boxShadow: "0 2px 10px rgba(239,68,68,0.4)",
+                                } : { color: "#9CA3AF" }}
                             >
                                 <DownvoteIcon active={downvoted} />
                                 {formatUpvotes(downvoteCount)}
@@ -573,30 +637,14 @@ const IssueCard = memo(function IssueCard({
 
                             <div className="flex-1" />
 
-                            <div className="flex items-center gap-1.5 px-2 text-gray-400">
+                            <div
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl font-bold text-[12px]"
+                                style={{ color: accent.from }}
+                            >
                                 <CommentIcon />
-                                <span className="text-[12px] font-semibold">{issue.commentCount}</span>
+                                <span>{issue.commentCount || 0}</span>
                             </div>
                         </div>
-
-                        {/* Social proof */}
-                        {avatarCount > 0 && (
-                            <div className="flex items-center gap-2 mt-2">
-                                <div className="flex items-center">
-                                    {AVATAR_LETTERS.slice(0, avatarCount).map((a, i) => (
-                                        <div
-                                            key={i}
-                                            className={`w-5 h-5 rounded-full ${avatarColors[i % avatarColors.length]} border-2 border-white flex items-center justify-center text-white text-[8px] font-bold -ml-1.5 first:ml-0`}
-                                        >
-                                            {a}
-                                        </div>
-                                    ))}
-                                </div>
-                                <span className="text-[11px] text-gray-400">
-                                    {count} {count === 1 ? "like" : "likes"}
-                                </span>
-                            </div>
-                        )}
                     </div>
                 </article>
             </Link>

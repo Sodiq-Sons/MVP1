@@ -308,10 +308,10 @@ function ActivityItem({ item, isLast, onMarkAsRead }) {
 
             {/* Content */}
             <div
-                className={`flex-1 min-w-0 bg-white rounded-xl p-3 border transition-all cursor-pointer ${
+                className={`flex-1 min-w-0 bg-[color:var(--card-bg)] rounded-xl p-3 border transition-all cursor-pointer hover:shadow-sm ${
                     !item.read
-                        ? "border-cp/20 shadow-sm"
-                        : "border-subtle"
+                        ? "border-[color:var(--cp-border)] shadow-sm"
+                        : "border-[color:var(--border-subtle)]"
                 }`}
             >
                 <div className="flex items-start justify-between gap-2">
@@ -517,7 +517,7 @@ function GroupChatInviteCard({ invite, user }) {
     if (done === "declined") return null;
 
     return (
-        <div className="bg-white border border-cp/20 rounded-2xl p-4 mb-3 shadow-sm">
+        <div className="bg-[color:var(--card-bg)] border border-[color:var(--cp-border)] rounded-2xl p-4 mb-3 shadow-sm">
             <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--cp-tint)" }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="var(--cp)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
@@ -699,58 +699,61 @@ export default function ActivityPage() {
     ];
 
     return (
-        <div
-            className="min-h-screen pb-24 md:pb-8"
-            style={{ background: "#FDF6EF" }}
-        >
+        <div className="min-h-screen pb-24 md:pb-8" style={{ background: "var(--bg)" }}>
+
             {/* Mobile Header */}
-            <header className="md:hidden sticky top-0 z-40 bg-cp px-4 pt-4 pb-4 mb-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1
-                            className="text-white font-bold text-lg"
-                            style={{
-                                fontFamily: "Plus Jakarta Sans, sans-serif",
-                            }}
-                        >
-                            Activity
-                        </h1>
-                        <p className="text-white/70 text-xs mt-0.5">
-                            Your notifications & updates
-                        </p>
+            <header
+                className="md:hidden sticky top-0 z-40 overflow-hidden"
+                style={{
+                    background: "linear-gradient(135deg, var(--cp-deeper) 0%, var(--cp) 100%)",
+                    boxShadow: "0 4px 24px var(--cp-glow)",
+                }}
+            >
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px)",
+                        backgroundSize: "20px 20px",
+                    }}
+                />
+                <div className="relative flex items-center justify-between px-4 py-3.5">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center text-white">
+                            <BellIcon />
+                        </div>
+                        <div>
+                            <h1 className="text-white font-extrabold text-[14px] leading-none" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
+                                Activity
+                            </h1>
+                            <p className="text-white/60 text-[10px] font-medium mt-0.5">Your notifications & updates</p>
+                        </div>
                     </div>
                     {unreadCount > 0 && (
                         <button
                             onClick={markAllAsRead}
-                            className="flex items-center gap-1.5 bg-white text-cp rounded-xl px-3 py-1.5 active:scale-95 transition-transform"
+                            className="flex items-center gap-1.5 bg-white/15 border border-white/25 text-white rounded-full px-3 py-1.5 active:scale-95 transition-all text-[11px] font-bold cursor-pointer"
                         >
-                            <BellIcon />
-                            <span className="text-xs font-bold">
-                                {unreadCount} new
-                            </span>
+                            <CheckIcon />
+                            Mark all read
                         </button>
                     )}
                 </div>
             </header>
 
             {/* Desktop Header */}
-            <div className="hidden md:flex items-center justify-between px-6 pt-8 pb-6">
+            <div className="hidden md:flex items-center justify-between px-6 pt-8 pb-4">
                 <div>
-                    <h1
-                        className="text-2xl font-bold text-gray-900"
-                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
-                    >
+                    <h1 className="text-[28px] font-extrabold text-gray-900 leading-none" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
                         Activity
                     </h1>
-                    <p className="text-gray-500 text-sm mt-0.5">
-                        Track updates on your posts and community activity
-                    </p>
+                    <p className="text-gray-400 text-sm mt-1.5 font-medium">Track updates on your posts and community</p>
                 </div>
                 <div className="flex items-center gap-2">
                     {unreadCount > 0 && (
                         <button
                             onClick={markAllAsRead}
-                            className="flex items-center gap-2 text-xs font-semibold text-cp bg-cp-tint border border-cp/20 px-3 py-2 rounded-xl hover:bg-cp-tint transition-colors cursor-pointer"
+                            className="flex items-center gap-2 text-xs font-bold text-white px-4 py-2 rounded-xl shadow-sm cursor-pointer"
+                            style={{ background: "linear-gradient(135deg, var(--cp-deeper), var(--cp))" }}
                         >
                             <CheckIcon />
                             Mark all read
@@ -758,34 +761,70 @@ export default function ActivityPage() {
                     )}
                     <button
                         onClick={() => setShowUnreadOnly((u) => !u)}
-                        className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border transition-colors cursor-pointer ${
+                        className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border transition-all cursor-pointer ${
                             showUnreadOnly
-                                ? "bg-cp text-white border-cp"
-                                : "bg-white text-gray-600 border-subtle hover:bg-subtle"
+                                ? "text-white border-transparent"
+                                : "bg-[color:var(--card-bg)] text-gray-600 border-[color:var(--border-subtle)] hover:border-[color:var(--border)]"
                         }`}
+                        style={showUnreadOnly ? { background: "var(--cp)" } : {}}
                     >
                         <FilterIcon />
-                        {showUnreadOnly ? "All" : "Unread only"}
+                        {showUnreadOnly ? "Show all" : "Unread only"}
                     </button>
                 </div>
             </div>
 
             {/* User Profile Card */}
             <div className="px-4 md:px-6 mb-4">
-                <UserProfileCard user={currentUser} userStats={null} />
+                <div
+                    className="rounded-2xl p-4 relative overflow-hidden"
+                    style={{
+                        background: "linear-gradient(135deg, var(--cp-deeper) 0%, var(--cp) 100%)",
+                        boxShadow: "0 4px 20px var(--cp-glow)",
+                    }}
+                >
+                    <div
+                        className="absolute inset-0 pointer-events-none opacity-20"
+                        style={{
+                            backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.2) 1px, transparent 1px)",
+                            backgroundSize: "18px 18px",
+                        }}
+                    />
+                    <div className="relative flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center text-white font-black text-lg overflow-hidden shrink-0">
+                            {currentUser.photoURL ? (
+                                <img src={currentUser.photoURL} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                                (currentUser.displayName || currentUser.email || "U").charAt(0).toUpperCase()
+                            )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h2 className="text-white font-extrabold text-[15px] leading-none truncate" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
+                                {currentUser.displayName || "Camper"}
+                            </h2>
+                            <p className="text-white/60 text-[11px] mt-0.5 truncate">{currentUser.email}</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                            <div className="text-white font-black text-xl" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
+                                {unreadCount}
+                            </div>
+                            <div className="text-white/60 text-[10px] font-medium">unread</div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Group Chat Invites */}
             {groupInvites.length > 0 && (
                 <div className="px-4 md:px-6 mb-4">
                     <div className="flex items-center gap-2 mb-3">
-                        <span className="text-[11px] font-bold text-cp uppercase tracking-wider">
+                        <span className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: "var(--cp)" }}>
                             Group Chat Invites
                         </span>
-                        <span className="min-w-[18px] h-[18px] px-1 bg-cp text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                        <span className="min-w-[18px] h-[18px] px-1 text-white text-[10px] font-bold rounded-full flex items-center justify-center" style={{ background: "var(--cp)" }}>
                             {groupInvites.length}
                         </span>
-                        <div className="flex-1 h-px bg-cp/20" />
+                        <div className="flex-1 h-px bg-[color:var(--border-subtle)]" />
                     </div>
                     {groupInvites.map((inv) => (
                         <GroupChatInviteCard key={inv.id} invite={inv} user={currentUser} />
@@ -799,45 +838,38 @@ export default function ActivityPage() {
                     {stats.map((s) => (
                         <div
                             key={s.label}
-                            className="bg-card rounded-2xl p-3.5 border border-subtle shadow-card"
+                            className="bg-[color:var(--card-bg)] rounded-2xl p-3.5 border border-[color:var(--border-subtle)] shadow-sm hover:shadow-md transition-all"
                         >
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-xl">{s.icon}</span>
-                            </div>
+                            <div className="text-xl mb-1.5">{s.icon}</div>
                             <div
-                                className="text-xl font-black text-gray-900"
-                                style={{
-                                    fontFamily: "Plus Jakarta Sans, sans-serif",
-                                }}
+                                className="text-2xl font-black text-gray-900"
+                                style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                             >
                                 {s.value}
                             </div>
-                            <div className="text-[11px] font-semibold text-gray-500 mt-0.5">
-                                {s.label}
-                            </div>
-                            <div className="text-[10px] text-emerald-600 font-semibold mt-1">
-                                {s.trend}
-                            </div>
+                            <div className="text-[11px] font-semibold text-gray-700 mt-0.5">{s.label}</div>
+                            <div className="text-[10px] font-medium mt-0.5" style={{ color: "var(--cp)" }}>{s.trend}</div>
                         </div>
                     ))}
                 </div>
             </div>
 
             {/* Tabs */}
-            <div className="px-4 md:px-6 mb-4">
-                <div
-                    className="flex gap-2 overflow-x-auto pb-1"
-                    style={{ scrollbarWidth: "none" }}
-                >
+            <div className="px-4 md:px-6 mb-3">
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide snap-x">
                     {tabs.map((t) => (
                         <button
                             key={t.key}
                             onClick={() => setActiveTab(t.key)}
-                            className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                            className={`shrink-0 snap-start flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
                                 activeTab === t.key
-                                    ? "bg-cp text-white shadow-sm"
-                                    : "bg-white text-gray-600 border border-subtle hover:border-[#FED7AA] shadow-card"
+                                    ? "text-white shadow-md"
+                                    : "bg-[color:var(--card-bg)] text-gray-600 border border-[color:var(--border-subtle)] hover:border-[color:var(--border)] hover:shadow-sm"
                             }`}
+                            style={{
+                                fontFamily: "DM Sans, sans-serif",
+                                ...(activeTab === t.key ? { background: "linear-gradient(135deg, var(--cp-deeper), var(--cp))" } : {}),
+                            }}
                         >
                             <span>{t.emoji}</span>
                             <span>{t.label}</span>
@@ -848,16 +880,17 @@ export default function ActivityPage() {
 
             {/* Mobile Unread Toggle */}
             <div className="md:hidden px-4 mb-4 flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-500">
+                <span className="text-[12px] font-semibold text-gray-500">
                     {filtered.length} notifications
                 </span>
                 <button
                     onClick={() => setShowUnreadOnly((u) => !u)}
-                    className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${
+                    className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
                         showUnreadOnly
-                            ? "bg-cp text-white border-cp"
-                            : "bg-white text-gray-600 border-subtle"
+                            ? "text-white border-transparent"
+                            : "bg-[color:var(--card-bg)] text-gray-600 border-[color:var(--border-subtle)]"
                     }`}
+                    style={showUnreadOnly ? { background: "var(--cp)" } : {}}
                 >
                     <FilterIcon />
                     {showUnreadOnly ? "Showing unread" : "Unread only"}

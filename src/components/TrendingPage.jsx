@@ -522,175 +522,105 @@ function TrendingCard({
 
     return (
         <>
-            <Link href={`/issue/${issue.id}`} className="block">
-                <div className="issue-card bg-card rounded-2xl p-4 shadow-card border border-cp-border hover:shadow-lg hover:border-cp/40 transition-all cursor-pointer relative">
+            <Link href={`/issue/${issue.id}`} className="block group">
+                <article className="relative bg-[color:var(--card-bg)] rounded-2xl border border-[color:var(--border-subtle)] shadow-sm hover:shadow-md hover:border-[color:var(--border)] transition-all duration-200 overflow-hidden cursor-pointer">
+                    {/* Rank badge */}
                     <div
-                        className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white ${
-                            rank === 1
-                                ? "bg-gradient-to-br from-yellow-400 to-yellow-600 text-white"
-                                : rank === 2
-                                  ? "bg-gradient-to-br from-gray-300 to-gray-500 text-white"
-                                  : rank === 3
-                                    ? "bg-cp text-white"
-                                    : "bg-muted text-gray-600"
+                        className={`absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black shadow-md border-2 border-white z-10 ${
+                            rank === 1 ? "bg-gradient-to-br from-yellow-400 to-orange-500 text-white"
+                            : rank === 2 ? "bg-gradient-to-br from-gray-300 to-gray-500 text-white"
+                            : rank === 3 ? "bg-gradient-to-br from-orange-400 to-red-500 text-white"
+                            : "bg-[color:var(--muted-bg)] text-gray-600"
                         }`}
                     >
                         {rank}
                     </div>
 
-                    {/* Author name */}
-                    {authorName && (
-                        <p
-                            className="text-xs text-gray-400 mb-1.5"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            {authorName}
-                        </p>
-                    )}
-
-                    <div className="flex items-center justify-between mb-2.5">
-                        <span
-                            className={`text-xs font-semibold px-2.5 py-1 rounded-full ${issue.categoryBg} ${issue.categoryColor} flex items-center gap-1.5`}
-                        >
-                            <span>{issue.categoryEmoji}</span>
-                            {issue.categoryLabel}
-                        </span>
-                        <span className="text-xs text-gray-400 flex items-center gap-1">
-                            <span className="font-bold text-cp">
-                                #{rank}
+                    <div className="p-4 flex flex-col">
+                        {/* Author + category row */}
+                        <div className="flex items-start justify-between gap-2 mb-2.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                                {issue.author?.photoURL && !issue.author?.isAnonymous ? (
+                                    <img src={issue.author.photoURL} alt="" className="w-7 h-7 rounded-full object-cover ring-1 ring-black/5 shrink-0" />
+                                ) : (
+                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shrink-0">
+                                        <span className="text-gray-500 text-[10px] font-bold">
+                                            {issue.author?.isAnonymous ? "?" : (authorName || "?").charAt(0).toUpperCase()}
+                                        </span>
+                                    </div>
+                                )}
+                                <div className="min-w-0">
+                                    {authorName && (
+                                        <span className="text-[11px] font-semibold text-gray-700 block leading-none truncate">{authorName}</span>
+                                    )}
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                        {normalisePlatoon(issue.author?.platoon) && (
+                                            <span className="text-[10px] text-gray-400">{normalisePlatoon(issue.author.platoon)}</span>
+                                        )}
+                                        {normalisePlatoon(issue.author?.platoon) && <span className="text-[10px] text-gray-300">·</span>}
+                                        <span className="text-[10px] text-gray-400">{issue.timeAgo}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0 ${issue.categoryBg} ${issue.categoryColor}`}>
+                                {issue.categoryEmoji} {issue.categoryLabel}
                             </span>
-                            <span>· {issue.timeAgo}</span>
-                        </span>
-                    </div>
-                    <div className="flex gap-3">
-                        <div className="flex-1 min-w-0">
-                            <h3
-                                className="font-bold text-gray-900 text-sm leading-snug mb-1.5"
-                                style={{
-                                    fontFamily: "Plus Jakarta Sans, sans-serif",
-                                }}
-                            >
-                                {issue.title}
-                            </h3>
-                            <p
-                                className="text-xs text-gray-500 leading-relaxed line-clamp-2"
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
-                            >
-                                {issue.description}
-                            </p>
                         </div>
 
-                        {/* Vote buttons: Dislike (top) + Like (bottom) */}
+                        {/* Title */}
+                        <h3
+                            className="font-bold text-gray-900 text-[14px] leading-snug mb-1.5 line-clamp-2"
+                            style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
+                        >
+                            {issue.title}
+                        </h3>
+
+                        {/* Description */}
+                        <p
+                            className="text-[12px] text-gray-500 leading-relaxed line-clamp-2 flex-1"
+                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                        >
+                            {issue.description}
+                        </p>
+
+                        {/* Status */}
+                        {issue.status && (
+                            <div className="mt-1.5">
+                                <StatusBadge status={issue.status} />
+                            </div>
+                        )}
+
+                        {/* Engagement footer */}
                         <div
-                            className="shrink-0 flex flex-col gap-1.5"
+                            className="flex items-center gap-0.5 mt-3 pt-3 border-t border-[color:var(--border-subtle)]"
                             onClick={(e) => e.preventDefault()}
                         >
-                            {/* Oppose button */}
-                            <button
-                                onClick={handleDownvote}
-                                disabled={downvoteLoading || upvoted}
-                                title={
-                                    upvoted
-                                        ? "Remove your like first"
-                                        : "Dislike this post"
-                                }
-                                className={`flex flex-col items-center gap-0.5 w-14 h-14 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
-                                    downvoted
-                                        ? "border-red-500 bg-red-50"
-                                        : isAnonymous || upvoted
-                                          ? "border-theme bg-subtle"
-                                          : "border-red-200 bg-white hover:border-red-400 hover:bg-red-50"
-                                }`}
-                            >
-                                <span className="mt-2">
-                                    <DownvoteIcon active={downvoted} />
-                                </span>
-                                <span
-                                    className={`text-sm font-bold ${
-                                        downvoted
-                                            ? "text-red-600"
-                                            : "text-red-400"
-                                    }`}
-                                >
-                                    {formatNum(downvoteCount)}
-                                </span>
-                            </button>
-
-                            {/* Support button */}
                             <button
                                 onClick={handleUpvote}
                                 disabled={loading || downvoted}
-                                title={
-                                    downvoted
-                                        ? "Remove your dislike first"
-                                        : "Like this post"
-                                }
-                                className={`flex flex-col items-center gap-0.5 w-14 h-14 rounded-xl border-2 transition-all cursor-pointer disabled:opacity-40 ${
-                                    upvoted
-                                        ? "border-green-500 bg-green-50"
-                                        : isAnonymous || downvoted
-                                          ? "border-theme bg-subtle"
-                                          : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50"
-                                }`}
+                                title={downvoted ? "Remove your dislike first" : "Like this post"}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-40 text-[12px] font-semibold ${upvoted ? "bg-green-50 text-green-600" : "text-gray-400 hover:bg-green-50 hover:text-green-600"}`}
                             >
-                                <span className="mt-2">
-                                    <UpvoteIcon active={upvoted} />
-                                </span>
-                                <span
-                                    className={`text-sm font-bold ${
-                                        upvoted
-                                            ? "text-green-600"
-                                            : isAnonymous
-                                              ? "text-gray-400"
-                                              : "text-green-600"
-                                    }`}
-                                >
-                                    {formatNum(count)}
-                                </span>
+                                <UpvoteIcon active={upvoted} />
+                                {formatNum(count)}
                             </button>
-                        </div>
-                    </div>
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-subtle">
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <span className="flex items-center gap-1 text-xs text-black">
-                                <PlatoonIcon />
-                                {normalisePlatoon(issue.author?.platoon)}
-                            </span>
-                            <StatusBadge status={issue.status} />
-                        </div>
-                        <div className="flex items-center gap-1.5 text-gray-400">
-                            <CommentIcon />
-                            <span className="text-xs font-semibold">
-                                {realtimeCommentCount}
-                            </span>
-                        </div>
-                    </div>
-                    {avatarCount > 0 && (
-                        <div className="flex items-center gap-2 mt-2.5">
-                            <div className="flex items-center">
-                                {AVATAR_LETTERS.slice(0, avatarCount).map(
-                                    (a, i) => (
-                                        <div
-                                            key={i}
-                                            className={`w-6 h-6 rounded-full ${avatarColors[i % avatarColors.length]} border-2 border-white flex items-center justify-center text-white text-[9px] font-bold`}
-                                            style={{
-                                                marginLeft: i === 0 ? 0 : -6,
-                                            }}
-                                        >
-                                            {a}
-                                        </div>
-                                    ),
-                                )}
-                            </div>
-                            <span
-                                className="text-xs text-gray-400"
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
+                            <button
+                                onClick={handleDownvote}
+                                disabled={downvoteLoading || upvoted}
+                                title={upvoted ? "Remove your like first" : "Dislike this post"}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-40 text-[12px] font-semibold ${downvoted ? "bg-red-50 text-red-500" : "text-gray-400 hover:bg-red-50 hover:text-red-500"}`}
                             >
-                                {count} {count === 1 ? "like" : "likes"}
-                            </span>
+                                <DownvoteIcon active={downvoted} />
+                                {formatNum(downvoteCount)}
+                            </button>
+                            <div className="flex-1" />
+                            <div className="flex items-center gap-1.5 px-2 text-gray-400">
+                                <CommentIcon />
+                                <span className="text-[12px] font-semibold">{realtimeCommentCount}</span>
+                            </div>
                         </div>
-                    )}
-                </div>
+                    </div>
+                </article>
             </Link>
             <LoginPromptModal
                 isOpen={showLoginPrompt}
@@ -869,31 +799,42 @@ export default function TrendingPage() {
     }[timeRange];
 
     return (
-        <div
-            className="min-h-screen pb-24 md:pb-8"
-            style={{ background: "#FDF6EF" }}
-        >
+        <div className="min-h-screen pb-24 md:pb-8" style={{ background: "var(--bg)" }}>
+
             {/* ── Mobile Header ── */}
-            <header className="md:hidden sticky top-0 z-40 bg-cp px-4 pt-4 pb-4 mb-4">
-                <div className="flex items-center justify-between">
+            <header
+                className="md:hidden sticky top-0 z-40 overflow-hidden"
+                style={{
+                    background: "linear-gradient(135deg, var(--cp-deeper) 0%, var(--cp) 100%)",
+                    boxShadow: "0 4px 24px var(--cp-glow)",
+                }}
+            >
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px)",
+                        backgroundSize: "20px 20px",
+                    }}
+                />
+                <div className="relative flex items-center justify-between px-4 py-3.5">
                     <div>
-                        <h1
-                            className="text-white font-bold text-lg"
-                            style={{
-                                fontFamily: "Plus Jakarta Sans, sans-serif",
-                            }}
-                        >
-                            Explore
+                        <h1 className="text-white font-extrabold text-[15px]" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
+                            🔥 Explore
                         </h1>
-                        <p className="text-white/70 text-xs mt-0.5">
-                            Trending Posts across Nigeria
-                        </p>
+                        <p className="text-white/60 text-[10px] font-medium mt-0.5">Trending posts across camp</p>
                     </div>
-                    <div className="flex items-center gap-1.5 bg-white/20 rounded-xl px-3 py-1.5">
-                        <TrophyIcon />
-                        <span className="text-white text-xs font-semibold">
-                            {issues.length} posts
-                        </span>
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 bg-white/15 border border-white/20 rounded-full p-0.5">
+                            {["24h", "7d", "30d"].map((t) => (
+                                <button
+                                    key={t}
+                                    onClick={() => setTimeRange(t)}
+                                    className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer ${timeRange === t ? "bg-white text-gray-800" : "text-white/70 hover:text-white"}`}
+                                >
+                                    {t}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </header>
@@ -903,23 +844,20 @@ export default function TrendingPage() {
                 <div className="flex items-center justify-between">
                     <div>
                         <h1
-                            className="text-2xl font-bold text-gray-900"
-                            style={{
-                                fontFamily: "Plus Jakarta Sans, sans-serif",
-                            }}
+                            className="text-[28px] font-extrabold text-gray-900 leading-none"
+                            style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
                         >
-                            Explore Posts
+                            🔥 Explore
                         </h1>
-                        <p className="text-gray-500 text-sm mt-0.5">
-                            Browse and discover trending posts across Camp
-                        </p>
+                        <p className="text-gray-400 text-sm mt-1.5 font-medium">Trending posts sorted by most likes</p>
                     </div>
-                    <div className="flex items-center gap-2 bg-white rounded-xl p-1 border border-subtle shadow-sm">
+                    <div className="flex items-center gap-2 bg-[color:var(--card-bg)] rounded-xl p-1 border border-[color:var(--border-subtle)] shadow-sm">
                         {["24h", "7d", "30d"].map((t) => (
                             <button
                                 key={t}
                                 onClick={() => setTimeRange(t)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${timeRange === t ? "bg-cp text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${timeRange === t ? "text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                                style={timeRange === t ? { background: "linear-gradient(135deg, var(--cp-deeper), var(--cp))" } : {}}
                             >
                                 {t}
                             </button>
@@ -930,47 +868,35 @@ export default function TrendingPage() {
 
             {/* ── Stats Banner ── */}
             <div className="px-4 md:px-6 mb-4">
-                <div className="grid grid-cols-3 gap-3">
-                    {[
-                        {
-                            label: "In Range",
-                            value: loading
-                                ? "…"
-                                : filtered.length.toLocaleString(),
-                            icon: "📋",
-                            color: "text-gray-800",
-                        },
-                        {
-                            label: "Most Active",
-                            value: loading ? "…" : mostActivePlatoon,
-                            icon: "🔥",
-                            color: "text-cp",
-                        },
-                        {
-                            label: "Time Range",
-                            value: loading ? "…" : timeRange,
-                            icon: "⏱️",
-                            color: "text-blue-600",
-                        },
-                    ].map((s) => (
-                        <div
-                            key={s.label}
-                            className="bg-white rounded-xl p-3 border border-subtle shadow-card text-center"
-                        >
-                            <div className="text-lg mb-0.5">{s.icon}</div>
-                            <div
-                                className={`text-base font-black ${s.color}`}
-                                style={{
-                                    fontFamily: "Plus Jakarta Sans, sans-serif",
-                                }}
-                            >
-                                {s.value}
+                <div
+                    className="rounded-2xl p-4 relative overflow-hidden"
+                    style={{
+                        background: "linear-gradient(135deg, var(--cp-deeper) 0%, var(--cp) 100%)",
+                        boxShadow: "0 4px 20px var(--cp-glow)",
+                    }}
+                >
+                    <div
+                        className="absolute inset-0 pointer-events-none opacity-20"
+                        style={{
+                            backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.2) 1px, transparent 1px)",
+                            backgroundSize: "18px 18px",
+                        }}
+                    />
+                    <div className="relative grid grid-cols-3 divide-x divide-white/20">
+                        {[
+                            { label: "In Range", value: loading ? "…" : filtered.length, icon: "📋" },
+                            { label: "Most Active", value: loading ? "…" : mostActivePlatoon.replace(/^platoon\s*/i, "P"), icon: "🔥" },
+                            { label: timeRange === "24h" ? "24h" : timeRange === "7d" ? "7 days" : "30 days", value: loading ? "…" : issues.reduce((s, i) => s + (i.upvotes || 0), 0).toLocaleString(), icon: "👍" },
+                        ].map((s) => (
+                            <div key={s.label} className="text-center px-2">
+                                <div className="text-lg mb-0.5">{s.icon}</div>
+                                <div className="text-white font-black text-lg leading-none" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
+                                    {s.value}
+                                </div>
+                                <div className="text-white/60 text-[10px] font-medium mt-0.5">{s.label}</div>
                             </div>
-                            <div className="text-[10px] text-gray-400 font-medium mt-0.5">
-                                {s.label}
-                            </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             </div>
 
@@ -986,11 +912,11 @@ export default function TrendingPage() {
                         onFocus={() => setShowSuggestions(true)}
                         onKeyDown={(e) => e.key === "Escape" && setShowSuggestions(false)}
                         placeholder="Search trending posts..."
-                        className="w-full bg-white rounded-xl pl-9 pr-4 py-3 text-sm text-gray-700 placeholder-gray-400 border border-subtle shadow-card focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-cp/40 transition-all"
+                        className="w-full bg-[color:var(--card-bg)] rounded-xl pl-9 pr-4 py-3 text-sm text-gray-700 placeholder-gray-400 border border-[color:var(--border-subtle)] shadow-sm focus:outline-none focus:border-[color:var(--cp)] focus:shadow-md transition-all"
                         style={{ fontFamily: "DM Sans, sans-serif" }}
                     />
                     {showSuggestions && suggestions.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 mt-1.5 bg-card rounded-xl border border-subtle shadow-lg z-50 overflow-hidden">
+                        <div className="absolute top-full left-0 right-0 mt-1.5 bg-[color:var(--card-bg)] rounded-xl border border-[color:var(--border-subtle)] shadow-lg z-50 overflow-hidden">
                             {suggestions.map((issue) => {
                                 const meta = CATEGORY_META[issue.category] ?? CATEGORY_META.other;
                                 return (
@@ -1001,14 +927,14 @@ export default function TrendingPage() {
                                             setSearch(issue.title);
                                             setShowSuggestions(false);
                                         }}
-                                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-subtle transition-colors text-left cursor-pointer border-b border-subtle last:border-b-0"
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[color:var(--muted-bg)] transition-colors text-left cursor-pointer border-b border-[color:var(--border-subtle)] last:border-b-0"
                                     >
                                         <span className="text-base shrink-0">{meta.emoji}</span>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-black truncate" style={{ fontFamily: "DM Sans, sans-serif" }}>
+                                            <p className="text-sm font-medium text-gray-800 truncate" style={{ fontFamily: "DM Sans, sans-serif" }}>
                                                 {issue.title}
                                             </p>
-                                            <p className="text-xs text-muted truncate" style={{ fontFamily: "DM Sans, sans-serif" }}>
+                                            <p className="text-xs text-gray-400 truncate" style={{ fontFamily: "DM Sans, sans-serif" }}>
                                                 {meta.label}
                                             </p>
                                         </div>
@@ -1022,17 +948,20 @@ export default function TrendingPage() {
 
             {/* ── Filter Pills ── */}
             <div className="px-4 md:px-6 mb-3">
-                <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar snap-x">
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide snap-x">
                     {filters.map((f) => (
                         <button
                             key={f.key}
                             onClick={() => setActiveFilter(f.key)}
-                            className={`shrink-0 snap-start px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${
+                            className={`shrink-0 snap-start px-4 py-2 rounded-full text-[13px] font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
                                 activeFilter === f.key
-                                    ? "bg-cp text-white shadow-sm"
-                                    : "bg-white text-black border border-theme hover:border-cp/40 hover:text-cp"
+                                    ? "text-white shadow-md"
+                                    : "bg-[color:var(--card-bg)] text-gray-600 border border-[color:var(--border-subtle)] hover:border-[color:var(--border)] hover:shadow-sm"
                             }`}
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
+                            style={{
+                                fontFamily: "DM Sans, sans-serif",
+                                ...(activeFilter === f.key ? { background: "linear-gradient(135deg, var(--cp-deeper), var(--cp))" } : {}),
+                            }}
                         >
                             {f.label}
                         </button>
@@ -1040,54 +969,21 @@ export default function TrendingPage() {
                 </div>
             </div>
 
-            {/* ── Time Range — mobile ── */}
-            <div className="md:hidden px-4 mb-4">
-                <div className="flex items-center gap-2 bg-white rounded-xl p-1 border border-subtle shadow-sm w-fit">
-                    {["24h", "7d", "30d"].map((t) => (
-                        <button
-                            key={t}
-                            onClick={() => setTimeRange(t)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${timeRange === t ? "bg-cp text-white" : "text-gray-500"}`}
-                        >
-                            {t}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
             {/* ── Section Header ── */}
             <div className="px-4 md:px-6 mb-3 flex items-center gap-2">
-                <div className="flex items-center gap-1.5 text-cp">
+                <div className="flex items-center gap-1.5" style={{ color: "var(--cp)" }}>
                     <FireIcon className="w-4 h-4" />
-                    <span
-                        className="text-sm font-bold"
-                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
-                    >
-                        {activeFilter === "opposed"
-                            ? "Most Dislike · " + timeRangeLabel
-                            : "Trending by Likes · " + timeRangeLabel}
+                    <span className="text-sm font-extrabold" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
+                        {activeFilter === "opposed" ? "Most Disliked" : "Trending by Likes"}
                     </span>
                 </div>
-                <div className="flex-1 h-px bg-gray-200" />
-                <span className="text-xs text-gray-400">
-                    {filtered.length} issues
-                </span>
+                <span className="text-xs text-gray-400 font-medium">· {timeRangeLabel}</span>
+                <div className="flex-1 h-px bg-[color:var(--border-subtle)]" />
+                <span className="text-[11px] text-gray-400 font-medium">{filtered.length} posts</span>
             </div>
 
-            {activeFilter === "opposed" && (
-                <p
-                    className="px-4 md:px-6 mb-3 text-xs text-gray-400"
-                    style={{ fontFamily: "DM Sans, sans-serif" }}
-                >
-                    Posts with the most dislikes
-                </p>
-            )}
-
             {error && (
-                <div
-                    className="mx-4 md:mx-6 mb-4 px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-500"
-                    style={{ fontFamily: "DM Sans, sans-serif" }}
-                >
+                <div className="mx-4 md:mx-6 mb-4 px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-500" style={{ fontFamily: "DM Sans, sans-serif" }}>
                     {error}
                 </div>
             )}
@@ -1095,9 +991,7 @@ export default function TrendingPage() {
             {/* ── Issues List ── */}
             <div className="px-4 md:px-6 space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
                 {loading ? (
-                    Array.from({ length: 4 }).map((_, i) => (
-                        <SkeletonCard key={i} />
-                    ))
+                    Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
                 ) : filtered.length > 0 ? (
                     filtered.map((issue, index) => (
                         <TrendingCard
@@ -1111,20 +1005,13 @@ export default function TrendingPage() {
                         />
                     ))
                 ) : (
-                    <div className="col-span-2 text-center py-16 bg-card rounded-2xl border border-subtle">
+                    <div className="col-span-2 text-center py-16 bg-[color:var(--card-bg)] rounded-2xl border border-[color:var(--border-subtle)]">
                         <div className="text-4xl mb-3">🔍</div>
-                        <p
-                            className="font-semibold text-gray-700"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            {issues.length === 0
-                                ? "No issues posted yet"
-                                : "No issues found"}
+                        <p className="font-semibold text-gray-700" style={{ fontFamily: "DM Sans, sans-serif" }}>
+                            {issues.length === 0 ? "No posts yet" : "No posts found"}
                         </p>
                         <p className="text-gray-400 text-sm mt-1">
-                            {issues.length === 0
-                                ? "Be the first to report one!"
-                                : `Try a different filter or expand the time range`}
+                            {issues.length === 0 ? "Be the first to post!" : "Try a different filter or time range"}
                         </p>
                     </div>
                 )}

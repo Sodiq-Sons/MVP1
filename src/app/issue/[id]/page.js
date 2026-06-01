@@ -718,6 +718,7 @@ function LoginPromptModal({ isOpen, onClose, onLogin }) {
 // ─── Demographic Insights ──────────────────────────────────────────────────────
 function DemographicInsights({
     issue,
+    voteCounts,
     demographicData,
     demographicsLoading,
     totalVotes,
@@ -732,12 +733,13 @@ function DemographicInsights({
     );
     const [activeTab, setActiveTab] = useState(demographics[0] ?? null);
 
+    const resolvedVotes = voteCounts || issue.votes || {};
     const overallPcts = voteOptions.map((opt) => ({
         opt,
-        count: issue.votes?.[opt] || 0,
+        count: resolvedVotes[opt] || 0,
         pct:
             totalVotes > 0
-                ? Math.round(((issue.votes?.[opt] || 0) / totalVotes) * 100)
+                ? Math.round(((resolvedVotes[opt] || 0) / totalVotes) * 100)
                 : 0,
     }));
 
@@ -801,7 +803,7 @@ function DemographicInsights({
                 </div>
                 <div className="space-y-2">
                     {voteOptions.map((opt) => {
-                        const count = issue.votes?.[opt] || 0;
+                        const count = resolvedVotes[opt] || 0;
                         const pct =
                             totalVotes > 0
                                 ? Math.round((count / totalVotes) * 100)
@@ -2654,18 +2656,6 @@ export default function IssueDetailPage({ params }) {
                             <span className="flex items-center gap-1"><SvgLocation />{issue.location}</span>
                             <span className="flex items-center gap-1"><SvgClock />{issue.timeAgo}</span>
                             <DeadlineTimer deadline={issue.pollDeadline} enabled={issue.pollTimerEnabled} />
-                            {issue.locationTag?.label && (
-                                <a
-                                    href={issue.locationTag.lat
-                                        ? `https://maps.google.com/?q=${issue.locationTag.lat},${issue.locationTag.lng}`
-                                        : `https://maps.google.com/?q=${encodeURIComponent(issue.locationTag.label)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-1 font-semibold text-blue-600 hover:text-blue-700"
-                                >
-                                    📍 {issue.locationTag.label}
-                                </a>
-                            )}
                         </div>
                     </div>
 
@@ -2762,6 +2752,28 @@ export default function IssueDetailPage({ params }) {
                         >
                             {issue.description}
                         </p>
+                        {issue.locationTag?.label && (
+                            <a
+                                href={
+                                    issue.locationTag.lat
+                                        ? `https://maps.google.com/?q=${issue.locationTag.lat},${issue.locationTag.lng}`
+                                        : `https://maps.google.com/?q=${encodeURIComponent(issue.locationTag.label)}`
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors"
+                                style={{
+                                    background: "var(--cp-tint, #EEF2FF)",
+                                    color: "var(--cp, #4F46E5)",
+                                    borderColor: "var(--cp-border, #C7D2FE)",
+                                }}
+                            >
+                                <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+                                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                                </svg>
+                                {issue.locationTag.label}
+                            </a>
+                        )}
                     </div>
 
                     {/* ── Lightbox ── */}
@@ -3073,6 +3085,7 @@ export default function IssueDetailPage({ params }) {
                 {issue.demographics?.length > 0 && (
                     <DemographicInsights
                         issue={issue}
+                        voteCounts={voteCounts}
                         demographicData={demographicData}
                         demographicsLoading={demographicsLoading}
                         totalVotes={totalVotes}
