@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import Link from "next/link";
 
 function buildLeaderboard(users) {
     const map = {};
@@ -304,11 +303,11 @@ export default function PlatoonLeaderboard() {
                                     return (
                                         <div
                                             key={row.platoon}
-                                            className="group relative bg-[color:var(--card-bg)] rounded-2xl border border-[color:var(--border-subtle)] hover:border-[color:var(--border)] hover:shadow-md transition-all duration-200 overflow-hidden"
+                                            className="relative bg-[color:var(--card-bg)] rounded-2xl border border-[color:var(--border-subtle)] overflow-hidden"
                                         >
                                             {/* Score bar background */}
                                             <div
-                                                className="absolute left-0 top-0 bottom-0 opacity-5 group-hover:opacity-10 transition-opacity"
+                                                className="absolute left-0 top-0 bottom-0 opacity-5"
                                                 style={{
                                                     width: `${pct}%`,
                                                     background: isTop3
@@ -386,20 +385,15 @@ export default function PlatoonLeaderboard() {
                             </p>
                             <p className="text-[11px] text-gray-500 mt-0.5">Visible on every member's profile card</p>
                         </div>
-                        <Link
-                            href="/profile"
-                            className="shrink-0 px-3 py-1.5 rounded-xl text-white text-[11px] font-bold"
-                            style={{ background: "var(--cp)" }}
-                        >
-                            My Profile
-                        </Link>
+                        <span className="shrink-0 px-3 py-1.5 rounded-xl text-white text-[11px] font-bold" style={{ background: "var(--cp)" }}>
+                            🏆 Top Platoon
+                        </span>
                     </div>
                 )}
 
-                {/* ── Battle CTA ── */}
-                <Link
-                    href="/platoons/fight"
-                    className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl font-bold text-base text-white shadow-lg transition-all active:scale-95 relative overflow-hidden"
+                {/* ── Engagement teaser ── */}
+                <div
+                    className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl relative overflow-hidden"
                     style={{
                         background: "linear-gradient(135deg, #1a1040 0%, #2d1b69 50%, #1a1040 100%)",
                         boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
@@ -413,14 +407,11 @@ export default function PlatoonLeaderboard() {
                         }}
                     />
                     <span className="relative text-2xl">⚔️</span>
-                    <div className="relative">
-                        <div className="text-base font-black">Platoon vs Platoon Battle</div>
-                        <div className="text-white/50 text-[11px] font-medium">Challenge another platoon now</div>
+                    <div className="relative text-center">
+                        <div className="text-base font-black text-white">Platoon vs Platoon</div>
+                        <div className="text-white/50 text-[11px] font-medium">Rankings update in real time</div>
                     </div>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-5 h-5 relative text-white/60">
-                        <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                </Link>
+                </div>
 
                 <div className="h-4" />
             </div>

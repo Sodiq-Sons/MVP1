@@ -1027,12 +1027,8 @@ export default function ProfilePage() {
                     desc: "See which platoon is leading",
                     href: "/platoons",
                 },
-                {
-                    icon: <span className="text-base">🎬</span>,
-                    label: "My Camp Wrap",
-                    desc: "Your camp experience in one page",
-                    href: "/wrap",
-                },
+                // Wrap feature — hidden until end of camp
+                // { icon: <span className="text-base">🎬</span>, label: "My Camp Wrap", desc: "Your camp experience in one page", href: "/wrap" },
             ],
         },
         {

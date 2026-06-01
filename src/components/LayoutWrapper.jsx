@@ -27,7 +27,6 @@ function LayoutInner({ children }) {
             <ThemeToggler />
             <WeeklyQuestionnaire />
             <RememberThis />
-            <ChatFAB />
             <PWAInstallPrompt />
             <EmergencyWatcher />
         </div>

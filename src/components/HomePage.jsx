@@ -967,15 +967,9 @@ export default function HomePage() {
             </div>
 
             {/* Mobile Greeting */}
-            <div className="md:hidden px-4 pt-5 pb-1">
-                <h1
-                    className="text-[22px] font-extrabold text-gray-900 leading-tight"
-                    style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
-                >
+            <div className="md:hidden px-4 pt-4 pb-0.5">
+                <p className="text-[18px] font-extrabold text-gray-900 leading-tight" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
                     Hey, {displayName} 👋
-                </h1>
-                <p className="text-gray-400 text-sm mt-0.5 font-medium" style={{ fontFamily: "DM Sans, sans-serif" }}>
-                    What&apos;s happening at camp today?
                 </p>
             </div>
 
@@ -1036,55 +1030,23 @@ export default function HomePage() {
                 </div>
             )}
 
-            {/* Desktop Greeting */}
-            <div className="hidden md:block px-6 mt-6">
-                <div
-                    className="rounded-2xl p-5 relative overflow-hidden"
-                    style={{
-                        background: "linear-gradient(135deg, var(--cp-deeper) 0%, var(--cp) 60%, color-mix(in srgb, var(--cp) 80%, #FFB347) 100%)",
-                        boxShadow: "0 8px 32px var(--cp-glow)",
-                    }}
-                >
-                    {/* Pattern */}
-                    <div
-                        className="absolute inset-0 pointer-events-none"
-                        style={{
-                            backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px)",
-                            backgroundSize: "24px 24px",
-                        }}
-                    />
-                    {/* Glow blob */}
-                    <div className="absolute -top-8 -right-8 w-48 h-48 rounded-full pointer-events-none" style={{ background: "rgba(255,255,255,0.08)" }} />
-                    <div className="relative flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white text-xl font-bold overflow-hidden shadow-sm shrink-0">
-                            {userProfile?.photoURL
-                                ? <img src={userProfile.photoURL} alt="" className="w-full h-full object-cover" />
-                                : displayName.charAt(0).toUpperCase()
-                            }
-                        </div>
-                        <div className="min-w-0">
-                            <h2 className="text-lg font-extrabold text-white leading-none" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
-                                Hello, {displayName} 👋
-                            </h2>
-                            <p className="text-white/65 text-sm mt-1" style={{ fontFamily: "DM Sans, sans-serif" }}>
-                                Be the voice. Drive the change.
-                            </p>
-                        </div>
-                        <div className="ml-auto flex items-center gap-1 shrink-0">
-                            {[
-                                { value: issues.length, label: "Posts" },
-                                { value: <span className="flex items-center gap-1 justify-center"><span className="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse" />{onlineCampers}</span>, label: "Online" },
-                                { value: issues.reduce((s, i) => s + (i.totalVotes || 0), 0), label: "Votes" },
-                            ].map((stat, i) => (
-                                <div key={i} className="text-center px-4 py-2">
-                                    <div className="text-xl font-extrabold text-white leading-none" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
-                                        {stat.value}
-                                    </div>
-                                    <div className="text-white/60 text-[11px] font-medium mt-0.5">{stat.label}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+            {/* Desktop Greeting — compact */}
+            <div className="hidden md:flex items-center gap-3 px-6 mt-5">
+                <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: "var(--cp)" }}>
+                    {userProfile?.photoURL
+                        ? <img src={userProfile.photoURL} alt="" className="w-full h-full object-cover" />
+                        : displayName.charAt(0).toUpperCase()
+                    }
+                </div>
+                <div>
+                    <p className="text-sm font-bold text-gray-800 leading-none" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
+                        Hey, {displayName} 👋
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">{displayPlatoon || "Camp Connect"}</p>
+                </div>
+                <div className="ml-auto flex items-center gap-1.5 bg-[color:var(--card-bg)] rounded-full px-3 py-1.5 border border-[color:var(--border-subtle)]">
+                    <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                    <span className="text-xs font-semibold text-gray-600">{onlineCampers} online</span>
                 </div>
             </div>
 

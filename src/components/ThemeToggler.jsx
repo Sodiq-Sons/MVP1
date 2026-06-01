@@ -10,17 +10,49 @@ export default function ThemeToggler() {
     return (
         <div
             className="fixed z-[200] flex items-center no-theme-transition"
-            style={{ right: 12, top: "60%", transform: "translateY(-50%)" }}
+            style={{ left: 0, bottom: 90 }}
         >
-            {/* ── Theme panel ── */}
+            {/* ── Pill handle ── */}
+            <button
+                onPointerDown={(e) => { e.preventDefault(); setOpen((v) => !v); }}
+                aria-label="Toggle theme picker"
+                className="flex flex-col items-center justify-center gap-1.5 shadow-lg cursor-pointer no-theme-transition"
+                style={{
+                    width: 28,
+                    height: 68,
+                    background: "var(--cp)",
+                    border: "none",
+                    borderRadius: "0 9999px 9999px 0",
+                    flexShrink: 0,
+                    touchAction: "manipulation",
+                    WebkitTouchCallout: "none",
+                    WebkitUserSelect: "none",
+                    userSelect: "none",
+                }}
+            >
+                {themes.map((t) => (
+                    <div
+                        key={t.id}
+                        className="rounded-full no-theme-transition"
+                        style={{
+                            width: theme === t.id ? 9 : 5,
+                            height: theme === t.id ? 9 : 5,
+                            background: theme === t.id ? "white" : "rgba(255,255,255,0.45)",
+                        }}
+                    />
+                ))}
+            </button>
+
+            {/* ── Theme panel — slides out to the right ── */}
             <div
                 className="flex flex-col gap-1.5 p-2 rounded-2xl shadow-2xl border no-theme-transition"
                 style={{
                     background: "var(--nav-bg)",
                     borderColor: "var(--cp-border)",
-                    marginRight: 8,
-                    transform: open ? "translateX(0)" : "translateX(200%)",
-                    transition: "transform 220ms cubic-bezier(0.4,0,0.2,1)",
+                    marginLeft: 8,
+                    transform: open ? "translateX(0)" : "translateX(-120%)",
+                    opacity: open ? 1 : 0,
+                    transition: "transform 220ms cubic-bezier(0.4,0,0.2,1), opacity 180ms ease",
                     pointerEvents: open ? "auto" : "none",
                 }}
             >
@@ -55,37 +87,6 @@ export default function ThemeToggler() {
                     </button>
                 ))}
             </div>
-
-            {/* ── Pill handle ── */}
-            <button
-                onPointerDown={(e) => { e.preventDefault(); setOpen((v) => !v); }}
-                aria-label="Toggle theme picker"
-                className="flex flex-col items-center justify-center gap-1.5 shadow-lg cursor-pointer no-theme-transition"
-                style={{
-                    width: 36,
-                    height: 80,
-                    background: "var(--cp)",
-                    border: "none",
-                    borderRadius: 9999,
-                    flexShrink: 0,
-                    touchAction: "manipulation",
-                    WebkitTouchCallout: "none",
-                    WebkitUserSelect: "none",
-                    userSelect: "none",
-                }}
-            >
-                {themes.map((t) => (
-                    <div
-                        key={t.id}
-                        className="rounded-full no-theme-transition"
-                        style={{
-                            width: theme === t.id ? 10 : 6,
-                            height: theme === t.id ? 10 : 6,
-                            background: theme === t.id ? "white" : "rgba(255,255,255,0.45)",
-                        }}
-                    />
-                ))}
-            </button>
         </div>
     );
 }
