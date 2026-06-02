@@ -79,10 +79,17 @@ export const CATEGORY_META = {
     },
 };
 
+// ─── Canonical post taxonomy ────────────────────────────────────────────────
+// SINGLE SOURCE OF TRUTH. Every surface (Create flow, Home filters, Trending
+// filters) must derive its categories from here. Do not hard-code category
+// lists anywhere else. `id` is the value stored on each post's `category`
+// field; `filterKey` is the chip key used by the filter bars.
+
 export const FILTER_MAP = {
     gist: { field: "category", values: ["gist", "gossip", "discussion"] },
     polls: { field: "category", values: ["poll", "polls"] },
     food: { field: "category", values: ["food"] },
+    lost_found: { field: "category", values: ["lost_found", "lost", "found"] },
     issues: {
         field: "category",
         values: [
@@ -94,8 +101,24 @@ export const FILTER_MAP = {
             "security",
             "electricity",
             "environment",
+            "other",
         ],
     },
 };
 
+// Content-type filter chips shared by Home and Trending. Each page may prepend
+// its own special chips (e.g. "All", "Trending") and append sentiment chips
+// (e.g. "Disliked"), but the content-type set itself lives only here.
+export const CATEGORY_FILTERS = [
+    { key: "gist", label: "💬 Gist" },
+    { key: "polls", label: "🗳️ Polls" },
+    { key: "food", label: "🍛 Food" },
+    { key: "lost_found", label: "🔍 Lost & Found" },
+    { key: "issues", label: "🚨 Issues" },
+];
+
 export const UPVOTE_MILESTONES = [10, 25, 50, 100, 250, 500];
+
+// Minimum responses in a demographic segment before percentages are shown.
+// Below this we show raw counts so we never display "100%" on a single vote.
+export const MIN_DEMOGRAPHIC_SAMPLE = 20;
