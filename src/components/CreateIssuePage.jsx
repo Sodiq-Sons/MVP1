@@ -1049,9 +1049,17 @@ function CreatePostForm({
     const selectedSubcategory = ISSUE_SUBCATEGORIES.find(
         (s) => s.id === issueSubcategory,
     );
-    const totalSteps = 4;
-
     const step1Valid = postType.length > 0;
+
+    // Polls and lost & found skip the response-type step: a poll's options ARE
+    // its responses (entered in step 2), and lost & found has no vote at all.
+    const skipsResponseType =
+        postType === "poll" || postType === "lost_found";
+
+    const totalSteps = skipsResponseType ? 3 : 4;
+    // Internal step state keeps 1, 2, 4 for skipped flows (step 3 is bypassed);
+    // displayStep renumbers them to 1, 2, 3 for the indicator and header.
+    const displayStep = skipsResponseType && step === 4 ? 3 : step;
 
     const step2Valid = () => {
         const baseValid = title.trim().length > 0;
@@ -1078,8 +1086,8 @@ function CreatePostForm({
     };
 
     const step3Valid = () => {
-        // lost_found doesn't need a response type
-        if (postType === "lost_found") return true;
+        // lost_found and poll don't use the response-type step
+        if (postType === "lost_found" || postType === "poll") return true;
         if (!responseType) return false;
         if (responseType === "custom")
             return customOptions.filter((o) => o.trim()).length >= 2;
@@ -1120,6 +1128,8 @@ function CreatePostForm({
         );
 
     const getVoteOptions = () => {
+        // A poll's vote options are the options typed in step 2.
+        if (postType === "poll") return pollOptions.filter((o) => o.trim());
         switch (responseType) {
             case "agreement":
                 return [
@@ -1219,7 +1229,7 @@ function CreatePostForm({
                 reactions: {},
                 commentCount: 0,
                 voteOptions,
-                responseType,
+                responseType: postType === "poll" ? "custom" : responseType,
                 demographics: selectedDemographics,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
@@ -1339,12 +1349,12 @@ function CreatePostForm({
                             className="text-white/80 text-xs"
                             style={{ fontFamily: "DM Sans, sans-serif" }}
                         >
-                            Step {step} of {totalSteps}
+                            Step {displayStep} of {totalSteps}
                         </p>
                     </div>
                 </div>
                 <div className="max-w-2xl mx-auto">
-                    <StepIndicator step={step} totalSteps={totalSteps} />
+                    <StepIndicator step={displayStep} totalSteps={totalSteps} />
                 </div>
             </header>
 
@@ -1961,7 +1971,7 @@ function CreatePostForm({
                                 ← Back
                             </button>
                             <button
-                                onClick={() => step2Valid() && setStep(postType === "lost_found" ? 4 : 3)}
+                                onClick={() => step2Valid() && setStep(skipsResponseType ? 4 : 3)}
                                 disabled={!step2Valid()}
                                 className={`flex-[3] py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${step2Valid() ? "btn-primary shadow-lg active:scale-[0.98]" : "bg-muted text-gray-400 cursor-not-allowed"}`}
                                 style={{
@@ -1971,7 +1981,9 @@ function CreatePostForm({
                                         : undefined,
                                 }}
                             >
-                                Next — Response Type
+                                {skipsResponseType
+                                    ? "Next — Demographics"
+                                    : "Next — Response Type"}
                                 <svg
                                     viewBox="0 0 24 24"
                                     fill="none"
@@ -2314,7 +2326,7 @@ function CreatePostForm({
 
                         <div className="flex gap-3 mt-5">
                             <button
-                                onClick={() => setStep(postType === "lost_found" ? 2 : 3)}
+                                onClick={() => setStep(skipsResponseType ? 2 : 3)}
                                 disabled={saving}
                                 className="flex-1 py-4 rounded-2xl font-bold text-sm text-gray-500 hover:text-gray-700 border-2 border-theme hover:border-gray-300 transition-all duration-200 disabled:opacity-50 cursor-pointer"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
