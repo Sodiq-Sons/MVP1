@@ -22,6 +22,7 @@ import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
 import { awardPointsViaApi } from "@/lib/gamification";
 import { isProfileComplete } from "@/lib/profileCompletion";
 import { uploadImage } from "@/lib/uploadImage";
+import { MIN_DEMOGRAPHIC_SAMPLE } from "@/lib/constants";
 import Image from "next/image";
 import { toast } from "sonner";
 
@@ -752,6 +753,9 @@ function DemographicInsights({
         const tabData = demographicData[activeTab] || {};
         Object.entries(tabData).forEach(([group, counts]) => {
             const groupTotal = Object.values(counts).reduce((s, v) => s + v, 0);
+            // Only segments at/above the sample threshold can be "strongest
+            // support" — a single voter must never surface as 100%.
+            if (groupTotal < MIN_DEMOGRAPHIC_SAMPLE) return;
             const pct =
                 groupTotal > 0
                     ? Math.round(((counts[leadingOpt] || 0) / groupTotal) * 100)
@@ -768,11 +772,12 @@ function DemographicInsights({
 
     const activeConfig = DEMOGRAPHIC_CONFIG[activeTab];
     const activeData = demographicData[activeTab] || {};
-    // Raise to 5 before launch to prevent de-anonymisation on small groups
-    const MIN_GROUP_SIZE = 1;
+    // Show every segment that has at least one vote. Segments below
+    // MIN_DEMOGRAPHIC_SAMPLE render as raw counts (no percentages) so a single
+    // voter is never displayed as "100%". Threshold lives in lib/constants.js.
     const activeGroups = Object.keys(activeData).filter((g) => {
         const total = Object.values(activeData[g] || {}).reduce((s, v) => s + v, 0);
-        return total >= MIN_GROUP_SIZE;
+        return total > 0;
     });
 
     return (
@@ -948,6 +953,14 @@ function DemographicInsights({
                             0,
                         );
                         if (groupTotal === 0) return null;
+
+                        // Percentages only once the segment reaches the sample
+                        // threshold; below it we show raw counts — so a single
+                        // voter never renders as "100%" and de-anonymises a
+                        // small platoon. Threshold lives in lib/constants.js.
+                        const showPct =
+                            groupTotal >= MIN_DEMOGRAPHIC_SAMPLE;
+
                         return (
                             <div key={group}>
                                 <div className="flex items-center justify-between mb-2">
@@ -959,48 +972,44 @@ function DemographicInsights({
                                         {groupTotal !== 1 ? "s" : ""}
                                     </span>
                                 </div>
-                                <div className="h-8 w-full flex rounded-xl overflow-hidden">
-                                    {voteOptions.map((opt, i) => {
-                                        const count = groupCounts[opt] || 0;
-                                        const pct =
-                                            groupTotal > 0
-                                                ? (count / groupTotal) * 100
-                                                : 0;
-                                        if (pct === 0) return null;
-                                        return (
-                                            <div
-                                                key={opt}
-                                                title={`${opt}: ${count} (${Math.round(pct)}%)`}
-                                                className="h-full flex items-center justify-center relative group"
-                                                style={{
-                                                    width: `${pct}%`,
-                                                    backgroundColor:
-                                                        DEMO_COLORS[
-                                                            i %
-                                                                DEMO_COLORS.length
-                                                        ],
-                                                }}
-                                            >
-                                                {pct >= 14 && (
-                                                    <span className="text-white text-[10px] font-bold pointer-events-none select-none">
-                                                        {Math.round(pct)}%
-                                                    </span>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                {showPct && (
+                                    <div className="h-8 w-full flex rounded-xl overflow-hidden">
+                                        {voteOptions.map((opt, i) => {
+                                            const count = groupCounts[opt] || 0;
+                                            const pct =
+                                                (count / groupTotal) * 100;
+                                            if (pct === 0) return null;
+                                            return (
+                                                <div
+                                                    key={opt}
+                                                    title={`${opt}: ${count} (${Math.round(pct)}%)`}
+                                                    className="h-full flex items-center justify-center relative group"
+                                                    style={{
+                                                        width: `${pct}%`,
+                                                        backgroundColor:
+                                                            DEMO_COLORS[
+                                                                i %
+                                                                    DEMO_COLORS.length
+                                                            ],
+                                                    }}
+                                                >
+                                                    {pct >= 14 && (
+                                                        <span className="text-white text-[10px] font-bold pointer-events-none select-none">
+                                                            {Math.round(pct)}%
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                                 <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
                                     {voteOptions.map((opt, i) => {
                                         const count = groupCounts[opt] || 0;
                                         if (count === 0) return null;
-                                        const pct =
-                                            groupTotal > 0
-                                                ? Math.round(
-                                                      (count / groupTotal) *
-                                                          100,
-                                                  )
-                                                : 0;
+                                        const pct = Math.round(
+                                            (count / groupTotal) * 100,
+                                        );
                                         return (
                                             <div
                                                 key={opt}
@@ -1020,12 +1029,19 @@ function DemographicInsights({
                                                     {opt}
                                                 </span>
                                                 <span className="text-[10px] font-semibold text-gray-700">
-                                                    {pct}%
+                                                    {showPct ? `${pct}%` : count}
                                                 </span>
                                             </div>
                                         );
                                     })}
                                 </div>
+                                {!showPct && (
+                                    <p className="text-[10px] text-gray-400 mt-1">
+                                        Raw counts — percentages show once this
+                                        group reaches {MIN_DEMOGRAPHIC_SAMPLE}{" "}
+                                        votes
+                                    </p>
+                                )}
                             </div>
                         );
                     })
