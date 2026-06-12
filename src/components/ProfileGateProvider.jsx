@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { isProfileComplete } from "@/lib/profileCompletion";
+import { canParticipate } from "@/lib/profileCompletion";
 import ProfileIncompleteModal from "./ProfileIncompleteModal";
 
 const ProfileGateContext = createContext();
@@ -50,7 +50,7 @@ export default function ProfileGateProvider({ children }) {
     useEffect(() => {
         if (!user || !userData) return;
 
-        const complete = isProfileComplete(userData);
+        const complete = canParticipate(userData);
         const seen = sessionStorage.getItem("profile_modal_seen");
 
         if (!complete && seen !== "true") {
@@ -63,7 +63,7 @@ export default function ProfileGateProvider({ children }) {
     const requireCompleteProfile = (actionName, callback) => {
         if (!userData) return;
 
-        const complete = isProfileComplete(userData);
+        const complete = canParticipate(userData);
 
         if (!complete) {
             setAction(actionName);
