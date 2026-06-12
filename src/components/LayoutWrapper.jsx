@@ -7,6 +7,7 @@ import WeeklyQuestionnaire from "./WeeklyQuestionnaire";
 import RememberThis from "./RememberThis";
 import ChatFAB from "./ChatFAB";
 import PWAInstallPrompt from "./PWAInstallPrompt";
+import EnablePushPrompt from "./EnablePushPrompt";
 import EmergencyWatcher from "./EmergencyWatcher";
 
 function LayoutInner({ children }) {
@@ -28,6 +29,7 @@ function LayoutInner({ children }) {
             <WeeklyQuestionnaire />
             <RememberThis />
             <PWAInstallPrompt />
+            <EnablePushPrompt />
             <EmergencyWatcher />
         </div>
     );
