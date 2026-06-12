@@ -20,7 +20,7 @@ import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
 import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
 import { awardPointsViaApi } from "@/lib/gamification";
-import { isProfileComplete } from "@/lib/profileCompletion";
+import { canParticipate } from "@/lib/profileCompletion";
 import { uploadImage } from "@/lib/uploadImage";
 import { MIN_DEMOGRAPHIC_SAMPLE } from "@/lib/constants";
 import Image from "next/image";
@@ -2008,17 +2008,13 @@ export default function IssueDetailPage({ params }) {
                         const snap = await getDoc(doc(db, "users", user.uid));
                         if (snap.exists()) {
                             const d = snap.data();
+                            // Gate voting/commenting on the minimum participation
+                            // set, not 100% completion (the rest is a soft nudge).
                             setProfileComplete(
-                                isProfileComplete({
-                                    email: user.email || d.email,
-                                    phone: d.phoneNumber || d.phone,
-                                    stateOfOrigin: d.stateOfOrigin,
+                                canParticipate({
                                     gender: d.gender,
-                                    educationLevel: d.educationLevel,
-                                    institutionType: d.institutionType,
-                                    campLocation: d.campLocation,
-                                    religion: d.religion,
-                                    bio: d.bio,
+                                    stateOfOrigin: d.stateOfOrigin,
+                                    platoon: d.platoon,
                                 }),
                             );
                         }
