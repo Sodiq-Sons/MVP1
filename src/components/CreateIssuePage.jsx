@@ -23,7 +23,7 @@ import { createNotification, NOTIFICATION_TYPES } from "@/lib/notifications";
 import { awardPointsViaApi } from "@/lib/gamification";
 import Image from "next/image";
 import ProfileIncompleteModal from "@/components/ProfileIncompleteModal";
-import { isProfileComplete } from "@/lib/profileCompletion";
+import { canParticipate } from "@/lib/profileCompletion";
 import { uploadImage } from "@/lib/uploadImage";
 
 // ─── Post Types ───────────────────────────────────────────────────────────────
@@ -872,8 +872,11 @@ export default function CreatePostPage() {
                                 doc(db, "users", user.uid),
                             );
                             if (snap.exists()) {
+                                // Gate posting on the minimum participation set,
+                                // not 100% completion. (Full completion stays a
+                                // soft nudge via the completion bar.)
                                 setProfileComplete(
-                                    isProfileComplete(snap.data()),
+                                    canParticipate(snap.data()),
                                 );
                             } else {
                                 setProfileComplete(false);
