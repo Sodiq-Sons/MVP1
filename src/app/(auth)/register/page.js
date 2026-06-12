@@ -68,15 +68,6 @@ const SpinnerIcon = () => (
     </svg>
 );
 
-const CalendarIcon = () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="w-4 h-4">
-        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-        <line x1="16" y1="2" x2="16" y2="6" />
-        <line x1="8" y1="2" x2="8" y2="6" />
-        <line x1="3" y1="10" x2="21" y2="10" />
-    </svg>
-);
-
 const MapPinIcon = () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="w-4 h-4">
         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
@@ -151,7 +142,6 @@ function SignupForm() {
     const [fullName, setFullName] = useState("");
     const [platoon, setPlatoon] = useState("");
     const [gender, setGender] = useState("");
-    const [age, setAge] = useState("");
     const [stateOfOrigin, setStateOfOrigin] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -162,7 +152,6 @@ function SignupForm() {
         fullName: false,
         platoon: false,
         gender: false,
-        age: false,
         stateOfOrigin: false,
         password: false,
         confirmPassword: false,
@@ -190,23 +179,18 @@ function SignupForm() {
     }, [referralCode]);
 
     const isValidPassword = (pwd) => pwd.length >= 6;
-    const isValidAge = (a) => {
-        const n = parseInt(a, 10);
-        return !isNaN(n) && n >= 13 && n <= 100;
-    };
 
     const formValid =
         fullName.trim().length >= 2 &&
         platoon.length > 0 &&
         gender.length > 0 &&
-        isValidAge(age) &&
         stateOfOrigin.length > 0 &&
         isValidPassword(password) &&
         password === confirmPassword;
 
     const touchAll = () =>
         setTouched({
-            fullName: true, platoon: true, gender: true, age: true,
+            fullName: true, platoon: true, gender: true,
             stateOfOrigin: true, password: true, confirmPassword: true,
         });
 
@@ -238,7 +222,6 @@ function SignupForm() {
                 email: campEmail,
                 platoon,
                 gender,
-                age: parseInt(age, 10),
                 stateOfOrigin,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
@@ -419,34 +402,6 @@ function SignupForm() {
                                         {g}
                                     </button>
                                 ))}
-                            </div>
-                        </div>
-                    </FieldRow>
-
-                    {/* Age */}
-                    <FieldRow touched={touched.age} valid={isValidAge(age)}>
-                        <div className="px-4 pt-3 pb-3 flex items-center gap-3">
-                            <div className="w-8 h-8 bg-subtle rounded-lg flex items-center justify-center shrink-0">
-                                <CalendarIcon />
-                            </div>
-                            <div className="flex-1">
-                                <label className="block text-sm font-semibold text-black mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>
-                                    Age <span className="text-red-400">*</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    value={age}
-                                    onChange={(e) => setAge(e.target.value)}
-                                    onBlur={() => setTouched((t) => ({ ...t, age: true }))}
-                                    placeholder="e.g. 25"
-                                    min="13"
-                                    max="100"
-                                    className="w-full text-sm text-black placeholder-gray-300 focus:outline-none bg-transparent"
-                                    style={{ fontFamily: "DM Sans, sans-serif" }}
-                                />
-                                {age.length > 0 && !isValidAge(age) && (
-                                    <p className="text-xs text-red-400 mt-1">Please enter a valid age (13-100)</p>
-                                )}
                             </div>
                         </div>
                     </FieldRow>
