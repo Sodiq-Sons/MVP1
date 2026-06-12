@@ -34,5 +34,20 @@ export function isProfileComplete(userData) {
     return computeProfileCompletion(userData) === 100;
 }
 
-// Actions that require a complete profile
+// Minimum fields required to vote or post. Everything else in PROFILE_FIELDS is
+// optional enrichment, surfaced as a gentle nudge (ProfileCompletionBar) rather
+// than a hard wall. These three are also exactly what poll demographics reads,
+// and all three are collected during registration — so a freshly registered
+// corper can participate immediately.
+export const PARTICIPATION_FIELDS = ["gender", "stateOfOrigin", "platoon"];
+
+export function canParticipate(userData) {
+    if (!userData) return false;
+    return PARTICIPATION_FIELDS.every((key) => {
+        const val = userData[key];
+        return val && String(val).trim().length > 0;
+    });
+}
+
+// Actions that require the minimum participation set (see canParticipate)
 export const GATED_ACTIONS = ["vote", "create_post"];
