@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import {
     collection,
     query,
@@ -31,22 +31,6 @@ function markNotified(id) {
 }
 
 export default function EmergencyWatcher() {
-    const permRef = useRef(
-        typeof Notification !== "undefined" ? Notification.permission : "denied"
-    );
-
-    // Request permission proactively once
-    useEffect(() => {
-        if (typeof Notification === "undefined") return;
-        if (Notification.permission === "default") {
-            Notification.requestPermission().then((p) => {
-                permRef.current = p;
-            });
-        } else {
-            permRef.current = Notification.permission;
-        }
-    }, []);
-
     // Listen for emergency posts and fire browser notifications
     useEffect(() => {
         const q = query(
@@ -72,7 +56,7 @@ export default function EmergencyWatcher() {
 
                 if (
                     typeof Notification !== "undefined" &&
-                    permRef.current === "granted"
+                    Notification.permission === "granted"
                 ) {
                     try {
                         new Notification("🚨 Camp Alert", {

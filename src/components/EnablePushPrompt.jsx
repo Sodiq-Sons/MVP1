@@ -21,7 +21,7 @@ export default function EnablePushPrompt() {
         const dismissed = localStorage.getItem(DISMISSED_KEY);
         if (dismissed && Date.now() - Number(dismissed) < DISMISS_DAYS * 24 * 60 * 60 * 1000) return;
 
-        const timer = setTimeout(() => setShow(true), 4000);
+        const timer = setTimeout(() => setShow(true), 1200);
         return () => clearTimeout(timer);
     }, [isSignedIn]);
 
