@@ -2102,6 +2102,9 @@ export default function IssueDetailPage({ params }) {
     }, [id]);
 
     // ── Demographics ──
+    // Reads a single maintained aggregate doc (issues/{id}/aggregates/demographics)
+    // via onSnapshot instead of scanning every vote. Legacy polls created before
+    // the aggregate existed fall back to a one-time vote scan.
     useEffect(() => {
         if (
             !id ||
@@ -2110,56 +2113,93 @@ export default function IssueDetailPage({ params }) {
             !currentUser
         )
             return;
-        const fetch = async () => {
-            setDemographicsLoading(true);
+
+        // Turn counts[dim][rawGroup][option] into demoData[dim][group][option],
+        // applying each dimension's getGroup (merges raw values, drops non-matches).
+        const buildFromCounts = (counts) => {
             const demoData = {};
             issue.demographics.forEach((demo) => {
                 if (DEMOGRAPHIC_CONFIG[demo]) demoData[demo] = {};
             });
-            try {
-                const votesSnap = await getDocs(
-                    collection(db, "issues", id, "votes"),
-                );
-                let pollVoteCount = 0;
-                let demoMatchCount = 0;
-                for (const voteDoc of votesSnap.docs) {
-                    const voteData = voteDoc.data();
-                    const { option: selectedOption } = voteData;
-                    if (!selectedOption || !issue.voteOptions.includes(selectedOption)) continue;
-                    pollVoteCount++;
-
-                    // Demographics are denormalized onto the vote doc — no user lookup needed
-                    let hadAnyDemo = false;
-                    issue.demographics.forEach((demo) => {
-                        const config = DEMOGRAPHIC_CONFIG[demo];
-                        if (!config) return;
-                        const rawValue = voteData[config.firestoreField ?? demo];
-                        if (rawValue === undefined || rawValue === null) return;
-                        const group = config.getGroup ? config.getGroup(rawValue) : String(rawValue);
-                        if (!group) return;
-                        hadAnyDemo = true;
-                        if (!demoData[demo][group]) {
-                            demoData[demo][group] = {};
-                            issue.voteOptions.forEach((opt) => { demoData[demo][group][opt] = 0; });
-                        }
-                        demoData[demo][group][selectedOption] = (demoData[demo][group][selectedOption] || 0) + 1;
+            let any = false;
+            issue.demographics.forEach((demo) => {
+                const config = DEMOGRAPHIC_CONFIG[demo];
+                if (!config) return;
+                const dimCounts = counts?.[demo] || {};
+                Object.entries(dimCounts).forEach(([rawGroup, optCounts]) => {
+                    const group = config.getGroup
+                        ? config.getGroup(rawGroup)
+                        : String(rawGroup);
+                    if (!group) return;
+                    if (!demoData[demo][group]) {
+                        demoData[demo][group] = {};
+                        issue.voteOptions.forEach((opt) => {
+                            demoData[demo][group][opt] = 0;
+                        });
+                    }
+                    issue.voteOptions.forEach((opt) => {
+                        const c = optCounts?.[opt] || 0;
+                        demoData[demo][group][opt] += c;
+                        if (c) any = true;
                     });
-                    if (hadAnyDemo) demoMatchCount++;
-                }
-                setDemographicData(demoData);
-                setDemoHasVotesButNoData(pollVoteCount > 0 && demoMatchCount === 0);
-            } catch (err) {
-                console.error("Demographics fetch error:", err);
-            } finally {
-                setDemographicsLoading(false);
-            }
+                });
+            });
+            return { demoData, any };
         };
-        fetch();
+
+        // Legacy fallback: aggregate client-side from vote docs (one-time).
+        const scanVotes = async () => {
+            const votesSnap = await getDocs(
+                collection(db, "issues", id, "votes"),
+            );
+            const counts = {};
+            votesSnap.forEach((vd) => {
+                const v = vd.data();
+                if (!v.option || !issue.voteOptions.includes(v.option)) return;
+                issue.demographics.forEach((demo) => {
+                    const cfg = DEMOGRAPHIC_CONFIG[demo];
+                    if (!cfg) return;
+                    const raw = v[cfg.firestoreField ?? demo];
+                    if (raw === undefined || raw === null) return;
+                    counts[demo] = counts[demo] || {};
+                    counts[demo][raw] = counts[demo][raw] || {};
+                    counts[demo][raw][v.option] =
+                        (counts[demo][raw][v.option] || 0) + 1;
+                });
+            });
+            return counts;
+        };
+
+        setDemographicsLoading(true);
+        const aggRef = doc(db, "issues", id, "aggregates", "demographics");
+        const unsub = onSnapshot(
+            aggRef,
+            async (snap) => {
+                try {
+                    let counts = snap.exists() ? snap.data().counts || {} : null;
+                    if (!counts || Object.keys(counts).length === 0) {
+                        counts = await scanVotes();
+                    }
+                    const { demoData, any } = buildFromCounts(counts);
+                    setDemographicData(demoData);
+                    setDemoHasVotesButNoData((issue.totalVotes || 0) > 0 && !any);
+                } catch (err) {
+                    console.error("Demographics fetch error:", err);
+                } finally {
+                    setDemographicsLoading(false);
+                }
+            },
+            (err) => {
+                console.error("Demographics listener error:", err);
+                setDemographicsLoading(false);
+            },
+        );
+
+        return () => unsub();
     }, [
         id,
         issue?.demographics?.join(","),
         issue?.voteOptions?.join(","),
-        issue?.totalVotes,
         currentUser,
     ]);
 
