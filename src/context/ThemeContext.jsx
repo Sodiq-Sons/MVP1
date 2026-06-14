@@ -15,11 +15,21 @@ const ThemeContext = createContext({
 });
 
 export function ThemeProvider({ children }) {
+    // SSR-safe default. The inline script in the root layout has already applied
+    // the persisted theme to <html data-theme> before this mounts, so we only
+    // need to sync React state to it — never overwrite it back to the default.
     const [theme, setThemeState] = useState("orange");
 
-    // Read persisted theme on mount (runs client-side only)
+    // Adopt the persisted theme on mount (idempotent with the pre-paint script).
     useEffect(() => {
-        const saved = localStorage.getItem("cc-theme");
+        let saved = null;
+        try {
+            saved =
+                document.documentElement.getAttribute("data-theme") ||
+                localStorage.getItem("cc-theme");
+        } catch (e) {
+            saved = null;
+        }
         if (saved && THEMES.some((t) => t.id === saved)) {
             setThemeState(saved);
             document.documentElement.setAttribute("data-theme", saved);
@@ -28,14 +38,13 @@ export function ThemeProvider({ children }) {
 
     const setTheme = (id) => {
         setThemeState(id);
-        localStorage.setItem("cc-theme", id);
+        try {
+            localStorage.setItem("cc-theme", id);
+        } catch (e) {
+            /* ignore */
+        }
         document.documentElement.setAttribute("data-theme", id);
     };
-
-    // Keep data-theme in sync when state changes
-    useEffect(() => {
-        document.documentElement.setAttribute("data-theme", theme);
-    }, [theme]);
 
     return (
         <ThemeContext.Provider value={{ theme, setTheme, themes: THEMES }}>
