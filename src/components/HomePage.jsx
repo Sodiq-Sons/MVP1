@@ -657,6 +657,15 @@ const IssueCard = memo(function IssueCard({
     );
 });
 
+function NameSkeleton({ className = "w-24" }) {
+    return (
+        <span
+            className={`inline-block align-middle h-4 ${className} rounded-md bg-gray-200 animate-pulse`}
+            aria-hidden="true"
+        />
+    );
+}
+
 export default function HomePage() {
     const [issues, setIssues] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -861,6 +870,11 @@ export default function HomePage() {
 
     const displayName = isAnonymous ? "Guest" : userProfile?.name || "User";
     const displayPlatoon = isAnonymous ? "" : userProfile?.platoon || "";
+    // True once we actually know the name: auth has resolved AND the user is
+    // either a guest or a member whose profile has loaded. Until then we show a
+    // skeleton instead of the "User"/"Guest" placeholder, so the name never
+    // flashes the wrong value on open/refresh.
+    const nameReady = authReady && (isAnonymous || !!userProfile?.name);
 
     return (
         <div
@@ -913,7 +927,7 @@ export default function HomePage() {
                                 <div className="w-8 h-8 rounded-full border-2 border-white/50 overflow-hidden bg-white/20 flex items-center justify-center shadow-sm">
                                     {userProfile?.photoURL
                                         ? <img src={userProfile.photoURL} alt="" className="w-full h-full object-cover" />
-                                        : <span className="text-white text-xs font-bold">{displayName.charAt(0).toUpperCase()}</span>
+                                        : <span className="text-white text-xs font-bold">{nameReady ? displayName.charAt(0).toUpperCase() : ""}</span>
                                     }
                                 </div>
                             </Link>
@@ -950,12 +964,12 @@ export default function HomePage() {
                             <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-white text-sm font-bold" style={{ background: "var(--cp)" }}>
                                 {userProfile?.photoURL
                                     ? <img src={userProfile.photoURL} alt="" className="w-full h-full object-cover" />
-                                    : displayName.charAt(0).toUpperCase()
+                                    : nameReady ? displayName.charAt(0).toUpperCase() : ""
                                 }
                             </div>
                             <div>
                                 <div className="text-sm font-semibold text-gray-800 leading-none" style={{ fontFamily: "DM Sans, sans-serif" }}>
-                                    {displayName}
+                                    {nameReady ? displayName : <NameSkeleton className="w-20" />}
                                 </div>
                                 <div className="text-[11px] text-gray-400 mt-0.5">
                                     {displayPlatoon || "No Platoon"}
@@ -969,7 +983,7 @@ export default function HomePage() {
             {/* Mobile Greeting */}
             <div className="md:hidden px-4 pt-4 pb-0.5">
                 <p className="text-[18px] font-extrabold text-gray-900 leading-tight" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
-                    Hey, {displayName} 👋
+                    Hey, {nameReady ? displayName : <NameSkeleton />} 👋
                 </p>
             </div>
 
@@ -1040,7 +1054,7 @@ export default function HomePage() {
                 </div>
                 <div>
                     <p className="text-sm font-bold text-gray-800 leading-none" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
-                        Hey, {displayName} 👋
+                        Hey, {nameReady ? displayName : <NameSkeleton className="w-20" />} 👋
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">{displayPlatoon || "Camp Connect"}</p>
                 </div>
