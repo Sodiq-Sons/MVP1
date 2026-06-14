@@ -94,6 +94,14 @@ export default function RootLayout({ children }) {
             className={`${plusJakarta.variable} ${dmSans.variable} h-full antialiased font-sans`}
         >
             <head>
+                {/* Apply the saved theme before first paint to avoid a flash of
+                    the default (orange) theme on load/refresh. Runs synchronously
+                    during HTML parse, before React hydrates. */}
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `(function(){try{var t=localStorage.getItem('cc-theme');if(t&&['orange','earth','ocean'].indexOf(t)>-1){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();`,
+                    }}
+                />
                 <link rel="apple-touch-icon" href="/icons/icon-192x192.webp" />
                 {/* Preconnect to third-party origins to reduce latency */}
                 <link rel="preconnect" href="https://res.cloudinary.com" />
