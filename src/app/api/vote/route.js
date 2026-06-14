@@ -52,14 +52,14 @@ export async function POST(request) {
 
     const issueRef = adminDb.collection("issues").doc(issueId);
     const voteRef = issueRef.collection("votes").doc(uid);
+    const aggRef = issueRef.collection("aggregates").doc("demographics");
     const ts = FieldValue.serverTimestamp();
 
     try {
         const result = await adminDb.runTransaction(async (tx) => {
-            const [issueSnap, voteSnap] = await Promise.all([
-                tx.get(issueRef),
-                tx.get(voteRef),
-            ]);
+            const reads = [tx.get(issueRef), tx.get(voteRef)];
+            if (type === "poll") reads.push(tx.get(aggRef));
+            const [issueSnap, voteSnap, aggSnap] = await Promise.all(reads);
             if (!issueSnap.exists) throw new Error("Issue not found");
             const issueData = issueSnap.data();
 
@@ -99,17 +99,43 @@ export async function POST(request) {
             const cv = { ...(issueData.votes || {}) };
             let ct = issueData.totalVotes || 0;
 
+            // Maintained demographic aggregate: counts[dimension][group][option].
+            // Read-modify-write inside the transaction, so concurrent votes retry
+            // and stay consistent. The voter's demographics are denormalized on
+            // their vote doc, so decrements use the OLD vote's demographics.
+            const counts = (aggSnap?.exists ? aggSnap.data().counts : null) || {};
+            const applyDelta = (demoVals, opt, delta) => {
+                for (const dim of ["gender", "stateOfOrigin", "platoon"]) {
+                    const group = demoVals?.[dim];
+                    if (group === undefined || group === null || group === "") continue;
+                    counts[dim] = counts[dim] || {};
+                    counts[dim][group] = counts[dim][group] || {};
+                    const next = (counts[dim][group][opt] || 0) + delta;
+                    if (next > 0) {
+                        counts[dim][group][opt] = next;
+                    } else {
+                        delete counts[dim][group][opt];
+                        if (Object.keys(counts[dim][group]).length === 0) {
+                            delete counts[dim][group];
+                        }
+                    }
+                }
+            };
+
             if (wasSameVote) {
                 cv[option] = Math.max(0, (cv[option] || 0) - 1);
                 ct = Math.max(0, ct - 1);
                 tx.delete(voteRef);
+                applyDelta(existing, option, -1);
             } else {
                 if (prevOption) {
                     cv[prevOption] = Math.max(0, (cv[prevOption] || 0) - 1);
+                    applyDelta(existing, prevOption, -1);
                 } else {
                     ct += 1;
                 }
                 cv[option] = (cv[option] || 0) + 1;
+                applyDelta(demographics, option, 1);
                 tx.set(voteRef, {
                     voteType: "poll",
                     userId: uid,
@@ -119,6 +145,7 @@ export async function POST(request) {
                 });
             }
             tx.update(issueRef, { votes: cv, totalVotes: ct });
+            tx.set(aggRef, { counts, updatedAt: ts });
             return {
                 action: wasSameVote ? "removed" : prevOption ? "switched" : "added",
                 option,
