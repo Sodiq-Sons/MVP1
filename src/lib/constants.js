@@ -122,3 +122,9 @@ export const UPVOTE_MILESTONES = [10, 25, 50, 100, 250, 500];
 // Minimum responses in a demographic segment before percentages are shown.
 // Below this we show raw counts so we never display "100%" on a single vote.
 export const MIN_DEMOGRAPHIC_SAMPLE = 20;
+
+// localStorage flag: set once a visitor has reached the onboarding splash, so
+// the root EntryGate sends them to the feed on subsequent visits instead of
+// re-onboarding them. (Hybrid routing: first-timers onboard, everyone else
+// lands on the feed.)
+export const ONBOARDING_SEEN_KEY = "cc_seen_onboarding";
