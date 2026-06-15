@@ -1,4 +1,5 @@
 import dynamic from "next/dynamic";
+import EntryGate from "@/components/EntryGate";
 
 const HomePage = dynamic(() => import("@/components/HomePage"), {
     loading: () => (
@@ -47,7 +48,9 @@ export default function Page() {
     return (
         <main id="main-content">
             <StaticCrawlerContent />
-            <HomePage />
+            <EntryGate>
+                <HomePage />
+            </EntryGate>
         </main>
     );
 }
