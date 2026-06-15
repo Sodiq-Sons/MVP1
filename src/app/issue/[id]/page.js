@@ -59,23 +59,6 @@ const CATEGORY_META = {
 };
 
 // ─── Demographic Config ────────────────────────────────────────────────────────
-// Canonicalise a free-text demographic label so casing/whitespace variants
-// ("lagos", "LAGOS", " Lagos ") collapse into one group. Short all-caps tokens
-// (e.g. "FCT") are preserved as acronyms.
-function canonLabel(val) {
-    if (!val || typeof val !== "string") return null;
-    const t = val.trim().replace(/\s+/g, " ");
-    if (!t) return null;
-    return t
-        .split(" ")
-        .map((w) =>
-            w.length <= 3 && w === w.toUpperCase()
-                ? w
-                : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(),
-        )
-        .join(" ");
-}
-
 const DEMOGRAPHIC_CONFIG = {
     gender: {
         emoji: "⚧️",
@@ -90,14 +73,14 @@ const DEMOGRAPHIC_CONFIG = {
         label: "State",
         firestoreField: "stateOfOrigin",
         groups: [],
-        getGroup: (val) => canonLabel(val),
+        getGroup: (val) => (val && typeof val === "string" ? val : null),
     },
     platoon: {
         emoji: "👥",
         label: "Platoon",
         firestoreField: "platoon",
         groups: [],
-        getGroup: (val) => canonLabel(val),
+        getGroup: (val) => (val && typeof val === "string" ? val : null),
     },
 };
 
@@ -750,7 +733,6 @@ function DemographicInsights({
         (d) => DEMOGRAPHIC_CONFIG[d],
     );
     const [activeTab, setActiveTab] = useState(demographics[0] ?? null);
-    const [showAll, setShowAll] = useState(false);
 
     const resolvedVotes = voteCounts || issue.votes || {};
     const overallPcts = voteOptions.map((opt) => ({
@@ -797,25 +779,6 @@ function DemographicInsights({
         const total = Object.values(activeData[g] || {}).reduce((s, v) => s + v, 0);
         return total > 0;
     });
-
-    // Sort by sample size (largest segments first) and cap to a top-N until the
-    // viewer expands — keeps the 37-state list from dominating the card.
-    const TOP_N = 8;
-    const sortedGroups = activeGroups
-        .map((g) => ({
-            g,
-            total: voteOptions.reduce((s, o) => s + (activeData[g]?.[o] || 0), 0),
-        }))
-        .sort((a, b) => b.total - a.total)
-        .map((x) => x.g);
-    const visibleGroups = showAll ? sortedGroups : sortedGroups.slice(0, TOP_N);
-    const hiddenCount = sortedGroups.length - visibleGroups.length;
-    // Total responses behind the active breakdown (the n the percentages rest on).
-    const activeSampleN = sortedGroups.reduce(
-        (s, g) =>
-            s + voteOptions.reduce((a, o) => a + (activeData[g]?.[o] || 0), 0),
-        0,
-    );
 
     return (
         <div className="bg-card rounded-2xl border border-subtle shadow-sm overflow-hidden">
@@ -924,10 +887,7 @@ function DemographicInsights({
                     return (
                         <button
                             key={demo}
-                            onClick={() => {
-                                setActiveTab(demo);
-                                setShowAll(false);
-                            }}
+                            onClick={() => setActiveTab(demo)}
                             className={`px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-all cursor-pointer ${activeTab === demo ? "border-cp text-cp" : "border-transparent text-gray-400 hover:text-gray-600"}`}
                         >
                             {cfg.label}
@@ -986,15 +946,7 @@ function DemographicInsights({
                         )}
                     </div>
                 ) : (
-                    <>
-                        <p className="text-[11px] text-gray-400 -mb-1">
-                            Based on{" "}
-                            <span className="font-semibold text-gray-600">
-                                n&nbsp;=&nbsp;{activeSampleN}
-                            </span>{" "}
-                            {activeSampleN === 1 ? "response" : "responses"}
-                        </p>
-                        {visibleGroups.map((group) => {
+                    activeGroups.map((group) => {
                         const groupCounts = activeData[group] || {};
                         const groupTotal = voteOptions.reduce(
                             (s, o) => s + (groupCounts[o] || 0),
@@ -1016,7 +968,8 @@ function DemographicInsights({
                                         {group}
                                     </span>
                                     <span className="text-[10px] text-gray-400 bg-muted px-2 py-0.5 rounded-full">
-                                        n = {groupTotal}
+                                        {groupTotal} vote
+                                        {groupTotal !== 1 ? "s" : ""}
                                     </span>
                                 </div>
                                 {showPct && (
@@ -1084,25 +1037,14 @@ function DemographicInsights({
                                 </div>
                                 {!showPct && (
                                     <p className="text-[10px] text-gray-400 mt-1">
-                                        Counts only — percentages unlock at{" "}
-                                        {MIN_DEMOGRAPHIC_SAMPLE} votes
+                                        Raw counts — percentages show once this
+                                        group reaches {MIN_DEMOGRAPHIC_SAMPLE}{" "}
+                                        votes
                                     </p>
                                 )}
                             </div>
                         );
-                        })}
-                        {sortedGroups.length > TOP_N && (
-                            <button
-                                type="button"
-                                onClick={() => setShowAll((s) => !s)}
-                                className="text-[11px] font-semibold text-cp mt-1 cursor-pointer"
-                            >
-                                {showAll
-                                    ? "Show less"
-                                    : `+${hiddenCount} more`}
-                            </button>
-                        )}
-                    </>
+                    })
                 )}
             </div>
         </div>
