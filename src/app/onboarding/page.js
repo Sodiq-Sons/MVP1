@@ -2,6 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { ONBOARDING_SEEN_KEY } from "@/lib/constants";
 import {
     ALL_ALIASES,
     pickRandom,
@@ -1055,7 +1059,25 @@ function FirstVoteScreen({ goTo }) {
 // ── Root ───────────────────────────────────────────────────────────────────
 
 export default function OnboardingFlow() {
+    const router = useRouter();
     const [screen, setScreen] = useState("splash");
+
+    // Mark that this visitor has reached onboarding, so the root EntryGate sends
+    // them to the feed next time instead of re-onboarding. Also bounce any
+    // already-logged-in member straight to the feed (the PWA start_url is
+    // /onboarding, so members would otherwise hit this splash every launch).
+    useEffect(() => {
+        try {
+            localStorage.setItem(ONBOARDING_SEEN_KEY, "true");
+        } catch {
+            /* ignore */
+        }
+        const unsub = onAuthStateChanged(auth, (user) => {
+            if (user && !user.isAnonymous) router.replace("/");
+        });
+        return () => unsub();
+    }, [router]);
+
     const [selectedCamp, setSelectedCamp] = useState(null);
     const [username, setUsername] = useState("");
     const [anon, setAnon] = useState(false);
