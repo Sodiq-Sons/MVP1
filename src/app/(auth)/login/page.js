@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { usernameToEmail } from "@/lib/campAliases";
 import { authErrorMessage } from "@/lib/authErrors";
 import AuthErrorBanner from "@/components/AuthErrorBanner";
 import Link from "next/link";
@@ -105,13 +106,13 @@ export default function LoginPage() {
         return () => unsubscribe();
     }, [router]);
 
-    const [fullName, setFullName] = useState("");
+    const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    const formValid = fullName.trim().length >= 2 && password.length >= 6;
+    const formValid = username.trim().length >= 2 && password.length >= 6;
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -120,7 +121,7 @@ export default function LoginPage() {
         setLoading(true);
         setError(null);
 
-        const campEmail = `${fullName.toLowerCase().replace(/\s+/g, ".")}@camp.local`;
+        const campEmail = usernameToEmail(username);
 
         try {
             await signInWithEmailAndPassword(auth, campEmail, password);
@@ -211,13 +212,13 @@ export default function LoginPage() {
                                 className="block text-sm font-semibold text-black mb-1"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             >
-                                Your Name
+                                Username
                             </label>
                             <input
                                 type="text"
-                                value={fullName}
-                                onChange={(e) => setFullName(e.target.value)}
-                                placeholder="e.g. Ada, Chidi, Fatima"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                placeholder="Your camp username"
                                 className="w-full text-sm text-black placeholder-gray-300 focus:outline-none bg-transparent"
                                 style={{ fontFamily: "DM Sans, sans-serif" }}
                             />
