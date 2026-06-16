@@ -62,3 +62,12 @@ export async function finalizeAlias(alias, uid) {
         takenAt: serverTimestamp(),
     });
 }
+
+/**
+ * Derive the synthetic login email from a username. The username's uniqueness
+ * IS the account identity — no real names are collected. Same slug rule used by
+ * both register and login so a username always maps to the same email.
+ */
+export function usernameToEmail(username) {
+    return `${String(username || "").trim().toLowerCase().replace(/\s+/g, ".")}@camp.local`;
+}
