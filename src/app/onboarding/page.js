@@ -315,7 +315,7 @@ function CampSelectScreen({ goTo, selectedCamp, setSelectedCamp }) {
     );
 }
 
-// ── SCREEN 4 — Alias ────────────────────────────────────────────────────────
+// ── SCREEN 4 — Username ────────────────────────────────────────────────────────
 function UsernameScreen({ goTo, username, setUsername }) {
     const [suggestions, setSuggestions] = useState([]);
     const [loadingAliases, setLoadingAliases] = useState(true);
@@ -393,7 +393,7 @@ function UsernameScreen({ goTo, username, setUsername }) {
             </div>
 
             <Eyebrow>Step 2 of 3</Eyebrow>
-            <h2 style={{ fontFamily: JAK, fontWeight: 800, fontSize: 26, lineHeight: 1.1, letterSpacing: "-0.02em", color: P.ink, marginBottom: 9 }}>Pick your alias.</h2>
+            <h2 style={{ fontFamily: JAK, fontWeight: 800, fontSize: 26, lineHeight: 1.1, letterSpacing: "-0.02em", color: P.ink, marginBottom: 9 }}>Pick your username.</h2>
             <p style={{ fontSize: 14.5, lineHeight: 1.5, color: P.muted, marginBottom: 18, fontFamily: DM }}>This is how camp sees you. Your real name stays yours — nobody else gets it.</p>
 
             <div style={{ display: "flex", alignItems: "center", gap: 10, background: P.white, border: "1.5px solid var(--cp)", borderRadius: 14, padding: "12px 14px", marginBottom: 12 }}>
@@ -402,16 +402,16 @@ function UsernameScreen({ goTo, username, setUsername }) {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Type or tap a suggestion"
-                    aria-label="Your camp alias"
+                    aria-label="Your camp username"
                     style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontFamily: JAK, fontWeight: 700, fontSize: 17, color: P.ink, letterSpacing: "-0.01em", minWidth: 0 }}
                 />
-                <button onClick={handleShuffle} disabled={claiming} aria-label="Shuffle alias" style={{ width: 32, height: 32, borderRadius: 9, background: P.cpTint, color: "var(--cp-deeper)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                <button onClick={handleShuffle} disabled={claiming} aria-label="Shuffle username" style={{ width: 32, height: 32, borderRadius: 9, background: P.cpTint, color: "var(--cp-deeper)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
                     <Shuffle />
                 </button>
             </div>
 
             <p style={{ fontSize: 11, fontWeight: 700, color: P.muted, textTransform: "uppercase", letterSpacing: "0.08em", margin: "4px 0 9px", fontFamily: DM }}>
-                {loadingAliases ? "Finding available aliases…" : "Tap to claim"}
+                {loadingAliases ? "Finding available usernames…" : "Tap to claim"}
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 16 }}>
                 {loadingAliases
@@ -431,13 +431,13 @@ function UsernameScreen({ goTo, username, setUsername }) {
             <div style={{ display: "flex", gap: 10, alignItems: "flex-start", background: P.cpTint, border: "1px solid #FBD9BF", borderRadius: 14, padding: "13px 14px", marginBottom: 0 }}>
                 <span style={{ color: "var(--cp-deeper)", marginTop: 1, flexShrink: 0 }}><Lock s={16} /></span>
                 <span style={{ fontSize: 12.5, color: "#8A4B1E", lineHeight: 1.45, fontFamily: DM }}>
-                    Your posts show this alias only. Verified behind the scenes, anonymous on the surface.
+                    Your posts show this username only. Verified behind the scenes, anonymous on the surface.
                 </span>
             </div>
 
             <div style={{ flex: 1, minHeight: 18 }} />
             <PrimaryCTA onClick={handleLockIn} disabled={!username.trim() || claiming}>
-                {claiming ? "Claiming alias…" : "Continue"} {!claiming && <Arrow />}
+                {claiming ? "Claiming username…" : "Continue"} {!claiming && <Arrow />}
             </PrimaryCTA>
         </Screen>
     );
