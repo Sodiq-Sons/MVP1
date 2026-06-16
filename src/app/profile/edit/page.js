@@ -11,7 +11,7 @@ import {
     EmailAuthProvider,
     reauthenticateWithCredential,
 } from "firebase/auth";
-import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, updateDoc, setDoc, deleteField, serverTimestamp } from "firebase/firestore";
 import { toast } from "sonner";
 import {
     computeProfileCompletion,
@@ -431,6 +431,10 @@ export default function EditProfilePage() {
             if (user && !user.isAnonymous) {
                 try {
                     const userDoc = await getDoc(doc(db, "users", user.uid));
+                    const privSnap = await getDoc(
+                        doc(db, "users", user.uid, "private", "profile"),
+                    );
+                    const priv = privSnap.exists() ? privSnap.data() : {};
                     let data;
                     if (userDoc.exists()) {
                         const d = userDoc.data();
@@ -449,13 +453,13 @@ export default function EditProfilePage() {
                                           .filter(Boolean)
                                           .join(", ")
                                     : d.location || "",
-                            phoneNumber: d.phoneNumber || d.phone || "",
+                            phoneNumber: priv.phoneNumber || priv.phone || d.phoneNumber || d.phone || "",
                             email: user.email || d.email || "",
                             stateOfOrigin: d.stateOfOrigin || "",
                             gender: d.gender || "",
                             institutionType: d.institutionType || "",
                             campLocation: d.campLocation || "",
-                            religion: d.religion || "",
+                            religion: priv.religion || d.religion || "",
                         };
                         setWasComplete(
                             isProfileComplete({
@@ -582,14 +586,15 @@ export default function EditProfilePage() {
             displayName: formData.displayName,
             bio: formData.bio,
             location: locationData,
-            phoneNumber: formData.phoneNumber,
-            phone: formData.phoneNumber,
             email: emailValue,
             stateOfOrigin: formData.stateOfOrigin,
             gender: formData.gender,
             institutionType: formData.institutionType,
             campLocation: formData.campLocation,
-            religion: formData.religion,
+            // Strip any legacy public copies — these now live in /private. (SEC-01a)
+            phoneNumber: deleteField(),
+            phone: deleteField(),
+            religion: deleteField(),
             updatedAt: serverTimestamp(),
         };
 
@@ -604,12 +609,26 @@ export default function EditProfilePage() {
             bio: formData.bio,
         });
 
+        // Derived completion signal stays on the public doc so ProfilePage/Navbar
+        // never need to read the private PII to show the verified badge. (SEC-01a)
+        updatePayload.isVerified = nowComplete;
         if (nowComplete && !wasComplete) {
-            updatePayload.isVerified = true;
             updatePayload.verifiedAt = serverTimestamp();
         }
 
         await updateDoc(doc(db, "users", auth.currentUser.uid), updatePayload);
+
+        // Sensitive PII goes to the owner-only private subcollection. (SEC-01a)
+        await setDoc(
+            doc(db, "users", auth.currentUser.uid, "private", "profile"),
+            {
+                phoneNumber: formData.phoneNumber,
+                phone: formData.phoneNumber,
+                religion: formData.religion,
+                updatedAt: serverTimestamp(),
+            },
+            { merge: true },
+        );
 
         if (nowComplete && !wasComplete) {
             await awardPoints(auth.currentUser.uid, "PROFILE_COMPLETE", {});
