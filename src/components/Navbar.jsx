@@ -8,7 +8,6 @@ import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { useTheme } from "@/context/ThemeContext";
-import { isProfileComplete } from "@/lib/profileCompletion";
 import { updateStreak } from "@/lib/streaks";
 
 // ── Icons ──────────────────────────────────────────────────────────────────
@@ -207,16 +206,7 @@ export default function Navbar() {
                                       .filter(Boolean)
                                       .join(", ")
                                 : data.location || "Nigeria",
-                        verified: isProfileComplete({
-                            email: data.email,
-                            phone: data.phoneNumber,
-                            stateOfOrigin: data.stateOfOrigin,
-                            gender: data.gender,
-                            institutionType: data.institutionType,
-                            campLocation: data.campLocation,
-                            religion: data.religion,
-                            bio: data.bio,
-                        }),
+                        verified: data.isVerified === true,
                         photoURL: data.photoURL || user.photoURL || null,
                         streak: data.streak || 0,
                     });
