@@ -14,7 +14,7 @@ import {
     registerReferral,
     validateReferralCode,
 } from "@/lib/referrals";
-import { finalizeAlias } from "@/lib/campAliases";
+import { finalizeAlias, usernameToEmail } from "@/lib/campAliases";
 import { authErrorMessage } from "@/lib/authErrors";
 import AuthErrorBanner from "@/components/AuthErrorBanner";
 import Link from "next/link";
@@ -139,7 +139,7 @@ function SignupForm() {
         return () => unsubscribe();
     }, [router]);
 
-    const [fullName, setFullName] = useState("");
+    const [username, setUsername] = useState("");
     const [platoon, setPlatoon] = useState("");
     const [gender, setGender] = useState("");
     const [stateOfOrigin, setStateOfOrigin] = useState("");
@@ -149,7 +149,7 @@ function SignupForm() {
     const [referrerInfo, setReferrerInfo] = useState(null);
 
     const [touched, setTouched] = useState({
-        fullName: false,
+        username: false,
         platoon: false,
         gender: false,
         stateOfOrigin: false,
@@ -178,10 +178,20 @@ function SignupForm() {
         validateCode();
     }, [referralCode]);
 
+    // Prefill the username chosen during onboarding so it isn't re-entered.
+    useEffect(() => {
+        try {
+            const a = localStorage.getItem("onboardingAlias");
+            if (a) setUsername(a);
+        } catch {
+            /* ignore */
+        }
+    }, []);
+
     const isValidPassword = (pwd) => pwd.length >= 6;
 
     const formValid =
-        fullName.trim().length >= 2 &&
+        username.trim().length >= 2 &&
         platoon.length > 0 &&
         gender.length > 0 &&
         stateOfOrigin.length > 0 &&
@@ -190,7 +200,7 @@ function SignupForm() {
 
     const touchAll = () =>
         setTouched({
-            fullName: true, platoon: true, gender: true,
+            username: true, platoon: true, gender: true,
             stateOfOrigin: true, password: true, confirmPassword: true,
         });
 
@@ -201,14 +211,15 @@ function SignupForm() {
         setSaving(true);
         setError(null);
 
-        // Pick up alias chosen during onboarding (if user came from /onboarding)
-        const onboardingAlias =
+        // Identity = the username chosen in onboarding (prefilled below) or
+        // typed here. usernameToEmail() makes the username the account identity,
+        // so its uniqueness is enforced by Firebase Auth (no real names collected).
+        const onboardingCamp =
             typeof window !== "undefined"
-                ? localStorage.getItem("onboardingAlias")
+                ? localStorage.getItem("onboardingCamp")
                 : null;
-        const displayName = onboardingAlias || fullName.trim();
-
-        const campEmail = `${fullName.toLowerCase().replace(/\s+/g, ".")}@camp.local`;
+        const displayName = username.trim();
+        const campEmail = usernameToEmail(username);
 
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, campEmail, password);
@@ -217,9 +228,11 @@ function SignupForm() {
             await updateProfile(user, { displayName });
 
             await setDoc(doc(db, "users", user.uid), {
-                fullName: fullName.trim(),
+                username: username.trim(),
+                fullName: username.trim(),
                 displayName,
                 email: campEmail,
+                campLocation: onboardingCamp || "",
                 platoon,
                 gender,
                 stateOfOrigin,
@@ -233,12 +246,11 @@ function SignupForm() {
                 levelName: "New Voice",
             });
 
-            // Permanently assign the onboarding alias to this user
-            if (onboardingAlias) {
-                await finalizeAlias(onboardingAlias, user.uid).catch(() => {});
-                localStorage.removeItem("onboardingAlias");
-                localStorage.removeItem("onboardingAliasSession");
-            }
+            // Permanently assign the claimed username to this user
+            await finalizeAlias(username.trim(), user.uid).catch(() => {});
+            localStorage.removeItem("onboardingAlias");
+            localStorage.removeItem("onboardingAliasSession");
+            localStorage.removeItem("onboardingCamp");
 
             await initializeUserReferralSystem(user.uid, campEmail);
 
@@ -338,21 +350,21 @@ function SignupForm() {
                 {/* Form */}
                 <div className="bg-card rounded-2xl shadow-sm border border-subtle overflow-visible divide-y divide-subtle">
                     {/* Full Name */}
-                    <FieldRow touched={touched.fullName} valid={fullName.trim().length >= 2} className="rounded-t-2xl">
+                    <FieldRow touched={touched.username} valid={username.trim().length >= 2} className="rounded-t-2xl">
                         <div className="px-4 pt-4 pb-3 flex items-center gap-3">
                             <div className="w-8 h-8 bg-subtle rounded-lg flex items-center justify-center shrink-0">
                                 <UserIcon />
                             </div>
                             <div className="flex-1">
                                 <label className="block text-sm font-semibold text-black mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>
-                                    Your Name <span className="text-red-400">*</span>
+                                    Username <span className="text-red-400">*</span>
                                 </label>
                                 <input
                                     type="text"
-                                    value={fullName}
-                                    onChange={(e) => setFullName(e.target.value)}
-                                    onBlur={() => setTouched((t) => ({ ...t, fullName: true }))}
-                                    placeholder="e.g. Ada, Chidi, Fatima"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    onBlur={() => setTouched((t) => ({ ...t, username: true }))}
+                                    placeholder="Pick a username"
                                     className="w-full text-sm text-black placeholder-gray-300 focus:outline-none bg-transparent"
                                     style={{ fontFamily: "DM Sans, sans-serif" }}
                                 />
