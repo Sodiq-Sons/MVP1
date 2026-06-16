@@ -24,7 +24,6 @@ import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut, signInAnonymously, updateProfile } from "firebase/auth";
 import { toast } from "sonner";
 import Image from "next/image";
-import { isProfileComplete } from "@/lib/profileCompletion";
 import { uploadImage } from "@/lib/uploadImage";
 
 // ── Icons
@@ -633,16 +632,10 @@ export default function ProfilePage() {
                                 maxStreak: data.maxStreak || 0,
                                 platoon: data.platoon || null,
                             });
-                            setProfileVerified(isProfileComplete({
-                                email: data.email,
-                                phone: data.phoneNumber,
-                                stateOfOrigin: data.stateOfOrigin,
-                                gender: data.gender,
-                                institutionType: data.institutionType,
-                                campLocation: data.campLocation,
-                                religion: data.religion,
-                                bio: data.bio,
-                            }));
+                            // Verified badge reads the public derived flag — raw
+                            // PII (phone/religion) now lives in the owner-only
+                            // private subcollection. (SEC-01a)
+                            setProfileVerified(data.isVerified === true);
                         }
                         setLoading(false);
                     },
