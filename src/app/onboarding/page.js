@@ -298,7 +298,19 @@ function CampSelectScreen({ goTo, selectedCamp, setSelectedCamp }) {
             </div>
 
             <div style={{ flex: 1, minHeight: 18 }} />
-            <PrimaryCTA onClick={() => goTo("username")} disabled={!selectedCamp}>That&rsquo;s my camp <Arrow /></PrimaryCTA>
+            <PrimaryCTA
+                onClick={() => {
+                    try {
+                        localStorage.setItem("onboardingCamp", selectedCamp);
+                    } catch {
+                        /* ignore */
+                    }
+                    goTo("username");
+                }}
+                disabled={!selectedCamp}
+            >
+                That&rsquo;s my camp <Arrow />
+            </PrimaryCTA>
         </Screen>
     );
 }
@@ -533,8 +545,45 @@ export default function OnboardingFlow() {
     };
 
     return (
-        <div style={{ minHeight: "100vh", display: "flex", justifyContent: "center", background: "#E9E5E0" }}>
-            <div style={{ width: "100%", maxWidth: 520, minHeight: "100vh", background: P.paper, position: "relative", overflowX: "hidden" }}>
+        <div className="ob-root">
+            <style>{`
+                .ob-root { min-height: 100vh; background: #E9E5E0; }
+                .ob-main { width: 100%; max-width: 520px; min-height: 100vh; margin: 0 auto; background: ${P.paper}; position: relative; overflow-x: hidden; }
+                .ob-aside { display: none; }
+                @media (min-width: 940px) {
+                    .ob-root { display: flex; align-items: stretch; }
+                    .ob-aside { display: flex; flex: 1; flex-direction: column; justify-content: center; padding: 56px 64px; background: ${P.paper}; border-right: 1px solid ${P.hair}; }
+                    .ob-main { margin: 0; max-width: 460px; flex-shrink: 0; box-shadow: -1px 0 40px rgba(28,20,8,0.06); }
+                }
+                @media (min-width: 1280px) { .ob-aside { padding: 56px 104px; } }
+            `}</style>
+
+            <aside className="ob-aside">
+                <div style={{ maxWidth: 440 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 40 }}>
+                        <Tent s={38} />
+                        <span style={{ fontFamily: JAK, fontWeight: 800, fontSize: 18, color: P.ink, letterSpacing: "-0.01em" }}>Camp Connect</span>
+                    </div>
+                    <Eyebrow>The voice of NYSC</Eyebrow>
+                    <h1 style={{ fontFamily: JAK, fontWeight: 800, fontSize: 44, lineHeight: 1.05, letterSpacing: "-0.03em", color: P.ink, marginBottom: 18 }}>
+                        Real corpers.<br />Honest camp <span style={{ color: "var(--cp)" }}>gist.</span>
+                    </h1>
+                    <p style={{ fontSize: 16.5, lineHeight: 1.55, color: P.muted, maxWidth: 380, marginBottom: 28, fontFamily: DM }}>
+                        Gist, polls and the issues that matter — from verified corpers across every camp in Nigeria.
+                    </p>
+                    <div style={{ ...cardStyle, maxWidth: 360, marginBottom: 0, boxShadow: "0 14px 30px rgba(28,20,8,0.08)" }}>
+                        <span style={tagStyle("var(--cp-deeper)", P.cpTint)}>Gist</span>
+                        <div style={gistTextStyle}>Mami market prices increased again. This camp wan finish person 😩</div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: 11.5, color: P.muted, fontFamily: DM }}>Kano Camp · Anonymous · 12m</span>
+                            <span style={{ fontFamily: JAK, fontWeight: 700, fontSize: 12.5, color: "var(--cp-deeper)", background: P.cpTint, padding: "4px 9px", borderRadius: 8 }}>↑ 41</span>
+                        </div>
+                    </div>
+                    <div style={{ marginTop: 22 }}><TrustLine>Anonymous to other corpers. Always.</TrustLine></div>
+                </div>
+            </aside>
+
+            <div className="ob-main">
                 {screen === "splash" && <SplashScreen goTo={goTo} />}
                 {screen === "feed-preview" && <FeedPreviewScreen goTo={goTo} />}
                 {screen === "camp-select" && (
