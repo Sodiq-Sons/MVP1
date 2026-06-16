@@ -14,516 +14,82 @@ import {
     releaseAlias,
 } from "@/lib/campAliases";
 
-// ── Icons ──────────────────────────────────────────────────────────────────
+// ── Design palette ──────────────────────────────────────────────────────────
+// Brand orange follows the theme via var(--cp) / var(--cp-deeper). The warm
+// "paper" neutrals are onboarding-specific (no themed token equivalent), so
+// they're defined here for this entry surface only.
+const P = {
+    paper: "#FDF6EF",
+    ink: "#1C1408",
+    muted: "#897B6B",
+    hair: "#F0E6DA",
+    white: "#FFFFFF",
+    cpTint: "#FFEEE0",
+    purple: "#7C3AED",
+    purpleTint: "#F3EDFE",
+    red: "#DC2626",
+    redTint: "#FDECEC",
+    greenTint: "#ECFDF3",
+    greenBorder: "#C7EAD4",
+    greenInk: "#14532D",
+    greenSub: "#3F6B4F",
+    green: "#16A34A",
+};
+const JAK = "Plus Jakarta Sans, sans-serif";
+const DM = "DM Sans, sans-serif";
 
-const ChevronLeft = () => (
-    <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        className="w-4 h-4 shrink-0"
-    >
+// ── Icons ───────────────────────────────────────────────────────────────────
+const Arrow = ({ s = 16 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12" />
+        <polyline points="12 5 19 12 12 19" />
+    </svg>
+);
+const Chevron = ({ s = 17 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="15 18 9 12 15 6" />
     </svg>
 );
-
-const GoogleIcon = () => (
-    <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        className="shrink-0"
-    >
-        <path
-            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-            fill="#4285F4"
-        />
-        <path
-            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-            fill="#34A853"
-        />
-        <path
-            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
-            fill="#FBBC05"
-        />
-        <path
-            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-            fill="#EA4335"
-        />
+const Lock = ({ s = 13 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+);
+const Shield = ({ s = 17 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2l7 4v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" />
+        <polyline points="9 12 11.5 14.5 16 9.5" />
+    </svg>
+);
+const Pin = ({ s = 15 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+        <circle cx="12" cy="10" r="3" />
+    </svg>
+);
+const Search = ({ s = 16 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="7" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+);
+const Shuffle = ({ s = 16 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16 3h5v5" /><path d="M4 20 21 3" /><path d="M21 16v5h-5" /><path d="M15 15l6 6" /><path d="M4 4l5 5" />
+    </svg>
+);
+const Tent = ({ s = 32 }) => (
+    <svg width={s} height={s} viewBox="0 0 100 100" style={{ borderRadius: 10, display: "block" }}>
+        <rect width="100" height="100" rx="26" fill="var(--cp)" />
+        <polygon points="50,24 18,78 82,78" fill="#fff" />
+        <polygon points="50,47 41,78 59,78" fill="var(--cp)" />
+        <line x1="50" y1="24" x2="50" y2="13" stroke="#fff" strokeWidth="4" strokeLinecap="round" />
+        <polygon points="50,14 68,18 50,22" fill="#fff" />
     </svg>
 );
 
-// ── Shared primitives ──────────────────────────────────────────────────────
-
-function LiveBadge({ count = 147 }) {
-    return (
-        <div className="inline-flex items-center gap-1.5 bg-white/20 rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5">
-            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-400 rounded-full animate-pulse shrink-0" />
-            <span
-                className="text-white text-[11px] sm:text-xs font-semibold whitespace-nowrap"
-                style={{ fontFamily: "DM Sans, sans-serif" }}
-            >
-                {count} live
-            </span>
-        </div>
-    );
-}
-
-function PrimaryBtn({ children, onClick, className = "", disabled = false }) {
-    return (
-        <button
-            onClick={onClick}
-            disabled={disabled}
-            className={`w-full btn-primary active:scale-[0.98] text-white font-bold text-sm sm:text-[15px] py-3 sm:py-3.5 md:py-4 rounded-2xl transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
-            style={{ fontFamily: "DM Sans, sans-serif" }}
-        >
-            {children}
-        </button>
-    );
-}
-
-function GhostBtn({ children, onClick, className = "" }) {
-    return (
-        <button
-            onClick={onClick}
-            className={`w-full bg-transparent hover:bg-cp-tint text-cp font-bold text-sm sm:text-[15px] py-3 sm:py-3.5 md:py-4 rounded-2xl border-2 border-cp transition-colors cursor-pointer ${className}`}
-            style={{ fontFamily: "DM Sans, sans-serif" }}
-        >
-            {children}
-        </button>
-    );
-}
-
-function WhiteBtn({ children, onClick, outline = false }) {
-    const base =
-        "w-full font-bold text-sm sm:text-[15px] py-3 sm:py-3.5 md:py-4 rounded-2xl transition-colors cursor-pointer";
-    if (outline) {
-        return (
-            <button
-                onClick={onClick}
-                className={`${base} bg-white/15 hover:bg-white/25 text-white border-2 border-white/45`}
-                style={{ fontFamily: "DM Sans, sans-serif" }}
-            >
-                {children}
-            </button>
-        );
-    }
-    return (
-        <button
-            onClick={onClick}
-            className={`${base} bg-white hover:bg-cp-tint text-cp`}
-            style={{ fontFamily: "DM Sans, sans-serif" }}
-        >
-            {children}
-        </button>
-    );
-}
-
-function StepDots({ active = 0, total = 3 }) {
-    return (
-        <div className="flex gap-1.5 items-center">
-            {Array.from({ length: total }).map((_, i) => (
-                <div
-                    key={i}
-                    className={`h-2 rounded-full transition-all duration-300 ${i === active ? "bg-white w-5" : "bg-white/30 w-2"}`}
-                />
-            ))}
-        </div>
-    );
-}
-
-function StepBar({ pct }) {
-    return (
-        <div className="h-0.75 bg-white/25 rounded-full overflow-hidden mt-3.5">
-            <div
-                className="h-full bg-white rounded-full transition-all duration-500"
-                style={{ width: `${pct}%` }}
-            />
-        </div>
-    );
-}
-
-/** Shared page header with orange gradient */
-function PageHeader({
-    children,
-    onBack,
-    backLabel = "Back",
-    stepDots,
-    stepLabel,
-    className = "",
-}) {
-    return (
-        <div
-            className={`bg-cp px-4 sm:px-6 md:px-8 lg:px-12 pt-5 sm:pt-6 md:pt-8 pb-6 sm:pb-7 md:pb-10 ${className}`}
-        >
-            <div className="max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
-                <div className="flex items-center justify-between mb-4 sm:mb-5">
-                    {onBack ? (
-                        <button
-                            onClick={onBack}
-                            className="flex items-center gap-1 bg-white/20 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 text-white text-xs sm:text-sm font-semibold cursor-pointer hover:bg-white/30 transition-colors"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            <ChevronLeft /> {backLabel}
-                        </button>
-                    ) : (
-                        <div />
-                    )}
-                    {stepDots && (
-                        <StepDots
-                            active={stepDots.active}
-                            total={stepDots.total}
-                        />
-                    )}
-                    {stepLabel && (
-                        <span className="text-xs text-white/60">
-                            {stepLabel}
-                        </span>
-                    )}
-                </div>
-                {children}
-            </div>
-        </div>
-    );
-}
-
-function InputField({
-    label,
-    type = "text",
-    placeholder,
-    value,
-    onChange,
-    id,
-}) {
-    return (
-        <div>
-            {label && (
-                <label
-                    htmlFor={id}
-                    className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2"
-                    style={{ fontFamily: "DM Sans, sans-serif" }}
-                >
-                    {label}
-                </label>
-            )}
-            <input
-                id={id}
-                type={type}
-                placeholder={placeholder}
-                value={value}
-                onChange={onChange}
-                className="w-full px-4 py-3 sm:py-3.5 rounded-xl border-[1.5px] border-[#E8DDD4] focus:border-cp outline-none text-sm sm:text-[15px] text-gray-900 placeholder-gray-300 bg-white transition-colors"
-                style={{ fontFamily: "DM Sans, sans-serif" }}
-            />
-        </div>
-    );
-}
-
-// Shared content wrapper
-function ContentWrap({ children, className = "" }) {
-    return (
-        <div
-            className={`px-4 sm:px-6 md:px-8 lg:px-12 py-4 sm:py-5 md:py-6 ${className}`}
-        >
-            <div className="max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
-                {children}
-            </div>
-        </div>
-    );
-}
-
-// ── SCREEN 1 — Splash ──────────────────────────────────────────────────────
-
-function SplashScreen({ goTo }) {
-    return (
-        <div className="flex flex-col bg-cp min-h-screen">
-            <div className="flex-1 flex flex-col px-4 sm:px-6 md:px-8 lg:px-12 pt-8 sm:pt-10 md:pt-14 lg:pt-16 pb-6 sm:pb-8 max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
-                {/* Topbar */}
-                <div className="flex items-center justify-between mb-16 md:mb-7">
-                    <div className="flex items-center gap-2 sm:gap-2.5">
-                        <img
-                            src="/icons/icon-192x192.webp"
-                            alt="Camp Connect"
-                            className="w-9 h-9 sm:w-10 sm:h-10 rounded-[13px] shrink-0"
-                        />
-                        <div>
-                            <div
-                                className="text-white font-extrabold text-sm sm:text-base md:text-lg leading-tight"
-                                style={{
-                                    fontFamily: "Plus Jakarta Sans, sans-serif",
-                                }}
-                            >
-                                Camp Connect
-                            </div>
-                            <div className="text-white/70 text-[10px] sm:text-xs leading-none mt-0.5">
-                                Be the voice. Drive the change.
-                            </div>
-                        </div>
-                    </div>
-                    <LiveBadge />
-                </div>
-
-                {/* Hero copy */}
-                <div className="mt-2 sm:mt-4 md:mt-8 lg:mt-16 mb-5 sm:mb-6 md:mb-8">
-                    <div className="text-3xl sm:text-4xl md:text-5xl mb-3 sm:mb-4 md:mb-5">
-                        🇳🇬
-                    </div>
-                    <h1
-                        className="text-white font-extrabold text-2xl sm:text-[28px] md:text-[32px] lg:text-[40px] leading-tight mb-2.5 sm:mb-3 md:mb-4"
-                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
-                    >
-                        Your camp is already talking.
-                    </h1>
-                    <p
-                        className="text-white/80 text-sm sm:text-base md:text-lg leading-relaxed max-w-xl"
-                        style={{ fontFamily: "DM Sans, sans-serif" }}
-                    >
-                        Gists. Issues. Hot takes. Polls. Everything happening in
-                        camp — in real time, all in one place.
-                    </p>
-                </div>
-
-                {/* Stats */}
-                <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 mb-5 sm:mb-6 md:mb-8">
-                    {[
-                        ["100", "Corps members"],
-                        ["50K+", "Gists dropped"],
-                        ["5", "Active camps"],
-                    ].map(([n, l]) => (
-                        <div
-                            key={l}
-                            className="bg-white/15 rounded-[13px] py-3.5 sm:py-4 md:py-5 text-center px-1"
-                        >
-                            <div
-                                className="text-white font-extrabold text-base sm:text-lg md:text-xl lg:text-2xl"
-                                style={{
-                                    fontFamily: "Plus Jakarta Sans, sans-serif",
-                                }}
-                            >
-                                {n}
-                            </div>
-                            <div
-                                className="text-white/70 text-[9px] sm:text-[10px] md:text-xs mt-0.5 leading-snug"
-                                style={{ fontFamily: "DM Sans, sans-serif" }}
-                            >
-                                {l}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* CTAs */}
-                <div className="flex flex-col md:flex-row gap-3.5 sm:gap-4 mt-4">
-                    <WhiteBtn onClick={() => goTo("feed-preview")}>
-                        See what they&apos;re saying →
-                    </WhiteBtn>
-                    <WhiteBtn outline>
-                        <Link href="/login" className="block">
-                            I already have an account
-                        </Link>
-                    </WhiteBtn>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// ── SCREEN 2 — Feed Preview ────────────────────────────────────────────────
-
-const PREVIEW_POSTS = [
-    {
-        id: 1,
-        tag: "🔥 GIST",
-        tagColor: "text-cp",
-        tagBg: "bg-cp-tint",
-        title: 'The parade commander is definitely not from this planet 😭 how does 5am count as "morning"?',
-        meta: "Sokoto Camp · 23 min ago · Anonymous",
-        votes: 63,
-        voteColor: "text-cp",
-        voteBg: "bg-cp-tint",
-        poll: null,
-    },
-    {
-        id: 2,
-        tag: "📊 POLL",
-        tagColor: "text-purple-700",
-        tagBg: "bg-purple-50",
-        title: "Should NYSC extend camp by 2 more weeks?",
-        meta: "Lagos Camp · 248 voted · 41 min ago",
-        votes: null,
-        poll: { label: "No — please God, release us 😭", pct: 61 },
-    },
-    {
-        id: 3,
-        tag: "🚨 ISSUE",
-        tagColor: "text-red-700",
-        tagBg: "bg-red-50",
-        title: "Hostel block B has no running water since Day 1. Who do we report this to?",
-        meta: "Rivers Camp · 38 upvotes · 1h ago",
-        votes: 38,
-        voteColor: "text-red-600",
-        voteBg: "bg-red-50",
-        poll: null,
-    },
-];
-
-function FeedPreviewScreen({ goTo }) {
-    return (
-        <div
-            className="flex flex-col min-h-full"
-            style={{ background: "#FDF6EF" }}
-        >
-            <PageHeader onBack={() => goTo("splash")}>
-                <div className="flex items-center justify-between -mt-1 mb-4 sm:mb-5">
-                    <div />{" "}
-                    {/* spacer — back btn already rendered in PageHeader */}
-                    <LiveBadge count={300} />
-                </div>
-                <h2
-                    className="text-white font-extrabold text-xl sm:text-2xl md:text-[26px] leading-snug mb-1.5"
-                    style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
-                >
-                    Don&apos;t be the last to know 👀
-                </h2>
-                <p
-                    className="text-white/78 text-xs sm:text-sm"
-                    style={{ fontFamily: "DM Sans, sans-serif" }}
-                >
-                    These dropped in the last 2 hours
-                </p>
-            </PageHeader>
-
-            {/* We need a custom header layout here so let's redo it inline */}
-            <div className="flex-1 overflow-y-auto">
-                <ContentWrap className="flex flex-col gap-3">
-                    {PREVIEW_POSTS.map((p) => (
-                        <div
-                            key={p.id}
-                            className="bg-card rounded-2xl p-4 sm:p-5 border border-black/[0.07] shadow-sm hover:shadow-md transition-shadow"
-                        >
-                            <div className="flex justify-between items-start gap-2.5 sm:gap-3">
-                                <div className="flex-1 min-w-0">
-                                    <span
-                                        className={`inline-block text-[10px] sm:text-xs font-bold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full ${p.tagBg} ${p.tagColor}`}
-                                    >
-                                        {p.tag}
-                                    </span>
-                                    <p
-                                        className="font-bold text-sm sm:text-[15px] text-gray-900 mt-2 leading-snug"
-                                        style={{
-                                            fontFamily:
-                                                "Plus Jakarta Sans, sans-serif",
-                                        }}
-                                    >
-                                        {p.title}
-                                    </p>
-                                    {p.poll && (
-                                        <div className="mt-3">
-                                            <div className="flex justify-between text-xs sm:text-sm text-gray-500 mb-1.5">
-                                                <span className="truncate pr-2">
-                                                    {p.poll.label}
-                                                </span>
-                                                <span className="font-bold text-cp shrink-0">
-                                                    {p.poll.pct}%
-                                                </span>
-                                            </div>
-                                            <div className="h-1.5 bg-[#F5EDE5] rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-cp rounded-full"
-                                                    style={{
-                                                        width: `${p.poll.pct}%`,
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
-                                    <div
-                                        className="text-[11px] sm:text-xs text-gray-400 mt-2"
-                                        style={{
-                                            fontFamily: "DM Sans, sans-serif",
-                                        }}
-                                    >
-                                        {p.meta}
-                                    </div>
-                                </div>
-                                {p.votes !== null && (
-                                    <div
-                                        className={`${p.voteBg} rounded-xl px-2.5 sm:px-3 md:px-4 py-2 text-center shrink-0 flex flex-col items-center min-w-11`}
-                                    >
-                                        <span
-                                            className={`font-extrabold text-base sm:text-[17px] md:text-[19px] ${p.voteColor}`}
-                                            style={{
-                                                fontFamily:
-                                                    "Plus Jakarta Sans, sans-serif",
-                                            }}
-                                        >
-                                            {p.votes}
-                                        </span>
-                                        <span
-                                            className={`text-[9px] sm:text-[10px] font-semibold ${p.voteColor}`}
-                                        >
-                                            votes
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-
-                    {/* Paywall teaser */}
-                    <div
-                        className="rounded-2xl px-4 sm:px-6 py-6 sm:py-8 text-center"
-                        style={{
-                            background:
-                                "linear-gradient(to bottom, rgba(253,246,239,0.3) 0%, #FDF6EF 55%)",
-                        }}
-                    >
-                        <div className="text-2xl sm:text-[28px] mb-2.5">🔒</div>
-                        <p
-                            className="font-extrabold text-base sm:text-[17px] text-gray-900 mb-1.5"
-                            style={{
-                                fontFamily: "Plus Jakarta Sans, sans-serif",
-                            }}
-                        >
-                            +143 more posts today
-                        </p>
-                        <p
-                            className="text-xs sm:text-sm text-gray-500 mb-5 sm:mb-6 leading-relaxed"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            Your camp is ahead of you.
-                            <br />
-                            Takes 30 seconds to catch up.
-                        </p>
-                        <div className="max-w-xs mx-auto">
-                            <PrimaryBtn onClick={() => goTo("camp-select")}>
-                                Get in. It&apos;s free. →
-                            </PrimaryBtn>
-                        </div>
-                    </div>
-
-                    <div className="text-center pb-4">
-                        <span className="text-xs sm:text-sm text-gray-400">
-                            Already have an account?{" "}
-                        </span>
-                        <button
-                            onClick={() => goTo("login")}
-                            className="text-xs sm:text-sm text-cp font-bold cursor-pointer"
-                        >
-                            Log in →
-                        </button>
-                    </div>
-                </ContentWrap>
-            </div>
-        </div>
-    );
-}
-
-// ── SCREEN 3 — Camp Selection ──────────────────────────────────────────────
-
+// ── Data ────────────────────────────────────────────────────────────────────
 const CAMPS = [
     { name: "Sokoto — Wamako Camp", count: 312, hot: true },
     { name: "Lagos — Iyana Ipaja Camp", count: 511, hot: false },
@@ -532,129 +98,218 @@ const CAMPS = [
     { name: "Rivers — Nonwa-Tai Camp", count: 423, hot: false },
 ];
 
-function CampSelectScreen({ goTo, selectedCamp, setSelectedCamp }) {
+const VOTE_OPTIONS = [
+    "Yes — we need more time to bond",
+    "No — please God, release us 😭",
+    "Meh — camp is camp sha",
+];
+
+const VOTE_RESULTS = [
+    { label: "No — release us 😭", pct: 61, lead: true },
+    { label: "Yes — more time", pct: 27, lead: false },
+    { label: "Meh sha", pct: 12, lead: false },
+];
+
+// ── Shared primitives ───────────────────────────────────────────────────────
+function Screen({ children }) {
     return (
-        <div
-            className="flex flex-col min-h-full"
-            style={{ background: "#FDF6EF" }}
-        >
-            <div className="bg-cp px-4 sm:px-6 md:px-8 lg:px-12 pt-5 sm:pt-6 md:pt-8 pb-6 sm:pb-7 md:pb-16">
-                <div className="max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
-                    <div className="flex items-center justify-between mb-4 sm:mb-5">
-                        <button
-                            onClick={() => goTo("feed-preview")}
-                            className="flex items-center gap-1 bg-white/20 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 text-white text-xs sm:text-sm font-semibold cursor-pointer hover:bg-white/30 transition-colors"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            <ChevronLeft /> Back
-                        </button>
-                        <StepDots active={0} total={3} />
-                        <span className="text-xs text-white/60">1 of 3</span>
-                    </div>
-                    <div className="text-2xl sm:text-3xl md:text-4xl mb-2">
-                        🏕️
-                    </div>
-                    <h2
-                        className="text-white font-extrabold text-xl sm:text-[22px] md:text-[26px] leading-snug mb-1.5"
-                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
-                    >
-                        Which camp are you surviving?
-                    </h2>
-                    <p
-                        className="text-white/80 text-sm sm:text-base leading-relaxed"
-                        style={{ fontFamily: "DM Sans, sans-serif" }}
-                    >
-                        We&apos;ll show gists, issues, and drama from your exact
-                        camp.
-                    </p>
-                    <StepBar pct={33} />
-                </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-                <ContentWrap className="flex flex-col gap-3 mb-12 md:mb-6">
-                    <input
-                        type="text"
-                        placeholder="Search camp or state..."
-                        className="w-full px-4 py-3 sm:py-3.5 rounded-xl border-[1.5px] border-[#E8DDD4] focus:border-cp outline-none text-sm sm:text-[15px] text-gray-900 placeholder-gray-300 bg-white transition-colors mb-4"
-                        style={{ fontFamily: "DM Sans, sans-serif" }}
-                    />
-
-                    <div className="flex flex-col gap-2 sm:gap-2.5">
-                        {CAMPS.map((camp) => (
-                            <button
-                                key={camp.name}
-                                onClick={() => setSelectedCamp(camp.name)}
-                                className={`w-full text-left rounded-2xl p-3.5 sm:p-4 border-[1.5px] transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                                    selectedCamp === camp.name
-                                        ? "border-cp bg-cp-tint"
-                                        : "border-[#E8DDD4] bg-white hover:border-cp hover:bg-cp-tint"
-                                }`}
-                            >
-                                <div className="min-w-0 flex-1">
-                                    <div
-                                        className="font-bold text-sm sm:text-[15px] text-gray-900 truncate"
-                                        style={{
-                                            fontFamily:
-                                                "Plus Jakarta Sans, sans-serif",
-                                        }}
-                                    >
-                                        {camp.name}
-                                    </div>
-                                    <div
-                                        className={`text-xs mt-1 font-semibold ${
-                                            camp.hot ||
-                                            selectedCamp === camp.name
-                                                ? "text-cp"
-                                                : "text-gray-400"
-                                        }`}
-                                    >
-                                        {camp.count} corpers{" "}
-                                        {camp.hot || selectedCamp === camp.name
-                                            ? "already here 🔥"
-                                            : "here"}
-                                    </div>
-                                </div>
-                                <div
-                                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                                        selectedCamp === camp.name
-                                            ? "border-cp bg-cp"
-                                            : "border-[#D0C8C0]"
-                                    }`}
-                                >
-                                    {selectedCamp === camp.name && (
-                                        <div className="w-2 h-2 rounded-full bg-white" />
-                                    )}
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="pt-4 md:pt-6 pb-2">
-                        <PrimaryBtn
-                            onClick={() => goTo("username")}
-                            disabled={!selectedCamp}
-                        >
-                            That&apos;s my camp →
-                        </PrimaryBtn>
-                    </div>
-                </ContentWrap>
+        <div style={{ background: P.paper, minHeight: "100%", display: "flex", flexDirection: "column", padding: "22px 20px 24px" }}>
+            <div style={{ width: "100%", maxWidth: 460, margin: "0 auto", flex: 1, display: "flex", flexDirection: "column" }}>
+                {children}
             </div>
         </div>
     );
 }
 
-// ── SCREEN 4 — Username + Anon Toggle ──────────────────────────────────────
+function IconButton({ onClick, label, children }) {
+    return (
+        <button onClick={onClick} aria-label={label} style={{ width: 34, height: 34, borderRadius: 11, background: P.white, border: `1px solid ${P.hair}`, display: "flex", alignItems: "center", justifyContent: "center", color: P.ink, cursor: "pointer" }}>
+            {children}
+        </button>
+    );
+}
 
-function UsernameScreen({ goTo, username, setUsername, anon, setAnon }) {
+function Dots({ active }) {
+    return (
+        <div style={{ display: "flex", gap: 6 }}>
+            {[0, 1, 2].map((i) => (
+                <span key={i} style={{ width: i === active ? 22 : 7, height: 7, borderRadius: 999, background: i === active ? "var(--cp)" : "#E4D6C7", transition: "all .25s" }} />
+            ))}
+        </div>
+    );
+}
+
+function Eyebrow({ children }) {
+    return <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", color: "var(--cp-deeper)", textTransform: "uppercase", marginBottom: 11, fontFamily: DM }}>{children}</div>;
+}
+
+function PrimaryCTA({ children, onClick, disabled = false, as = "button", href }) {
+    const style = { width: "100%", border: "none", borderRadius: 15, padding: 16, fontFamily: JAK, fontWeight: 700, fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, background: "var(--cp)", color: "#fff", boxShadow: "0 9px 20px var(--cp-glow)", cursor: "pointer", opacity: disabled ? 0.5 : 1, textDecoration: "none" };
+    if (as === "link") {
+        return <Link href={href} style={style}>{children}</Link>;
+    }
+    return <button onClick={onClick} disabled={disabled} style={style}>{children}</button>;
+}
+
+function TrustLine({ children }) {
+    return (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 12, fontSize: 11.5, color: P.muted, fontFamily: DM }}>
+            <Lock /> {children}
+        </div>
+    );
+}
+
+const cardStyle = { background: P.white, border: `1px solid ${P.hair}`, borderRadius: 18, padding: "14px 15px", marginBottom: 11 };
+const tagStyle = (fg, bg) => ({ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", padding: "3px 8px", borderRadius: 6, textTransform: "uppercase", color: fg, background: bg, fontFamily: DM });
+const gistTextStyle = { fontFamily: JAK, fontWeight: 600, fontSize: 14.5, lineHeight: 1.32, color: P.ink, margin: "9px 0 10px", letterSpacing: "-0.01em" };
+
+// ── SCREEN 1 — Splash ───────────────────────────────────────────────────────
+function SplashScreen({ goTo }) {
+    return (
+        <Screen>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 34, minHeight: 34 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    <Tent />
+                    <span style={{ fontFamily: JAK, fontWeight: 800, fontSize: 15, color: P.ink, letterSpacing: "-0.01em" }}>Camp Connect</span>
+                </div>
+                <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 600, color: P.muted, textDecoration: "none", fontFamily: DM }}>
+                    Just browsing <Arrow s={14} />
+                </Link>
+            </div>
+
+            <Eyebrow>The voice of NYSC</Eyebrow>
+            <h1 style={{ fontFamily: JAK, fontWeight: 800, fontSize: 36, lineHeight: 1.05, letterSpacing: "-0.025em", color: P.ink, marginBottom: 14 }}>
+                Your camp is<br />already <span style={{ color: "var(--cp)" }}>talking.</span>
+            </h1>
+            <p style={{ fontSize: 15, lineHeight: 1.5, color: P.muted, maxWidth: 300, marginBottom: 24, fontFamily: DM }}>
+                Gist, polls, hot takes and the real issues — everything happening in camp, in one place.
+            </p>
+
+            <div style={{ ...cardStyle, boxShadow: "0 12px 26px rgba(28,20,8,0.09)", marginBottom: 0 }}>
+                <span style={tagStyle("var(--cp-deeper)", P.cpTint)}>Gist</span>
+                <div style={gistTextStyle}>Parade commander thinks 5am counts as &ldquo;morning&rdquo;. Who else is suffering? 😭</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 11.5, color: P.muted, fontFamily: DM }}>Sokoto Camp · Anonymous · 23m</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontFamily: JAK, fontWeight: 700, fontSize: 12.5, color: "var(--cp-deeper)", background: P.cpTint, padding: "4px 9px", borderRadius: 8 }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 15 12 9 18 15" /></svg>63
+                    </span>
+                </div>
+            </div>
+
+            <div style={{ flex: 1, minHeight: 18 }} />
+
+            <PrimaryCTA onClick={() => goTo("feed-preview")}>See what your camp is saying <Arrow /></PrimaryCTA>
+            <Link href="/login" style={{ display: "block", width: "100%", textAlign: "center", fontFamily: DM, fontWeight: 600, fontSize: 13.5, color: P.muted, padding: "13px 0 2px", textDecoration: "none" }}>
+                Already a member? <span style={{ color: P.ink, borderBottom: "1.5px solid var(--cp)" }}>Sign in</span>
+            </Link>
+            <TrustLine>Anonymous to other corpers. Always.</TrustLine>
+        </Screen>
+    );
+}
+
+// ── SCREEN 2 — Feed peek ────────────────────────────────────────────────────
+function FeedPreviewScreen({ goTo }) {
+    return (
+        <Screen>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22, minHeight: 34 }}>
+                <IconButton onClick={() => goTo("splash")} label="Back"><Chevron /></IconButton>
+                <Link href="/" style={{ fontSize: 13, fontWeight: 600, color: P.muted, textDecoration: "none", fontFamily: DM }}>Just browsing</Link>
+            </div>
+
+            <Eyebrow>Inside camp</Eyebrow>
+            <h2 style={{ fontFamily: JAK, fontWeight: 800, fontSize: 26, lineHeight: 1.1, letterSpacing: "-0.02em", color: P.ink, marginBottom: 9 }}>Real talk. Zero filter.</h2>
+            <p style={{ fontSize: 14.5, lineHeight: 1.5, color: P.muted, marginBottom: 20, fontFamily: DM }}>A peek at what corpers are saying right now.</p>
+
+            <div style={cardStyle}>
+                <span style={tagStyle("var(--cp-deeper)", P.cpTint)}>Gist</span>
+                <div style={gistTextStyle}>Mami market prices increased again. This camp wan finish person 😩</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 11.5, color: P.muted, fontFamily: DM }}>Kano Camp · 12m</span>
+                    <span style={{ fontFamily: JAK, fontWeight: 700, fontSize: 12.5, color: "var(--cp-deeper)", background: P.cpTint, padding: "4px 9px", borderRadius: 8 }}>↑ 41</span>
+                </div>
+            </div>
+
+            <div style={cardStyle}>
+                <span style={tagStyle(P.purple, P.purpleTint)}>Poll</span>
+                <div style={gistTextStyle}>Should NYSC extend camp by 2 weeks?</div>
+                <div style={{ position: "relative", border: "1px solid var(--cp)", borderRadius: 12, padding: "11px 13px", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ position: "absolute", inset: 0, background: P.cpTint, width: "61%" }} />
+                    <span style={{ position: "relative", fontWeight: 600, fontSize: 13.5, color: P.ink, fontFamily: DM }}>No — abeg release us</span>
+                    <span style={{ position: "relative", fontFamily: JAK, fontWeight: 700, fontSize: 13, color: "var(--cp-deeper)" }}>61%</span>
+                </div>
+                <div style={{ fontSize: 11.5, color: P.muted, marginTop: 8, fontFamily: DM }}>Lagos Camp · 248 voted</div>
+            </div>
+
+            <div style={{ ...cardStyle, marginBottom: 0 }}>
+                <span style={tagStyle(P.red, P.redTint)}>Issue</span>
+                <div style={gistTextStyle}>Hostel B has had no water since Day 1. Who do we report to?</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 11.5, color: P.muted, fontFamily: DM }}>Rivers Camp · 1h</span>
+                    <span style={{ fontFamily: JAK, fontWeight: 700, fontSize: 12.5, color: P.red, background: P.redTint, padding: "4px 9px", borderRadius: 8 }}>↑ 38</span>
+                </div>
+            </div>
+
+            <div style={{ flex: 1, minHeight: 18 }} />
+            <PrimaryCTA onClick={() => goTo("camp-select")}>Take me in <Arrow /></PrimaryCTA>
+        </Screen>
+    );
+}
+
+// ── SCREEN 3 — Camp select ──────────────────────────────────────────────────
+function CampSelectScreen({ goTo, selectedCamp, setSelectedCamp }) {
+    const [q, setQ] = useState("");
+    const filtered = CAMPS.filter((c) => c.name.toLowerCase().includes(q.toLowerCase()));
+    return (
+        <Screen>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22, minHeight: 34 }}>
+                <IconButton onClick={() => goTo("feed-preview")} label="Back"><Chevron /></IconButton>
+                <Dots active={0} />
+            </div>
+
+            <Eyebrow>Step 1 of 3</Eyebrow>
+            <h2 style={{ fontFamily: JAK, fontWeight: 800, fontSize: 26, lineHeight: 1.1, letterSpacing: "-0.02em", color: P.ink, marginBottom: 9 }}>Where are you serving?</h2>
+            <p style={{ fontSize: 14.5, lineHeight: 1.5, color: P.muted, marginBottom: 18, fontFamily: DM }}>We&rsquo;ll put your camp&rsquo;s gist front and centre.</p>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 9, background: P.white, border: `1px solid ${P.hair}`, borderRadius: 13, padding: "12px 14px", marginBottom: 13, color: P.muted }}>
+                <Search />
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search your camp…" style={{ border: "none", outline: "none", background: "transparent", fontSize: 14, color: P.ink, width: "100%", fontFamily: DM }} />
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                {filtered.map((camp) => {
+                    const sel = selectedCamp === camp.name;
+                    return (
+                        <button key={camp.name} onClick={() => setSelectedCamp(camp.name)} style={{ width: "100%", textAlign: "left", background: sel ? "var(--cp)" : P.white, border: `1px solid ${sel ? "var(--cp)" : P.hair}`, borderRadius: 14, padding: "13px 15px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                                <span style={{ color: sel ? "#fff" : "var(--cp)", flexShrink: 0 }}><Pin /></span>
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={{ fontFamily: JAK, fontWeight: 700, fontSize: 14, color: sel ? "#fff" : P.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{camp.name}</div>
+                                    <div style={{ fontSize: 11.5, fontWeight: 600, color: sel ? "rgba(255,255,255,0.8)" : P.muted, marginTop: 1, fontFamily: DM }}>
+                                        {camp.count} corpers {camp.hot || sel ? "already here 🔥" : "here"}
+                                    </div>
+                                </div>
+                            </div>
+                            <span style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${sel ? "#fff" : "#D0C8C0"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                {sel && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} />}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+
+            <div style={{ flex: 1, minHeight: 18 }} />
+            <PrimaryCTA onClick={() => goTo("username")} disabled={!selectedCamp}>That&rsquo;s my camp <Arrow /></PrimaryCTA>
+        </Screen>
+    );
+}
+
+// ── SCREEN 4 — Alias ────────────────────────────────────────────────────────
+function UsernameScreen({ goTo, username, setUsername }) {
     const [suggestions, setSuggestions] = useState([]);
     const [loadingAliases, setLoadingAliases] = useState(true);
     const [claiming, setClaiming] = useState(false);
-    // Stable session ID for this onboarding session
     const sessionIdRef = useRef(Math.random().toString(36).slice(2, 10));
-    // Track which alias this session has pending in Firestore
     const pendingAliasRef = useRef(null);
-    // Snapshot of taken aliases fetched on mount (updated as we claim)
     const takenSetRef = useRef(new Set());
 
     useEffect(() => {
@@ -665,15 +320,13 @@ function UsernameScreen({ goTo, username, setUsername, anon, setAnon }) {
                 if (cancelled) return;
                 takenSetRef.current = taken;
                 const available = ALL_ALIASES.filter((a) => !taken.has(a));
-                setSuggestions(pickRandom(available, 7));
+                setSuggestions(pickRandom(available, 6));
             } catch {
-                // fallback: pick random from full list
-                setSuggestions(pickRandom(ALL_ALIASES, 7));
+                setSuggestions(pickRandom(ALL_ALIASES, 6));
             } finally {
                 if (!cancelled) setLoadingAliases(false);
             }
         })();
-        // Release pending alias when user navigates away from this screen
         return () => {
             cancelled = true;
             if (pendingAliasRef.current) {
@@ -687,377 +340,170 @@ function UsernameScreen({ goTo, username, setUsername, anon, setAnon }) {
         if (claiming || alias === username) return;
         setClaiming(true);
         try {
-            // Release the previous pending alias so it re-enters the pool
             if (pendingAliasRef.current && pendingAliasRef.current !== alias) {
                 await releaseAlias(pendingAliasRef.current);
                 takenSetRef.current.delete(pendingAliasRef.current);
             }
-            // Claim the new alias
             await claimAlias(alias, sessionIdRef.current);
             pendingAliasRef.current = alias;
             takenSetRef.current.add(alias);
             setUsername(alias);
 
-            // Replace the clicked chip with a fresh available alias
             const shownNow = suggestions;
-            const pool = ALL_ALIASES.filter(
-                (a) => !takenSetRef.current.has(a) && !shownNow.includes(a)
-            );
-            const replacement =
-                pool.length > 0
-                    ? pool[Math.floor(Math.random() * pool.length)]
-                    : null;
-            setSuggestions(
-                shownNow
-                    .map((s) => (s === alias ? replacement : s))
-                    .filter(Boolean)
-            );
+            const pool = ALL_ALIASES.filter((a) => !takenSetRef.current.has(a) && !shownNow.includes(a));
+            const replacement = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : null;
+            setSuggestions(shownNow.map((s) => (s === alias ? replacement : s)).filter(Boolean));
         } catch {
-            // Firestore unavailable — just set the name locally
             setUsername(alias);
         } finally {
             setClaiming(false);
         }
     }
 
+    function handleShuffle() {
+        if (claiming || suggestions.length === 0) return;
+        handleAliasClick(suggestions[Math.floor(Math.random() * suggestions.length)]);
+    }
+
     function handleLockIn() {
         if (!username.trim()) return;
-        // Store alias so the register page can finalize it after account creation
         localStorage.setItem("onboardingAlias", username.trim());
         localStorage.setItem("onboardingAliasSession", sessionIdRef.current);
-        // Prevent cleanup effect from releasing the alias we're keeping
         pendingAliasRef.current = null;
         goTo("first-vote");
     }
 
     return (
-        <div
-            className="flex flex-col min-h-full"
-            style={{ background: "#FDF6EF" }}
-        >
-            <div className="bg-cp px-4 sm:px-6 md:px-8 lg:px-12 pt-5 sm:pt-6 md:pt-8 pb-6 sm:pb-7 md:pb-10">
-                <div className="max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
-                    <div className="flex items-center justify-between mb-4 sm:mb-5">
-                        <button
-                            onClick={() => goTo("camp-select")}
-                            className="flex items-center gap-1 bg-white/20 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 text-white text-xs sm:text-sm font-semibold cursor-pointer hover:bg-white/30 transition-colors"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            <ChevronLeft /> Back
-                        </button>
-                        <StepDots active={1} total={3} />
-                        <span className="text-xs text-white/60">2 of 3</span>
-                    </div>
-                    <div className="text-2xl sm:text-3xl md:text-4xl mb-2">
-                        ✍️
-                    </div>
-                    <h2
-                        className="text-white font-extrabold text-xl sm:text-[22px] md:text-[26px] leading-snug mb-1.5"
-                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
-                    >
-                        What should the camp call you?
-                    </h2>
-                    <p
-                        className="text-white/80 text-sm sm:text-base leading-relaxed"
-                        style={{ fontFamily: "DM Sans, sans-serif" }}
-                    >
-                        Pick a camp alias or type your own. No judgment here.
-                    </p>
-                    <StepBar pct={66} />
-                </div>
+        <Screen>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22, minHeight: 34 }}>
+                <IconButton onClick={() => goTo("camp-select")} label="Back"><Chevron /></IconButton>
+                <Dots active={1} />
             </div>
 
-            <div className="flex-1 overflow-y-auto">
-                <ContentWrap className="flex flex-col gap-4">
-                    <InputField
-                        label="Your camp alias"
-                        type="text"
-                        placeholder="Type a custom name..."
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        id="usernameInput"
-                    />
+            <Eyebrow>Step 2 of 3</Eyebrow>
+            <h2 style={{ fontFamily: JAK, fontWeight: 800, fontSize: 26, lineHeight: 1.1, letterSpacing: "-0.02em", color: P.ink, marginBottom: 9 }}>Pick your alias.</h2>
+            <p style={{ fontSize: 14.5, lineHeight: 1.5, color: P.muted, marginBottom: 18, fontFamily: DM }}>This is how camp sees you. Your real name stays yours — nobody else gets it.</p>
 
-                    {/* Live alias chips from Firestore */}
-                    <div>
-                        <p
-                            className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            {loadingAliases
-                                ? "Finding available aliases…"
-                                : "Available camp aliases — tap to claim"}
-                        </p>
-                        {loadingAliases ? (
-                            <div className="flex flex-wrap gap-2">
-                                {Array.from({ length: 7 }).map((_, i) => (
-                                    <div
-                                        key={i}
-                                        className="h-8 w-24 rounded-full bg-gray-100 animate-pulse"
-                                    />
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="flex flex-wrap gap-2">
-                                {suggestions.map((name) => {
-                                    const isSelected = username === name;
-                                    return (
-                                        <button
-                                            key={name}
-                                            onClick={() =>
-                                                handleAliasClick(name)
-                                            }
-                                            disabled={claiming}
-                                            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer border-2 flex items-center gap-1.5 ${
-                                                isSelected
-                                                    ? "bg-cp text-white border-cp shadow-sm"
-                                                    : "bg-cp-tint text-cp border-transparent hover:border-cp"
-                                            } disabled:opacity-60`}
-                                            style={{
-                                                fontFamily:
-                                                    "DM Sans, sans-serif",
-                                            }}
-                                        >
-                                            {isSelected && (
-                                                <svg
-                                                    viewBox="0 0 16 16"
-                                                    fill="currentColor"
-                                                    className="w-3 h-3 shrink-0"
-                                                >
-                                                    <path d="M13.5 3.5 6 11 2.5 7.5l-1 1L6 13l8.5-8.5z" />
-                                                </svg>
-                                            )}
-                                            {name}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
-                        <p
-                            className="text-[10px] text-gray-300 mt-2"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            Each alias is unique — once claimed it&apos;s yours.
-                            You can change it later in profile settings.
-                        </p>
-                    </div>
-
-                    {/* Anon toggle */}
-                    <div className="flex items-center justify-between bg-white rounded-xl p-4 border-[1.5px] border-[#E8DDD4] gap-4 mb-4">
-                        <div className="min-w-0 flex-1">
-                            <div className="text-sm font-bold text-gray-900">
-                                Post anonymously 👀
-                            </div>
-                            <div className="text-xs text-gray-400 mt-0.5">
-                                Your secrets are safe. For real.
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => setAnon(!anon)}
-                            role="switch"
-                            aria-checked={anon}
-                            className={`relative shrink-0 w-10 h-6 rounded-full transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 ${
-                                anon ? "bg-cp" : "bg-[#E0D8D0]"
-                            }`}
-                            style={{ minWidth: "2.5rem" }}
-                        >
-                            <span
-                                className="block w-4.5 h-4.5 bg-white rounded-full absolute top-0.75 shadow-sm transition-transform duration-200"
-                                style={{
-                                    transform: anon
-                                        ? "translateX(19px)"
-                                        : "translateX(3px)",
-                                }}
-                            />
-                        </button>
-                    </div>
-
-                    <div className="bg-[#FFF8F4] rounded-xl p-3.5 border border-[#FDDCCA] flex gap-2.5 sm:gap-3 items-start">
-                        <div className="text-base sm:text-lg shrink-0 mt-0.5">
-                            🫣
-                        </div>
-                        <div className="text-xs text-cp leading-relaxed">
-                            Anonymous posts reach{" "}
-                            <strong>40% more people</strong> — camp is always
-                            more honest when nobody&apos;s watching.
-                        </div>
-                    </div>
-
-                    <div className="pt-2 pb-2">
-                        <PrimaryBtn
-                            onClick={handleLockIn}
-                            disabled={!username.trim() || claiming}
-                        >
-                            {claiming ? "Claiming alias…" : "Lock it in →"}
-                        </PrimaryBtn>
-                    </div>
-                </ContentWrap>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, background: P.white, border: "1.5px solid var(--cp)", borderRadius: 14, padding: "12px 14px", marginBottom: 12 }}>
+                <span style={{ fontFamily: JAK, fontWeight: 700, color: "var(--cp)", fontSize: 17 }}>@</span>
+                <input
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Type or tap a suggestion"
+                    aria-label="Your camp alias"
+                    style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontFamily: JAK, fontWeight: 700, fontSize: 17, color: P.ink, letterSpacing: "-0.01em", minWidth: 0 }}
+                />
+                <button onClick={handleShuffle} disabled={claiming} aria-label="Shuffle alias" style={{ width: 32, height: 32, borderRadius: 9, background: P.cpTint, color: "var(--cp-deeper)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                    <Shuffle />
+                </button>
             </div>
-        </div>
+
+            <p style={{ fontSize: 11, fontWeight: 700, color: P.muted, textTransform: "uppercase", letterSpacing: "0.08em", margin: "4px 0 9px", fontFamily: DM }}>
+                {loadingAliases ? "Finding available aliases…" : "Tap to claim"}
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 16 }}>
+                {loadingAliases
+                    ? Array.from({ length: 6 }).map((_, i) => (
+                          <div key={i} style={{ height: 30, width: 92, borderRadius: 999, background: "#F1E7DB" }} />
+                      ))
+                    : suggestions.map((name) => {
+                          const sel = username === name;
+                          return (
+                              <button key={name} onClick={() => handleAliasClick(name)} disabled={claiming} style={{ fontSize: 12.5, fontWeight: 600, color: sel ? "#fff" : P.muted, background: sel ? "var(--cp)" : P.white, border: `1px solid ${sel ? "var(--cp)" : P.hair}`, borderRadius: 999, padding: "6px 12px", cursor: "pointer", fontFamily: DM, opacity: claiming ? 0.6 : 1 }}>
+                                  {name}
+                              </button>
+                          );
+                      })}
+            </div>
+
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start", background: P.cpTint, border: "1px solid #FBD9BF", borderRadius: 14, padding: "13px 14px", marginBottom: 0 }}>
+                <span style={{ color: "var(--cp-deeper)", marginTop: 1, flexShrink: 0 }}><Lock s={16} /></span>
+                <span style={{ fontSize: 12.5, color: "#8A4B1E", lineHeight: 1.45, fontFamily: DM }}>
+                    Your posts show this alias only. Verified behind the scenes, anonymous on the surface.
+                </span>
+            </div>
+
+            <div style={{ flex: 1, minHeight: 18 }} />
+            <PrimaryCTA onClick={handleLockIn} disabled={!username.trim() || claiming}>
+                {claiming ? "Claiming alias…" : "Continue"} {!claiming && <Arrow />}
+            </PrimaryCTA>
+        </Screen>
     );
 }
 
-// ── SCREEN 5 — First Vote ──────────────────────────────────────────────────
-
-const VOTE_OPTIONS = [
-    "Yes — we need more time to bond 🤝",
-    "No — please God, release us 😭",
-    "Meh — camp is camp sha 🤷",
-];
-
+// ── SCREEN 5 — First vote ───────────────────────────────────────────────────
 function FirstVoteScreen({ goTo }) {
     const [picked, setPicked] = useState(null);
     const [showResult, setShowResult] = useState(false);
 
     const doVote = (idx) => {
         setPicked(idx);
-        setTimeout(() => setShowResult(true), 100);
+        setTimeout(() => setShowResult(true), 120);
     };
 
     return (
-        <div
-            className="flex flex-col min-h-full"
-            style={{ background: "#FDF6EF" }}
-        >
-            <div className="bg-cp px-4 sm:px-6 md:px-8 lg:px-12 pt-5 sm:pt-6 md:pt-8 pb-6 sm:pb-7 md:pb-10">
-                <div className="max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto w-full">
-                    <div className="flex items-center justify-between mb-4 sm:mb-5">
-                        <button
-                            onClick={() => goTo("username")}
-                            className="flex items-center gap-1 bg-white/20 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 text-white text-xs sm:text-sm font-semibold cursor-pointer hover:bg-white/30 transition-colors"
-                            style={{ fontFamily: "DM Sans, sans-serif" }}
-                        >
-                            <ChevronLeft /> Back
-                        </button>
-                        <StepDots active={2} total={3} />
-                        <span className="text-xs text-white/60">3 of 3</span>
+        <Screen>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22, minHeight: 34 }}>
+                <IconButton onClick={() => goTo("username")} label="Back"><Chevron /></IconButton>
+                <Dots active={2} />
+            </div>
+
+            <Eyebrow>Step 3 of 3</Eyebrow>
+            <h2 style={{ fontFamily: JAK, fontWeight: 800, fontSize: 26, lineHeight: 1.1, letterSpacing: "-0.02em", color: P.ink, marginBottom: 9 }}>Cast your first vote.</h2>
+            <p style={{ fontSize: 14.5, lineHeight: 1.5, color: P.muted, marginBottom: 18, fontFamily: DM }}>That&rsquo;s the whole app, basically. Tap one.</p>
+
+            <div style={{ ...cardStyle, marginBottom: 0 }}>
+                <span style={tagStyle(P.purple, P.purpleTint)}>Poll</span>
+                <div style={gistTextStyle}>Should NYSC extend camp by 2 more weeks?</div>
+
+                {!showResult ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {VOTE_OPTIONS.map((opt, i) => (
+                            <button key={i} onClick={() => doVote(i)} style={{ width: "100%", textAlign: "left", border: `1px solid ${picked === i ? "var(--cp)" : P.hair}`, borderRadius: 12, padding: "11px 13px", background: picked === i ? P.cpTint : P.white, fontWeight: 600, fontSize: 13.5, color: P.ink, cursor: "pointer", fontFamily: DM }}>
+                                {opt}
+                            </button>
+                        ))}
                     </div>
-                    <div className="text-[10px] text-white/65 font-bold uppercase tracking-wider mb-2">
-                        Before you go — settle this debate
+                ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                        {VOTE_RESULTS.map((r, i) => (
+                            <div key={i} style={{ position: "relative", border: `1px solid ${r.lead ? "var(--cp)" : P.hair}`, borderRadius: 12, padding: "11px 13px", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                <div style={{ position: "absolute", inset: 0, background: r.lead ? P.cpTint : "#F6EFE7", width: `${r.pct}%`, transition: "width .8s ease" }} />
+                                <span style={{ position: "relative", fontWeight: 600, fontSize: 13.5, color: P.ink, fontFamily: DM }}>{r.label}</span>
+                                <span style={{ position: "relative", fontFamily: JAK, fontWeight: 700, fontSize: 13, color: r.lead ? "var(--cp-deeper)" : P.muted }}>{r.pct}%</span>
+                            </div>
+                        ))}
+                        <div style={{ fontSize: 11.5, color: P.muted, marginTop: 2, fontFamily: DM }}>You voted · 248 corpers in</div>
                     </div>
-                    <h2
-                        className="text-white font-extrabold text-lg sm:text-xl md:text-[22px] leading-snug mb-2"
-                        style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}
-                    >
-                        Should NYSC extend camp by 2 more weeks?
-                    </h2>
-                    <div className="text-xs sm:text-sm text-white/60">
-                        248 corpers already voted · Your camp needs your take
+                )}
+            </div>
+
+            {showResult && (
+                <div style={{ display: "flex", gap: 11, alignItems: "flex-start", background: P.greenTint, border: `1px solid ${P.greenBorder}`, borderRadius: 14, padding: "13px 14px", marginTop: 16 }}>
+                    <span style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 9, background: P.green, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}><Shield /></span>
+                    <div>
+                        <div style={{ fontFamily: JAK, fontWeight: 700, fontSize: 13.5, color: P.greenInk, letterSpacing: "-0.01em" }}>Get your Verified Corper badge</div>
+                        <div style={{ fontSize: 12, lineHeight: 1.45, color: P.greenSub, marginTop: 2, fontFamily: DM }}>Confirm your NYSC state code after joining. It stays private — never shown, never sold — and makes your vote count in real results.</div>
                     </div>
-                    <StepBar pct={100} />
                 </div>
-            </div>
+            )}
 
-            <div className="flex-1 overflow-y-auto">
-                <ContentWrap className="flex flex-col gap-4">
-                    {!showResult ? (
-                        <>
-                            <div className="flex flex-col gap-2.5">
-                                {VOTE_OPTIONS.map((opt, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => doVote(i)}
-                                        className={`w-full text-left px-4 py-3.5 sm:py-4 rounded-xl border-[1.5px] bg-white text-sm sm:text-[15px] font-medium transition-all cursor-pointer ${
-                                            picked === i
-                                                ? "border-cp bg-cp-tint text-cp font-bold"
-                                                : "border-[#E8DDD4] hover:border-cp hover:bg-cp-tint text-gray-900"
-                                        }`}
-                                        style={{
-                                            fontFamily: "DM Sans, sans-serif",
-                                        }}
-                                    >
-                                        {opt}
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="text-center">
-                                <span className="text-xs sm:text-sm text-gray-300">
-                                    Tap any option to cast your vote
-                                </span>
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div className="bg-card rounded-2xl p-4 sm:p-5 md:p-6 border border-black/[0.07] shadow-sm">
-                                <div className="text-center pb-4">
-                                    <div
-                                        className="font-extrabold text-2xl sm:text-3xl text-cp"
-                                        style={{
-                                            fontFamily:
-                                                "Plus Jakarta Sans, sans-serif",
-                                        }}
-                                    >
-                                        +10 pts
-                                    </div>
-                                    <div className="text-xs sm:text-sm text-gray-400 mt-1.5">
-                                        You voted. The debate just got louder.
-                                        🔥
-                                    </div>
-                                </div>
-                                <div className="flex flex-col gap-3">
-                                    {[
-                                        {
-                                            label: "No — release us 😭",
-                                            pct: 61,
-                                            color: "var(--cp)",
-                                        },
-                                        {
-                                            label: "Yes — more time 🤝",
-                                            pct: 27,
-                                            color: "#aaa",
-                                        },
-                                        {
-                                            label: "Meh sha 🤷",
-                                            pct: 12,
-                                            color: "#ddd",
-                                        },
-                                    ].map((r, i) => (
-                                        <div key={i}>
-                                            <div className="flex justify-between text-xs sm:text-sm text-gray-500 mb-1 gap-2">
-                                                <span className="truncate">
-                                                    {r.label}
-                                                </span>
-                                                <span
-                                                    className={`shrink-0 ${i === 0 ? "font-bold text-cp" : ""}`}
-                                                >
-                                                    {r.pct}%
-                                                </span>
-                                            </div>
-                                            <div className="h-1.5 bg-[#F5EDE5] rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full rounded-full transition-all duration-1000"
-                                                    style={{
-                                                        width: `${r.pct}%`,
-                                                        background: r.color,
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="pb-2 mt-4">
-                                <Link
-                                    href="/login"
-                                    className="w-full flex items-center justify-center btn-primary active:scale-[0.98] text-white font-bold text-sm sm:text-[15px] py-3 sm:py-3.5 md:py-4 rounded-2xl transition-all cursor-pointer"
-                                    style={{
-                                        fontFamily: "DM Sans, sans-serif",
-                                    }}
-                                >
-                                    Continue to login →
-                                </Link>
-                            </div>
-                        </>
-                    )}
-                </ContentWrap>
-            </div>
-        </div>
+            <div style={{ flex: 1, minHeight: 18 }} />
+            {showResult ? (
+                <>
+                    <PrimaryCTA as="link" href="/register">Join Camp Connect <Arrow /></PrimaryCTA>
+                    <Link href="/login" style={{ display: "block", width: "100%", textAlign: "center", fontFamily: DM, fontWeight: 600, fontSize: 13.5, color: P.muted, padding: "13px 0 2px", textDecoration: "none" }}>
+                        Already a member? <span style={{ color: P.ink, borderBottom: "1.5px solid var(--cp)" }}>Sign in</span>
+                    </Link>
+                </>
+            ) : (
+                <div style={{ textAlign: "center", fontSize: 12.5, color: P.muted, fontFamily: DM, paddingBottom: 4 }}>Tap an option to cast your vote</div>
+            )}
+        </Screen>
     );
 }
 
-// ── Root ───────────────────────────────────────────────────────────────────
-
+// ── Root ────────────────────────────────────────────────────────────────────
 export default function OnboardingFlow() {
     const router = useRouter();
     const [screen, setScreen] = useState("splash");
@@ -1080,7 +526,6 @@ export default function OnboardingFlow() {
 
     const [selectedCamp, setSelectedCamp] = useState(null);
     const [username, setUsername] = useState("");
-    const [anon, setAnon] = useState(false);
 
     const goTo = (s) => {
         setScreen(s);
@@ -1088,25 +533,15 @@ export default function OnboardingFlow() {
     };
 
     return (
-        <div className="min-h-screen bg-[#111] flex justify-center">
-            <div className="w-full max-w-full min-h-screen bg-page relative overflow-x-hidden">
+        <div style={{ minHeight: "100vh", display: "flex", justifyContent: "center", background: "#E9E5E0" }}>
+            <div style={{ width: "100%", maxWidth: 520, minHeight: "100vh", background: P.paper, position: "relative", overflowX: "hidden" }}>
                 {screen === "splash" && <SplashScreen goTo={goTo} />}
                 {screen === "feed-preview" && <FeedPreviewScreen goTo={goTo} />}
                 {screen === "camp-select" && (
-                    <CampSelectScreen
-                        goTo={goTo}
-                        selectedCamp={selectedCamp}
-                        setSelectedCamp={setSelectedCamp}
-                    />
+                    <CampSelectScreen goTo={goTo} selectedCamp={selectedCamp} setSelectedCamp={setSelectedCamp} />
                 )}
                 {screen === "username" && (
-                    <UsernameScreen
-                        goTo={goTo}
-                        username={username}
-                        setUsername={setUsername}
-                        anon={anon}
-                        setAnon={setAnon}
-                    />
+                    <UsernameScreen goTo={goTo} username={username} setUsername={setUsername} />
                 )}
                 {screen === "first-vote" && <FirstVoteScreen goTo={goTo} />}
             </div>
